@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.4;
 
-import "../ERC/Erc2612.sol";
-import "../Interfaces/IZcToken.sol";
+import "./ERC/Erc2612.sol";
+import "./Interfaces/IZcToken.sol";
 
 /// NOTE the OZStlye naming conventions are kept for the internal methods
 /// _burn and _mint as dangling underscores are generally not allowed.
@@ -16,7 +16,7 @@ contract ZcToken is Erc2612, IZcToken {
   /// @param m Maturity
   /// @param n Name
   /// @param s Symbol
-  constructor(address u, uint256 m, string memory n, string memory s) Erc2612(n, s) {
+  constructor(address u, uint256 m, string memory n, string memory s, uint8 d) Erc2612(n, s, d) {
     admin = msg.sender;  
     underlying = u;
     maturity = m;
