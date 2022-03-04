@@ -222,21 +222,22 @@ contract Illuminate {
     }
 
     /// @notice Can be called before maturity to lend to yield while minting illuminate tokens
-    /// @param balancerPool the underlying token being redeemed
+    /// @param elementPool the underlying token being redeemed
     /// @param poolID the balancer poolID for the principal token
-    /// @param elementToken the token address of the element zero-coupon token
     /// @param amount the amount of underlying tokens to lend
     /// @param minimumBought the minimum amount of zero-coupon tokens to return accounting for slippage
     /// @param deadline the maximum timestamp at which the transaction can be executed
-    function elementLend(address underlying, uint256 maturity, address balancerPool, bytes32 poolID, address elementToken, uint128 amount, uint256 minimumBought, uint256 deadline) public returns (uint256) {
+    function elementLend(address underlying, uint256 maturity, address elementPool, bytes32 poolID, uint128 amount, uint256 minimumBought, uint256 deadline) public returns(uint256){
         
+        Market memory market = markets[underlying][maturity];
+
+        address element = market.element;
         IPErc20 underlyingToken = IPErc20(underlying);
-        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
-        ElementPool Pool = ElementPool(balancerPool);
         
         underlyingToken.transferFrom(msg.sender, address(this), amount);
-        underlyingToken.approve(balancerPool, 2**256 - 1);
+        underlyingToken.approve(elementPool, 2**256 - 1);
 
+        ElementPool Pool = ElementPool(elementPool);
         ElementPool.FundManagement memory _fundManagement = ElementPool.FundManagement({
             sender: address(this),
             fromInternalBalance: false,
@@ -248,15 +249,19 @@ contract Illuminate {
             poolId: poolID,
             kind: ElementPool.SwapKind(0),
             assetIn: IAsset(underlying),
-            assetOut: IAsset(elementToken),
+            assetOut: IAsset(element),
             amount: amount,
-            userData: "0x00000000000000000000000000000000000000000000000000000000000000"});
+            userData: "0x00000000000000000000000000000000000000000000000000000000000000"
+        });
 
-        uint256 zcReturned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
+        uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
 
-        illuminateToken.mint(msg.sender, zcReturned);
-        
-        return (zcReturned);
+        {
+        ZcToken illuminateToken = ZcToken(market.illuminate);
+        illuminateToken.mint(msg.sender, returned);
+        }
+
+        return (returned);
     }
 
     /// @notice Can be called after maturity and after tokens have been redeemed to illuminate to redeem underlying tokens 
