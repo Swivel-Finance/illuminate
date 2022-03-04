@@ -73,12 +73,12 @@ interface YieldPool is IPErc20, IErc2612 {
 }
 
 
-abstract contract SwivelMarketplace {
+interface SwivelMarketplace {
   function zcTokenAddress(address, uint256) virtual external returns (address);
   function redeemZcToken(address, uint256, uint256 ) virtual external returns (bool);
 }
 
-abstract contract SwivelRouter {
+interface SwivelRouter {
     function initiate(Hash.Order[] calldata o, uint256[] calldata a, Sig.Components[] calldata c) public virtual returns(bool);
     function redeemZcToken(address, uint256, uint256 ) virtual external returns (bool);
 }
