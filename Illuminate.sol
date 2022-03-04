@@ -72,15 +72,14 @@ interface YieldPool is IPErc20, IErc2612 {
     function buyFYTokenPreview(uint128 fyTokenOut) external view returns(uint128);
 }
 
-
 interface SwivelMarketplace {
-  function zcTokenAddress(address, uint256) virtual external returns (address);
-  function redeemZcToken(address, uint256, uint256 ) virtual external returns (bool);
+  function zcTokenAddress(address, uint256) external returns (address);
+  function redeemZcToken(address, uint256, uint256 ) external returns (bool);
 }
 
 interface SwivelRouter {
-    function initiate(Hash.Order[] calldata o, uint256[] calldata a, Sig.Components[] calldata c) public virtual returns(bool);
-    function redeemZcToken(address, uint256, uint256 ) virtual external returns (bool);
+    function initiate(Hash.Order[] calldata o, uint256[] calldata a, Sig.Components[] calldata c) external returns(bool);
+    function redeemZcToken(address, uint256, uint256 ) external returns (bool);
 }
 
 contract Illuminate {
