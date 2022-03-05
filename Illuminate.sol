@@ -58,7 +58,6 @@ interface ElementPool {
     function swap(SingleSwap calldata singleSwap, FundManagement calldata funds,uint256 limit,uint256 deadline) external returns (uint256 amountCalculated);
 }
 
-
 interface YieldPool is IPErc20, IErc2612 {
     function maturity() external view returns(uint32);
     function base() external view returns(IPErc20);
@@ -70,6 +69,7 @@ interface YieldPool is IPErc20, IErc2612 {
     function buyBasePreview(uint128 baseOut) external view returns(uint128);
     function sellFYTokenPreview(uint128 fyTokenIn) external view returns(uint128);
     function buyFYTokenPreview(uint128 fyTokenOut) external view returns(uint128);
+    function retrieveBase(address user) external returns(uint128);
 }
 
 interface SwivelMarketplace {
@@ -87,8 +87,8 @@ contract Illuminate {
     struct Market {
         address swivel;
         address yield;
-        address illuminate;
         address element;
+        address illuminate;
     }
     uint128 public fyDAIOUT;
     address public admin;
@@ -110,9 +110,9 @@ contract Illuminate {
     /// swivel the address of the swivel zcToken
     /// yield the address of the yield token
     /// decimals the number of decimals in the underlying token
-    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, uint8 decimals) public onlyAdmin(admin) returns (bool) {
+    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
         
-        address illuminate = address(new ZcToken(underlying, maturity, "illuminate", "ILL", decimals));
+        address illuminate = address(new ZcToken(underlying, maturity, name, symbol, decimals));
         
         markets[underlying][maturity] = Market(swivel, yield, element, illuminate);
         
@@ -197,11 +197,13 @@ contract Illuminate {
 
         uint128 _fyDAIOUT = Pool.sellBasePreview(amount);
 
-        uint128 returned = Pool.buyFYToken(address(this), _fyDAIOUT, amount);
+        u.transfer(yieldPool, amount);
 
-        illuminateToken.mint(msg.sender, returned);
+        Pool.sellBase(address(this), _fyDAIOUT);
+
+        illuminateToken.mint(msg.sender, _fyDAIOUT);
         
-        return (returned);
+        return (_fyDAIOUT);
     }
 
     /// @notice Can be called before maturity to wrap yield element PT's into illuminate tokens
@@ -255,10 +257,10 @@ contract Illuminate {
 
         uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
 
-        {
-        ZcToken illuminateToken = ZcToken(market.illuminate);
-        illuminateToken.mint(msg.sender, returned);
-        }
+        // {
+        // ZcToken illuminateToken = ZcToken(market.illuminate);
+        // illuminateToken.mint(msg.sender, returned);
+        // }
 
         return (returned);
     }
