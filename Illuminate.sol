@@ -88,7 +88,6 @@ contract Illuminate {
     event elementRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
-    event 
     constructor (address swivelAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
@@ -299,7 +298,7 @@ contract Illuminate {
     /// @param amount the amount of underlying tokens to redeem and illuminate tokens to burn
     function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
     
-        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
+        IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
         IPErc20 underlyingToken = IPErc20(underlying);
         
         require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
@@ -316,7 +315,7 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     function swivelRedeem(address underlying, uint256 maturity) public returns (bool) {
         
-        uint256 amount = zcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
+        uint256 amount = IZcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
         
         require(SwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
 
@@ -361,5 +360,4 @@ contract Illuminate {
         require(msg.sender == admin, 'sender must be admin');
         _;
   }
-    
 }
