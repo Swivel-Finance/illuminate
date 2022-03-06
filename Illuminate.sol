@@ -260,7 +260,7 @@ contract Illuminate {
         // Swap on the Balancer pool using the provided structs and params
         uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
 
-        // SScope instantiation and Mint Illuminate zero coupons
+        // Scope instantiation to avoid stack limit and mint Illuminate zero coupons
         {
         ZcToken illuminateToken = ZcToken(market.illuminate);
         illuminateToken.mint(msg.sender, returned);
