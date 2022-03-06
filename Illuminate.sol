@@ -1,80 +1,18 @@
-// SPDX-License-Identifier: UNLICENSED
-
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity >=0.8.4;
 
 import './ZcToken.sol';
-import './Utils/Hash.sol';
-import './Utils/Sig.sol';
 import "./Interfaces/IPErc20.sol";
 import "./Interfaces/IErc2612.sol";
 import "./Interfaces/ITempusAMM.sol";
 import "./Interfaces/ITempusPool.sol";
+import "./Interfaces/IElementToken.sol";
+import "./Interfaces/IPendleRouter.sol";
+import "./Interfaces/INotionalRouter.sol";
+import "./Interfaces/ITempusRouter.sol";
+import "./Interfaces/ISwivelRouter.sol";
+import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
-
-interface ElementToken is IPErc20 {
-    function withdrawPrincipal(uint256 _amount, address _destination) external returns (uint256);
-    function underlying() external view returns (IPErc20);
-    function unlockTimestamp() external view returns (uint256);
-}
-
-interface YieldToken is IPErc20, IErc2612 {
-    function maturity() external view returns(uint);
-    function redeem(address, address, uint256) external returns (uint256);
-}
-
-interface PendleRouter {
-    function swapExactIn(address _tokenIn, address _tokenOut, uint256 _inAmount, uint256 _minOutAmount, bytes32 _marketFactoryId) external returns (uint256);
-    function redeemAfterExpiry(bytes32 _forgeId, address _underlyingAsset, uint256 _expiry) external returns (uint256);
-}
-
-interface NotionalRouter {
-    function takefCash(uint32 maturity, uint128 fCashAmount, uint32 maxTime, uint128 minImpliedRate) external returns (uint128);
-}
-
-interface TempusRouter {
-    function depositAndFix(ITempusAMM tempusAMM, ITempusPool tempusPool, uint256 tokenAmount, bool isBackingToken, uint256 minTYSRate, uint256 deadline) external returns (uint256);
-    function redeemToBacking(ITempusPool tempusPool,uint256 principalAmount, uint256 yieldAmount, address recipient) external;
-}
-
-interface IAsset {
-}
-
-interface ElementPool {
-    struct SingleSwap {
-        bytes32 poolId;
-        SwapKind kind;
-        IAsset assetIn;
-        IAsset assetOut;
-        uint256 amount;
-        bytes userData;
-    }
-    struct FundManagement {
-        address sender;
-        bool fromInternalBalance;
-        address payable recipient;
-        bool toInternalBalance;
-    }
-    enum SwapKind { GIVEN_IN, GIVEN_OUT }
-    function swap(SingleSwap calldata singleSwap, FundManagement calldata funds,uint256 limit,uint256 deadline) external returns (uint256 amountCalculated);
-}
-
-interface YieldPool is IPErc20, IErc2612 {
-    function maturity() external view returns(uint32);
-    function base() external view returns(IPErc20);
-    function sellBase(address to, uint128 min) external returns(uint128);
-    function sellBasePreview(uint128 baseIn) external view returns(uint128);
-    function retrieveBase(address user) external returns(uint128);
-}
-
-interface SwivelMarketplace {
-  function zcTokenAddress(address, uint256) external returns (address);
-  function redeemZcToken(address, uint256, uint256 ) external returns (bool);
-}
-
-interface SwivelRouter {
-    function initiate(Hash.Order[] calldata o, uint256[] calldata a, Sig.Components[] calldata c) external returns(bool);
-    function redeemZcToken(address, uint256, uint256 ) external returns (bool);
-}
 
 contract Illuminate {
 
@@ -180,7 +118,7 @@ contract Illuminate {
         underlyingToken.approve(swivelRouter, totalLent);
 
         // Fill orders on Swivel 
-        SwivelRouter(swivelRouter).initiate(orders, amounts, signatures); 
+        ISwivelRouter(swivelRouter).initiate(orders, amounts, signatures); 
 
         // Lend the remaining amount to Yield
         uint256 yieldAmount = yieldLend(underlying, maturity, yieldPool, CastU256U128.u128(totalReturned));
@@ -219,7 +157,7 @@ contract Illuminate {
         // Instantiate market and tokens
         IPErc20 u = IPErc20(underlying);
         ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
-        YieldPool Pool = YieldPool(yieldPool);
+        IYieldPool Pool = IYieldPool(yieldPool);
 
         // Require the Yield pool provided matches the underlying and maturity market provided      
         require(Pool.maturity() == maturity, 'Wrong Yield pool address: maturity');
@@ -254,7 +192,7 @@ contract Illuminate {
 
         Market memory market = markets[underlying][maturity];
 
-        ElementToken(market.element).transferFrom(msg.sender, address(this), amount);
+        IElementToken(market.element).transferFrom(msg.sender, address(this), amount);
 
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
@@ -274,7 +212,7 @@ contract Illuminate {
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
         IPErc20 underlyingToken = IPErc20(underlying);
-        ElementToken elementToken = ElementToken(market.element);
+        IElementToken elementToken = IElementToken(market.element);
 
         // Require the Element pool provided matches the underlying and maturity market provided
         require(elementToken.unlockTimestamp() == maturity, 'Wrong Element pool address: maturity');
@@ -285,16 +223,16 @@ contract Illuminate {
         underlyingToken.approve(elementPool, 2**256 - 1);
 
         // Populate Balancer structs for a "SingleSwap"
-        ElementPool Pool = ElementPool(elementPool);
-        ElementPool.FundManagement memory _fundManagement = ElementPool.FundManagement({
+        IElementPool Pool = IElementPool(elementPool);
+        IElementPool.FundManagement memory _fundManagement = IElementPool.FundManagement({
             sender: address(this),
             fromInternalBalance: false,
             recipient: payable(address(this)),
             toInternalBalance: false
         });
-        ElementPool.SingleSwap memory _singleSwap = ElementPool.SingleSwap({
+        IElementPool.SingleSwap memory _singleSwap = IElementPool.SingleSwap({
             poolId: poolID,
-            kind: ElementPool.SwapKind(0),
+            kind: IElementPool.SwapKind(0),
             assetIn: IAsset(underlying),
             assetOut: IAsset(market.element),
             amount: amount,
@@ -343,7 +281,7 @@ contract Illuminate {
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
         IPErc20 u = IPErc20(underlying);
-        PendleRouter Router = PendleRouter(pendleRouter);
+        IPendleRouter Router = IPendleRouter(pendleRouter);
         ZcToken illuminateToken = ZcToken(market.illuminate);
 
         // Transfer funds from user to Illuminate       
@@ -369,7 +307,7 @@ contract Illuminate {
 
         // Instantiate market and tokens
         IPErc20 u = IPErc20(underlying);
-        YieldPool Pool = YieldPool(illuminatePool);
+        IYieldPool Pool = IYieldPool(illuminatePool);
  
         // Require the Yield pool provided matches the underlying and maturity market provided      
         require(Pool.maturity() == maturity, 'Wrong Illuminate pool address: maturity');
@@ -418,7 +356,7 @@ contract Illuminate {
 
         uint256 amount = IZcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
 
-        require(SwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
+        require(ISwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
 
         emit swivelRedeemed(underlying, maturity, amount);
 
@@ -430,7 +368,7 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed    
     function yieldRedeem(address underlying, uint256 maturity) public returns (bool) {
 
-        YieldToken yieldToken = YieldToken(markets[underlying][maturity].illuminate);
+        IYieldToken yieldToken = IYieldToken(markets[underlying][maturity].illuminate);
 
         uint256 amount = yieldToken.balanceOf(address(this));
 
@@ -446,7 +384,7 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed    
     function elementRedeem(address underlying, uint256 maturity) public returns (bool) {
 
-        ElementToken elementToken = ElementToken(markets[underlying][maturity].element);
+        IElementToken elementToken = IElementToken(markets[underlying][maturity].element);
 
         uint256 amount = elementToken.balanceOf(address(this));
 
@@ -464,7 +402,7 @@ contract Illuminate {
     function pendleRedeem(address underlying, uint256 maturity, bytes32 forgeId) public returns (bool) {
 
         PErc20 pendleToken = PErc20(markets[underlying][maturity].pendle);
-        PendleRouter Router = PendleRouter(pendleRouter);
+        IPendleRouter Router = IPendleRouter(pendleRouter);
 
         uint256 amount = pendleToken.balanceOf(address(this));
 
