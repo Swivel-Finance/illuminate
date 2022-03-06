@@ -73,10 +73,22 @@ contract Illuminate {
     address public admin;
     address public immutable swivelRouter;
     
+    // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
     
     event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address indexed illuminate);
-    
+    event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event swivelRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event yieldLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event yieldMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event yieldRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event elementLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event elementMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event elementRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+
+    event 
     constructor (address swivelAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
@@ -111,6 +123,8 @@ contract Illuminate {
         IPErc20(market.swivel).transferFrom(msg.sender, address(this), amount);
         
         ZcToken(market.illuminate).mint(msg.sender,amount);
+
+        emit swivelMinted(underlying, maturity, amount);
         
         return (true);
     }
@@ -152,6 +166,8 @@ contract Illuminate {
         // Mint Illuminate zero coupons
         illuminateToken.mint(msg.sender, (totalLent+yieldAmount));
         
+        emit swivelLent(underlying, maturity, totalLent+yieldAmount);
+
         return (totalLent+yieldAmount);
     }
 
@@ -166,6 +182,8 @@ contract Illuminate {
         IPErc20(market.yield).transferFrom(msg.sender, address(this), amount);
         
         ZcToken(market.illuminate).mint(msg.sender,amount);
+
+        emit yieldMinted(underlying, maturity, amount);
         
         return (true);
     }
@@ -200,6 +218,8 @@ contract Illuminate {
 
         // Mint Illuminate zero coupons
         illuminateToken.mint(msg.sender, returned);
+
+        emit yieldLent(underlying, maturity, returned);
         
         return (returned);
     }
@@ -215,6 +235,8 @@ contract Illuminate {
         ElementToken(market.element).transferFrom(msg.sender, address(this), amount);
         
         ZcToken(market.illuminate).mint(msg.sender,amount);
+
+        emit elementMinted(underlying, maturity, amount);
         
         return (true);
     }
@@ -266,6 +288,8 @@ contract Illuminate {
         illuminateToken.mint(msg.sender, returned);
         }
 
+        emit elementLent(underlying, maturity, returned);
+
         return (returned);
     }
 
@@ -281,6 +305,8 @@ contract Illuminate {
         require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
         
         underlyingToken.transfer(msg.sender, amount);
+
+        emit redeemed(underlying, maturity, amount);
         
         return (true);
     }
@@ -293,6 +319,8 @@ contract Illuminate {
         uint256 amount = zcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
         
         require(SwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
+
+        emit swivelRedeemed(underlying, maturity, amount);
         
         return (true);
     }
@@ -307,6 +335,8 @@ contract Illuminate {
         uint256 amount = yieldToken.balanceOf(address(this));
 
         require(yieldToken.redeem(address(this), address(this), amount) >= amount, "Yield redemption failed");
+
+        emit yieldRedeemed(underlying, maturity, amount);
         
         return (true);
     }
@@ -321,6 +351,8 @@ contract Illuminate {
         uint256 amount = elementToken.balanceOf(address(this));
 
         require(elementToken.withdrawPrincipal(amount, address(this)) >= amount, "Element redemption failed");
+
+        emit elementRedeemed(underlying, maturity, amount);
         
         return (true);
     } 
