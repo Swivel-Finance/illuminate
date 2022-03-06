@@ -4,13 +4,14 @@ pragma solidity >=0.8.4;
 import './ZcToken.sol';
 import "./Interfaces/IPErc20.sol";
 import "./Interfaces/IErc2612.sol";
-import "./Interfaces/ITempusAMM.sol";
-import "./Interfaces/ITempusPool.sol";
 import "./Interfaces/IElementToken.sol";
+import "./Interfaces/IYieldToken.sol";
 import "./Interfaces/IPendleRouter.sol";
 import "./Interfaces/INotionalRouter.sol";
 import "./Interfaces/ITempusRouter.sol";
 import "./Interfaces/ISwivelRouter.sol";
+import "./Interfaces/IYieldPool.sol";
+import "./Interfaces/IElementPool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 
@@ -27,6 +28,7 @@ contract Illuminate {
     address public admin;
     address public immutable swivelRouter;
     address public immutable pendleRouter;
+    address public immutable tempusRouter;
 
     // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
@@ -47,10 +49,15 @@ contract Illuminate {
     event illuminateLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
-    constructor (address swivelAddress, address pendleAddress) {
+
+    // @param swivelAddress
+    // @param pendleAddress
+    // @param tempusAddress
+    constructor (address swivelAddress, address pendleAddress, address tempusAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
         pendleRouter = pendleAddress;
+        tempusRouter = tempusAddress;
     }
 
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, and Illuminate zero-coupon tokens (zcTokens, yTokens, pTokens, ITokens)
@@ -63,7 +70,7 @@ contract Illuminate {
     /// @param name name of the Illuminate IToken
     /// @param symbol symbol of the Illuminate IToken
     /// @param decimals the number of decimals in the underlying token
-    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
+    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, address tempus, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
 
         markets[underlying][maturity] = Market(swivel, yield, element, pendle, address(new ZcToken(underlying, maturity, name, symbol, decimals)));
 
