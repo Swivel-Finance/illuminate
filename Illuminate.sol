@@ -351,7 +351,7 @@ contract Illuminate {
         u.approve(pendleRouter, 2**256 - 1);
 
         // Swap on the Pendle Router using the provided market and params
-        uint128 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
+        uint256 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
 
         // Mint Illuminate zero coupons
         illuminateToken.mint(msg.sender, returned);
