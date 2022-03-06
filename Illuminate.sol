@@ -30,9 +30,15 @@ interface PendleForge {
     function redeemAfterExpiry(address user, address underlyingAsset, uint256 expiry) external returns (uint256);
 }
 
-interface NotionalPool {
+interface NotionalRouter {
     function takefCash(uint32 maturity, uint128 fCashAmount, uint32 maxTime, uint128 minImpliedRate) external returns (uint128);
 }
+
+interface TempusRouter {
+    function depositAndFix(ITempusAMM tempusAMM, ITempusPool tempusPool, uint256 tokenAmount, bool isBackingToken, uint256 minTYSRate, uint256 deadline) external returns (uint256);
+    function redeemToBacking(ITempusPool tempusPool,uint256 principalAmount, uint256 yieldAmount, address recipient) external;
+}
+
 interface IAsset {
 }
 
