@@ -7,6 +7,8 @@ import './Utils/Hash.sol';
 import './Utils/Sig.sol';
 import "./Interfaces/IPErc20.sol";
 import "./Interfaces/IErc2612.sol";
+import "./Interfaces/ITempusAMM.sol";
+import "./Interfaces/ITempusPool.sol";
 import "./Utils/CastU256U128.sol";
 
 interface ElementToken is IPErc20 {
