@@ -123,12 +123,10 @@ contract Illuminate {
     /// @param symbol symbol of the Illuminate IToken
     /// @param decimals the number of decimals in the underlying token
     function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
-        
-        address illuminate = address(new ZcToken(underlying, maturity, name, symbol, decimals));
-        
-        markets[underlying][maturity] = Market(swivel, yield, element, pendle, illuminate);
-        
-        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, illuminate);
+
+        markets[underlying][maturity] = Market(swivel, yield, element, pendle, address(new ZcToken(underlying, maturity, name, symbol, decimals)));
+    
+        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, markets[underlying][maturity].illuminate);
         
         return (true);
     }
