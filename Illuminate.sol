@@ -86,10 +86,10 @@ contract Illuminate {
     address public admin;
     address public immutable swivelRouter;
     address public immutable pendleRouter;
-    
+
     // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
-    
+
     event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address indexed illuminate);
     event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
@@ -111,7 +111,7 @@ contract Illuminate {
         swivelRouter = swivelAddress;
         pendleRouter = pendleAddress;
     }
-    
+
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, and Illuminate zero-coupon tokens (zcTokens, yTokens, pTokens, ITokens)
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
@@ -125,9 +125,9 @@ contract Illuminate {
     function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
 
         markets[underlying][maturity] = Market(swivel, yield, element, pendle, address(new ZcToken(underlying, maturity, name, symbol, decimals)));
-    
+
         emit marketCreated(underlying, maturity, swivel, yield, element, pendle, markets[underlying][maturity].illuminate);
-        
+
         return (true);
     }
 
@@ -140,11 +140,11 @@ contract Illuminate {
         Market memory market = markets[underlying][maturity];
 
         IPErc20(market.swivel).transferFrom(msg.sender, address(this), amount);
-        
+
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
         emit swivelMinted(underlying, maturity, amount);
-        
+
         return (true);
     }
 
@@ -178,13 +178,13 @@ contract Illuminate {
 
         // Fill orders on Swivel 
         SwivelRouter(swivelRouter).initiate(orders, amounts, signatures); 
-        
+
         // Lend the remaining amount to Yield
         uint256 yieldAmount = yieldLend(underlying, maturity, yieldPool, CastU256U128.u128(totalReturned));
 
         // Mint Illuminate zero coupons
         illuminateToken.mint(msg.sender, (totalLent+yieldAmount));
-        
+
         emit swivelLent(underlying, maturity, totalLent+yieldAmount);
 
         return (totalLent+yieldAmount);
@@ -199,11 +199,11 @@ contract Illuminate {
         Market memory market = markets[underlying][maturity];
 
         IPErc20(market.yield).transferFrom(msg.sender, address(this), amount);
-        
+
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
         emit yieldMinted(underlying, maturity, amount);
-        
+
         return (true);
     }
 
@@ -239,7 +239,7 @@ contract Illuminate {
         illuminateToken.mint(msg.sender, returned);
 
         emit yieldLent(underlying, maturity, returned);
-        
+
         return (returned);
     }
 
@@ -250,13 +250,13 @@ contract Illuminate {
     function elementMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
 
         Market memory market = markets[underlying][maturity];
-        
+
         ElementToken(market.element).transferFrom(msg.sender, address(this), amount);
-        
+
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
         emit elementMinted(underlying, maturity, amount);
-        
+
         return (true);
     }
 
@@ -267,7 +267,7 @@ contract Illuminate {
     /// @param minimumBought the minimum amount of zero-coupon tokens to return accounting for slippage
     /// @param deadline the maximum timestamp at which the transaction can be executed
     function elementLend(address underlying, uint256 maturity, address elementPool, bytes32 poolID, uint128 amount, uint256 minimumBought, uint256 deadline) public returns(uint256){
-        
+
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
         IPErc20 underlyingToken = IPErc20(underlying);
@@ -276,7 +276,7 @@ contract Illuminate {
         // Require the Element pool provided matches the underlying and maturity market provided
         require(elementToken.unlockTimestamp() == maturity, 'Wrong Element pool address: maturity');
         require(address(elementToken.underlying()) == underlying, 'Wrong Element pool address: underlying');
-        
+
         // Transfer funds from user to Illuminate
         underlyingToken.transferFrom(msg.sender, address(this), amount);
         underlyingToken.approve(elementPool, 2**256 - 1);
@@ -312,7 +312,6 @@ contract Illuminate {
         return (returned);
     }
 
-
     /// @notice Can be called before maturity to wrap Pendle Ownership Tokens into Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
@@ -322,11 +321,11 @@ contract Illuminate {
         Market memory market = markets[underlying][maturity];
 
         IPErc20(market.pendle).transferFrom(msg.sender, address(this), amount);
-        
+
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
         emit pendleMinted(underlying, maturity, amount);
-        
+
         return (true);
     }
 
@@ -355,7 +354,7 @@ contract Illuminate {
         illuminateToken.mint(msg.sender, returned);
 
         emit pendleLent(underlying, maturity, returned);
-        
+
         return (returned);
     }
 
@@ -387,7 +386,7 @@ contract Illuminate {
         Pool.sellBase(msg.sender, returned);
 
         emit illuminateLent(underlying, maturity, returned);
-        
+
         return (returned);
     }
 
@@ -396,16 +395,16 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to redeem and Illuminate tokens to burn
     function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
-    
+
         IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
         IPErc20 underlyingToken = IPErc20(underlying);
-        
+
         require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
-        
+
         underlyingToken.transfer(msg.sender, amount);
 
         emit redeemed(underlying, maturity, amount);
-        
+
         return (true);
     }
     
@@ -413,16 +412,16 @@ contract Illuminate {
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     function swivelRedeem(address underlying, uint256 maturity) public returns (bool) {
-        
+
         uint256 amount = IZcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
-        
+
         require(SwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
 
         emit swivelRedeemed(underlying, maturity, amount);
-        
+
         return (true);
     }
-    
+
     /// @notice called at maturity to redeem all Yield yTokens to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed    
@@ -435,7 +434,7 @@ contract Illuminate {
         require(yieldToken.redeem(address(this), address(this), amount) >= amount, "Yield redemption failed");
 
         emit yieldRedeemed(underlying, maturity, amount);
-        
+
         return (true);
     }
 
@@ -451,7 +450,7 @@ contract Illuminate {
         require(elementToken.withdrawPrincipal(amount, address(this)) >= amount, "Element redemption failed");
 
         emit elementRedeemed(underlying, maturity, amount);
-        
+
         return (true);
     } 
 
@@ -469,7 +468,7 @@ contract Illuminate {
         require(Router.redeemAfterExpiry(forgeId, underlying, maturity) >= amount, "Pendle redemption failed");
 
         emit pendleRedeemed(underlying, maturity, amount);
-        
+
         return (true);
     }
 
