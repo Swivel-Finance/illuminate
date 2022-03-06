@@ -21,6 +21,18 @@ interface YieldToken is IPErc20, IErc2612 {
     function redeem(address, address, uint256) external returns (uint256);
 }
 
+interface PendleRouter {
+    function swapExactIn(address _tokenIn, address _tokenOut, uint256 _inAmount, uint256 _minOutAmount, bytes32 _marketFactoryId) external returns (uint256);
+    function redeemAfterExpiry(bytes32 _forgeId, address _underlyingAsset, uint256 _expiry) external returns (uint256);
+}
+
+interface PendleForge {
+    function redeemAfterExpiry(address user, address underlyingAsset, uint256 expiry) external returns (uint256);
+}
+
+interface NotionalPool {
+    function takefCash(uint32 maturity, uint128 fCashAmount, uint32 maxTime, uint128 minImpliedRate) external returns (uint128);
+}
 interface IAsset {
 }
 
@@ -67,16 +79,18 @@ contract Illuminate {
         address swivel;
         address yield;
         address element;
+        address pendle;
         address illuminate;
     }
 
     address public admin;
     address public immutable swivelRouter;
+    address public immutable pendleRouter;
     
     // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
     
-    event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address indexed illuminate);
+    event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address indexed illuminate);
     event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
@@ -86,12 +100,16 @@ contract Illuminate {
     event elementLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event pendleLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event pendleMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event pendleRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event illuminateLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
-    constructor (address swivelAddress) {
+    constructor (address swivelAddress, address pendleAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
+        pendleRouter = pendleAddress;
     }
     
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, and Illuminate zero-coupon tokens (zcTokens, yTokens, pTokens, ITokens)
@@ -100,16 +118,17 @@ contract Illuminate {
     /// @param swivel the address of the Swivel zcToken
     /// @param yield the address of the Yield yToken
     /// @param element the address of the Element Principal Token
+    /// @param pendle the address of the Pendle Ownership Token
     /// @param name name of the Illuminate IToken
     /// @param symbol symbol of the Illuminate IToken
     /// @param decimals the number of decimals in the underlying token
-    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
+    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
         
         address illuminate = address(new ZcToken(underlying, maturity, name, symbol, decimals));
         
-        markets[underlying][maturity] = Market(swivel, yield, element, illuminate);
+        markets[underlying][maturity] = Market(swivel, yield, element, pendle, illuminate);
         
-        emit marketCreated(underlying, maturity, swivel, yield, element, illuminate);
+        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, illuminate);
         
         return (true);
     }
@@ -295,6 +314,53 @@ contract Illuminate {
         return (returned);
     }
 
+
+    /// @notice Can be called before maturity to wrap Pendle Ownership Tokens into Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend   
+    function pendleMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+
+        Market memory market = markets[underlying][maturity];
+
+        IPErc20(market.pendle).transferFrom(msg.sender, address(this), amount);
+        
+        ZcToken(market.illuminate).mint(msg.sender,amount);
+
+        emit pendleMinted(underlying, maturity, amount);
+        
+        return (true);
+    }
+
+    /// @notice Can be called before maturity to lend to Pendle while minting Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend
+    /// @param minimumAmount the minimum amount of zero-coupon tokens to return accounting for slippage
+    /// @param pendleId the maximum timestamp at which the transaction can be executed
+    function PendleLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumAmount, bytes32 pendleId) public returns (uint256) {
+
+        // Instantiate market and tokens
+        Market memory market = markets[underlying][maturity];
+        IPErc20 u = IPErc20(underlying);
+        PendleRouter Router = PendleRouter(pendleRouter);
+        ZcToken illuminateToken = ZcToken(market.illuminate);
+
+        // Transfer funds from user to Illuminate       
+        u.transferFrom(msg.sender, address(this), amount);
+        u.approve(pendleRouter, 2**256 - 1);
+
+        // Preview exact swap slippage on YieldSpace pool
+        uint128 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
+
+        // Mint Illuminate zero coupons
+        illuminateToken.mint(msg.sender, returned);
+
+        emit pendleLent(underlying, maturity, returned);
+        
+        return (returned);
+    }
+
     /// @notice Can be called before maturity to lend to the Illuminate AMM directly without needing approvals to it
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
@@ -345,7 +411,7 @@ contract Illuminate {
         return (true);
     }
     
-    /// @notice called at maturity to redeem all Swivel zcTokenAddress to Illuminate
+    /// @notice called at maturity to redeem all Swivel zcTokens to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     function swivelRedeem(address underlying, uint256 maturity) public returns (bool) {
@@ -359,7 +425,7 @@ contract Illuminate {
         return (true);
     }
     
-    /// @notice called at maturity to redeem all yield yTokens to illuminate
+    /// @notice called at maturity to redeem all Yield yTokens to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed    
     function yieldRedeem(address underlying, uint256 maturity) public returns (bool) {
@@ -375,7 +441,7 @@ contract Illuminate {
         return (true);
     }
 
-    /// @notice called at maturity to redeem all element PT's to illuminate
+    /// @notice called at maturity to redeem all Element PT's to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed    
     function elementRedeem(address underlying, uint256 maturity) public returns (bool) {
@@ -390,6 +456,24 @@ contract Illuminate {
         
         return (true);
     } 
+
+    /// @notice called at maturity to redeem all Pendle PT's to Illuminate
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param forgeId the Pendle forge ID for the given underyling and maturity market pair
+    function pendleRedeem(address underlying, uint256 maturity, bytes32 forgeId) public returns (bool) {
+
+        PErc20 pendleToken = PErc20(markets[underlying][maturity].pendle);
+        PendleRouter Router = PendleRouter(pendleRouter);
+
+        uint256 amount = pendleToken.balanceOf(address(this));
+
+        require(Router.redeemAfterExpiry(forgeId, underlying, maturity) >= amount, "Pendle redemption failed");
+
+        emit pendleRedeemed(underlying, maturity, amount);
+        
+        return (true);
+    }
 
     modifier onlyAdmin(address a) {
         require(msg.sender == admin, 'sender must be admin');
