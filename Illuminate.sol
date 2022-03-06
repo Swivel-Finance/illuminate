@@ -7,33 +7,20 @@ import './Utils/Hash.sol';
 import './Utils/Sig.sol';
 import "./Interfaces/IPErc20.sol";
 import "./Interfaces/IErc2612.sol";
-
+import "./Utils/CastU256U128.sol";
 
 interface ElementToken is IPErc20 {
-
-    function withdrawPrincipal(uint256 _amount, address _destination)
-        external
-        returns (uint256);
-
+    function withdrawPrincipal(uint256 _amount, address _destination) external returns (uint256);
     function underlying() external view returns (IPErc20);
-
     function unlockTimestamp() external view returns (uint256);
 }
 
 interface YieldToken is IPErc20, IErc2612 {
     function isMature() external view returns(bool);
     function maturity() external view returns(uint);
-    function chi0() external view returns(uint);
-    function rate0() external view returns(uint);
-    function chiGrowth() external view returns(uint);
-    function rateGrowth() external view returns(uint);
-    function mature() external;
-    function unlocked() external view returns (uint);
-    function mint(address, uint) external;
-    function burn(address, uint) external;
-    function flashMint(uint, bytes calldata) external;
     function redeem(address, address, uint256) external returns (uint256);
 }
+
 interface IAsset {
 }
 
@@ -52,9 +39,7 @@ interface ElementPool {
         address payable recipient;
         bool toInternalBalance;
     }
-
     enum SwapKind { GIVEN_IN, GIVEN_OUT }
-
     function swap(SingleSwap calldata singleSwap, FundManagement calldata funds,uint256 limit,uint256 deadline) external returns (uint256 amountCalculated);
 }
 
@@ -62,13 +47,7 @@ interface YieldPool is IPErc20, IErc2612 {
     function maturity() external view returns(uint32);
     function base() external view returns(IPErc20);
     function sellBase(address to, uint128 min) external returns(uint128);
-    function buyBase(address to, uint128 baseOut, uint128 max) external returns(uint128);
-    function sellFYToken(address to, uint128 min) external returns(uint128);
-    function buyFYToken(address to, uint128 fyTokenOut, uint128 max) external returns(uint128);
     function sellBasePreview(uint128 baseIn) external view returns(uint128);
-    function buyBasePreview(uint128 baseOut) external view returns(uint128);
-    function sellFYTokenPreview(uint128 fyTokenIn) external view returns(uint128);
-    function buyFYTokenPreview(uint128 fyTokenOut) external view returns(uint128);
     function retrieveBase(address user) external returns(uint128);
 }
 
@@ -90,7 +69,7 @@ contract Illuminate {
         address element;
         address illuminate;
     }
-    uint128 public fyDAIOUT;
+
     address public admin;
     address public immutable swivelRouter;
     
@@ -126,12 +105,12 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend   
     function swivelMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+
+        Market memory market = markets[underlying][maturity];
+
+        IPErc20(market.swivel).transferFrom(msg.sender, address(this), amount);
         
-        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
-        
-        IPErc20(markets[underlying][maturity].swivel).transferFrom(msg.sender, address(this), amount);
-        
-        illuminateToken.mint(msg.sender,amount);
+        ZcToken(market.illuminate).mint(msg.sender,amount);
         
         return (true);
     }
@@ -141,26 +120,36 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param orders the swivel orders being filled
     /// @param amounts the amount of underlying tokens lent to each order
-    function swivelLend(address underlying, uint256 maturity, address yieldRouter, Hash.Order[] calldata orders, uint256[] calldata amounts, Sig.Components[] calldata signatures) public returns (uint256) {
+    function swivelLend(address underlying, uint256 maturity, address yieldPool, Hash.Order[] calldata orders, uint256[] calldata amounts, Sig.Components[] calldata signatures) public returns (uint256) {
 
+        // Instantiate market and tokens       
         ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
         IPErc20 underlyingToken = IPErc20(underlying);
         uint256 totalLent;
         uint256 totalReturned;
+
         for (uint256 i=0; i < orders.length; i++) {
             Hash.Order memory order = orders[i];
-            uint256 amount = amounts[i];
-            totalLent += amount;
-            totalReturned += amount * order.premium / order.principal;
+            // Require the Swivel order provided matches the underlying and maturity market provided    
+            require(order.maturity == maturity, 'wrong Swivel order maturity');
+            require(order.underlying == underlying, 'wrong Swivel order underlying');
+            // Sum the total amount lent to Swivel (amount of zcb to mint)
+            totalLent += amounts[i];
+            // Sum the total amount of premium paid from Swivel (amount of underlying to lend to yield)
+            totalReturned += amounts[i] * order.premium / order.principal;
         }
-        
+
+        // Transfer funds from user to Illuminate         
         underlyingToken.transferFrom(msg.sender, address(this), totalLent);
         underlyingToken.approve(swivelRouter, totalLent);
 
-        require(SwivelRouter(swivelRouter).initiate(orders, amounts, signatures), "swivel lending failed"); 
+        // Fill orders on Swivel 
+        SwivelRouter(swivelRouter).initiate(orders, amounts, signatures); 
         
-        uint256 yieldAmount = yieldLend(underlying, maturity, yieldRouter, uint128(totalReturned));
+        // Lend the remaining amount to Yield
+        uint256 yieldAmount = yieldLend(underlying, maturity, yieldPool, CastU256U128.u128(totalReturned));
 
+        // Mint Illuminate zero coupons
         illuminateToken.mint(msg.sender, (totalLent+yieldAmount));
         
         return (totalLent+yieldAmount);
@@ -171,13 +160,12 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend   
     function yieldMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+
+        Market memory market = markets[underlying][maturity];
+
+        IPErc20(market.yield).transferFrom(msg.sender, address(this), amount);
         
-        IPErc20 yieldToken = IPErc20(markets[underlying][maturity].yield);
-        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
-        
-        yieldToken.transferFrom(msg.sender, address(this), amount);
-        
-        illuminateToken.mint(msg.sender,amount);
+        ZcToken(market.illuminate).mint(msg.sender,amount);
         
         return (true);
     }
@@ -187,23 +175,33 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend
     function yieldLend(address underlying, uint256 maturity, address yieldPool, uint128 amount) public returns (uint256) {
-        
+
+        // Instantiate market and tokens
         IPErc20 u = IPErc20(underlying);
         ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
         YieldPool Pool = YieldPool(yieldPool);
-        
+
+        // Require the Yield pool provided matches the underlying and maturity market provided      
+        require(Pool.maturity() == maturity, 'Wrong Yield pool address: maturity');
+        require(address(Pool.base()) == underlying, 'Wrong Yield pool address: underlying');
+
+        // Transfer funds from user to Illuminate       
         u.transferFrom(msg.sender, address(this), amount);
         u.approve(yieldPool, 2**256 - 1);
 
-        uint128 _fyDAIOUT = Pool.sellBasePreview(amount);
+        // Preview exact swap slippage on YieldSpace pool
+        uint128 returned = Pool.sellBasePreview(amount);
 
+        // Transfer funds to yieldspace pool        
         u.transfer(yieldPool, amount);
 
-        Pool.sellBase(address(this), _fyDAIOUT);
+        // "Sell Base" meaning purchase the zero coupons from YieldSpace pool
+        Pool.sellBase(address(this), returned);
 
-        illuminateToken.mint(msg.sender, _fyDAIOUT);
+        // Mint Illuminate zero coupons
+        illuminateToken.mint(msg.sender, returned);
         
-        return (_fyDAIOUT);
+        return (returned);
     }
 
     /// @notice Can be called before maturity to wrap yield element PT's into illuminate tokens
@@ -212,12 +210,11 @@ contract Illuminate {
     /// @param amount the amount of underlying tokens to lend   
     function elementMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
 
-        IPErc20 elementToken = IPErc20(markets[underlying][maturity].element);
-        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
+        Market memory market = markets[underlying][maturity];
         
-        elementToken.transferFrom(msg.sender, address(this), amount);
+        ElementToken(market.element).transferFrom(msg.sender, address(this), amount);
         
-        illuminateToken.mint(msg.sender,amount);
+        ZcToken(market.illuminate).mint(msg.sender,amount);
         
         return (true);
     }
@@ -230,14 +227,20 @@ contract Illuminate {
     /// @param deadline the maximum timestamp at which the transaction can be executed
     function elementLend(address underlying, uint256 maturity, address elementPool, bytes32 poolID, uint128 amount, uint256 minimumBought, uint256 deadline) public returns(uint256){
         
+        // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
-
-        address element = market.element;
         IPErc20 underlyingToken = IPErc20(underlying);
+        ElementToken elementToken = ElementToken(market.element);
+
+        // Require the Element pool provided matches the underlying and maturity market provided
+        require(elementToken.unlockTimestamp() == maturity, 'Wrong Element pool address: maturity');
+        require(address(elementToken.underlying()) == underlying, 'Wrong Element pool address: underlying');
         
+        // Transfer funds from user to Illuminate
         underlyingToken.transferFrom(msg.sender, address(this), amount);
         underlyingToken.approve(elementPool, 2**256 - 1);
 
+        // Populate Balancer structs for a "SingleSwap"
         ElementPool Pool = ElementPool(elementPool);
         ElementPool.FundManagement memory _fundManagement = ElementPool.FundManagement({
             sender: address(this),
@@ -245,22 +248,23 @@ contract Illuminate {
             recipient: payable(address(this)),
             toInternalBalance: false
         });
-
         ElementPool.SingleSwap memory _singleSwap = ElementPool.SingleSwap({
             poolId: poolID,
             kind: ElementPool.SwapKind(0),
             assetIn: IAsset(underlying),
-            assetOut: IAsset(element),
+            assetOut: IAsset(market.element),
             amount: amount,
             userData: "0x00000000000000000000000000000000000000000000000000000000000000"
         });
 
+        // Swap on the Balancer pool using the provided structs and params
         uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
 
-        // {
-        // ZcToken illuminateToken = ZcToken(market.illuminate);
-        // illuminateToken.mint(msg.sender, returned);
-        // }
+        // SScope instantiation and Mint Illuminate zero coupons
+        {
+        ZcToken illuminateToken = ZcToken(market.illuminate);
+        illuminateToken.mint(msg.sender, returned);
+        }
 
         return (returned);
     }
@@ -274,9 +278,9 @@ contract Illuminate {
         ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
         IPErc20 underlyingToken = IPErc20(underlying);
         
-        require(illuminateToken.burn(msg.sender, amount), "illuminate transfer failed");
+        require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
         
-        underlyingToken.transfer(msg.sender,amount);
+        underlyingToken.transfer(msg.sender, amount);
         
         return (true);
     }
@@ -286,9 +290,9 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     function swivelRedeem(address underlying, uint256 maturity) public returns (bool) {
         
-        uint256 amount = IPErc20(markets[underlying][maturity].swivel).balanceOf(address(this));
+        uint256 amount = zcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
         
-        require(SwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "swivel redemption failed");
+        require(SwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
         
         return (true);
     }
@@ -302,7 +306,7 @@ contract Illuminate {
 
         uint256 amount = yieldToken.balanceOf(address(this));
 
-        require(yieldToken.redeem(address(this),address(this),amount) >= amount, "yield redemption failed");
+        require(yieldToken.redeem(address(this), address(this), amount) >= amount, "Yield redemption failed");
         
         return (true);
     }
@@ -316,7 +320,7 @@ contract Illuminate {
 
         uint256 amount = elementToken.balanceOf(address(this));
 
-        require(elementToken.withdrawPrincipal(amount, address(this)) >= amount, "element redemption failed");
+        require(elementToken.withdrawPrincipal(amount, address(this)) >= amount, "Element redemption failed");
         
         return (true);
     } 
