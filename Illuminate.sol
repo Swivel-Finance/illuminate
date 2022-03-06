@@ -86,6 +86,7 @@ contract Illuminate {
     event elementLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event illuminateLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
     constructor (address swivelAddress) {
@@ -93,13 +94,15 @@ contract Illuminate {
         swivelRouter = swivelAddress;
     }
     
-
-    /// Can be called by the admin to create a new market of associated swivel, yield, and illuminate zero-coupon tokens (zcTokens, yTokens, lTokens)
-    /// underlying the address of the underlying token deposit
-    /// maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
-    /// swivel the address of the swivel zcToken
-    /// yield the address of the yield token
-    /// decimals the number of decimals in the underlying token
+    /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, and Illuminate zero-coupon tokens (zcTokens, yTokens, pTokens, ITokens)
+    /// @param underlying the address of the underlying token deposit
+    /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
+    /// @param swivel the address of the Swivel zcToken
+    /// @param yield the address of the Yield yToken
+    /// @param element the address of the Element Principal Token
+    /// @param name name of the Illuminate IToken
+    /// @param symbol symbol of the Illuminate IToken
+    /// @param decimals the number of decimals in the underlying token
     function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
         
         address illuminate = address(new ZcToken(underlying, maturity, name, symbol, decimals));
@@ -111,7 +114,7 @@ contract Illuminate {
         return (true);
     }
 
-    /// @notice Can be called before maturity to wrap swivel zcTokens into illuminate tokens
+    /// @notice Can be called before maturity to wrap Swivel zcTokens into Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend   
@@ -128,7 +131,7 @@ contract Illuminate {
         return (true);
     }
 
-    /// @notice Can be called before maturity to lend to Swivel while minting illuminate tokens
+    /// @notice Can be called before maturity to lend to Swivel while minting Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     /// @param orders the swivel orders being filled
@@ -170,7 +173,7 @@ contract Illuminate {
         return (totalLent+yieldAmount);
     }
 
-    /// @notice Can be called before maturity to wrap yield yTokens into illuminate tokens
+    /// @notice Can be called before maturity to wrap Yield yTokens into Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend   
@@ -187,7 +190,7 @@ contract Illuminate {
         return (true);
     }
 
-    /// @notice Can be called before maturity to lend to yield while minting illuminate tokens
+    /// @notice Can be called before maturity to lend to Yield while minting Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend
@@ -209,7 +212,7 @@ contract Illuminate {
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
 
-        // Transfer funds to yieldspace pool        
+        // Transfer funds to Yieldspace pool        
         u.transfer(yieldPool, amount);
 
         // "Sell Base" meaning purchase the zero coupons from YieldSpace pool
@@ -223,7 +226,7 @@ contract Illuminate {
         return (returned);
     }
 
-    /// @notice Can be called before maturity to wrap yield element PT's into illuminate tokens
+    /// @notice Can be called before maturity to wrap Element PT's into Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend   
@@ -240,7 +243,7 @@ contract Illuminate {
         return (true);
     }
 
-    /// @notice Can be called before maturity to lend to yield while minting illuminate tokens
+    /// @notice Can be called before maturity to lend to Element while minting Illuminate tokens
     /// @param elementPool the underlying token being redeemed
     /// @param poolID the balancer poolID for the principal token
     /// @param amount the amount of underlying tokens to lend
@@ -292,10 +295,43 @@ contract Illuminate {
         return (returned);
     }
 
-    /// @notice Can be called after maturity and after tokens have been redeemed to illuminate to redeem underlying tokens 
+    /// @notice Can be called before maturity to lend to the Illuminate AMM directly without needing approvals to it
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
-    /// @param amount the amount of underlying tokens to redeem and illuminate tokens to burn
+    /// @param amount the amount of underlying tokens to lend
+    function illuminateLend(address underlying, uint256 maturity, address illuminatePool, uint128 amount) public returns (uint256) {
+
+        // Instantiate market and tokens
+        IPErc20 u = IPErc20(underlying);
+        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
+        YieldPool Pool = YieldPool(illuminatePool);
+
+        // Require the Yield pool provided matches the underlying and maturity market provided      
+        require(Pool.maturity() == maturity, 'Wrong Illuminate pool address: maturity');
+        require(address(Pool.base()) == underlying, 'Wrong Illuminate pool address: underlying');
+
+        // Transfer funds from user to Illuminate       
+        u.transferFrom(msg.sender, address(this), amount);
+        u.approve(yieldPool, 2**256 - 1);
+
+        // Preview exact swap slippage on YieldSpace pool
+        uint128 returned = Pool.sellBasePreview(amount);
+
+        // Transfer funds to Yieldspace pool        
+        u.transfer(yieldPool, amount);
+
+        // "Sell Base" meaning purchase the zero coupons from YieldSpace pool
+        Pool.sellBase(msg.sender, returned);
+
+        emit illuminateLent(underlying, maturity, returned);
+        
+        return (returned);
+    }
+
+    /// @notice Can be called after maturity and after tokens have been redeemed to Illuminate to redeem underlying tokens 
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to redeem and Illuminate tokens to burn
     function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
     
         IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
@@ -310,7 +346,7 @@ contract Illuminate {
         return (true);
     }
     
-    /// @notice called at maturity to redeem all swivel zcTokenAddress to illuminate
+    /// @notice called at maturity to redeem all Swivel zcTokenAddress to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     function swivelRedeem(address underlying, uint256 maturity) public returns (bool) {
