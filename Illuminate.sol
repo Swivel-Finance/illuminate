@@ -350,7 +350,7 @@ contract Illuminate {
         u.transferFrom(msg.sender, address(this), amount);
         u.approve(pendleRouter, 2**256 - 1);
 
-        // Preview exact swap slippage on YieldSpace pool
+        // Swap on the Pendle Router using the provided market and params
         uint128 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
 
         // Mint Illuminate zero coupons
