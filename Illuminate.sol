@@ -16,7 +16,6 @@ interface ElementToken is IPErc20 {
 }
 
 interface YieldToken is IPErc20, IErc2612 {
-    function isMature() external view returns(bool);
     function maturity() external view returns(uint);
     function redeem(address, address, uint256) external returns (uint256);
 }
@@ -24,10 +23,6 @@ interface YieldToken is IPErc20, IErc2612 {
 interface PendleRouter {
     function swapExactIn(address _tokenIn, address _tokenOut, uint256 _inAmount, uint256 _minOutAmount, bytes32 _marketFactoryId) external returns (uint256);
     function redeemAfterExpiry(bytes32 _forgeId, address _underlyingAsset, uint256 _expiry) external returns (uint256);
-}
-
-interface PendleForge {
-    function redeemAfterExpiry(address user, address underlyingAsset, uint256 expiry) external returns (uint256);
 }
 
 interface NotionalRouter {
