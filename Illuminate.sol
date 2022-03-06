@@ -303,22 +303,21 @@ contract Illuminate {
 
         // Instantiate market and tokens
         IPErc20 u = IPErc20(underlying);
-        ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
         YieldPool Pool = YieldPool(illuminatePool);
-
+ 
         // Require the Yield pool provided matches the underlying and maturity market provided      
         require(Pool.maturity() == maturity, 'Wrong Illuminate pool address: maturity');
         require(address(Pool.base()) == underlying, 'Wrong Illuminate pool address: underlying');
 
         // Transfer funds from user to Illuminate       
         u.transferFrom(msg.sender, address(this), amount);
-        u.approve(yieldPool, 2**256 - 1);
+        u.approve(illuminatePool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
 
         // Transfer funds to Yieldspace pool        
-        u.transfer(yieldPool, amount);
+        u.transfer(illuminatePool, amount);
 
         // "Sell Base" meaning purchase the zero coupons from YieldSpace pool
         Pool.sellBase(msg.sender, returned);
