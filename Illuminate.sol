@@ -35,8 +35,8 @@ contract Illuminate {
     // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
 
-    event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address indexed illuminate);
-    event marketPopulated(address indexed underlying, uint256 indexed maturity, address tempus, address notional);
+    event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address tempus, address indexed illuminate);
+    event marketPopulated(address indexed underlying, uint256 indexed maturity, address notional);
     event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
@@ -70,34 +70,31 @@ contract Illuminate {
     /// @param yield the address of the Yield yToken
     /// @param element the address of the Element Principal Token
     /// @param pendle the address of the Pendle Ownership Token
+    /// @param tempus the address of the Tempus Capital Token
     /// @param name name of the Illuminate IToken
-    /// @param symbol symbol of the Illuminate IToken
     /// @param decimals the number of decimals in the underlying token
-    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, string calldata name, string calldata symbol, uint8 decimals) public onlyAdmin(admin) returns (bool) {
+    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, address tempus, string calldata name, uint8 decimals) public onlyAdmin(admin) returns (bool) {
         
         require(markets[underlying][maturity].illuminate == address(0), 'market already exists');
 
-        markets[underlying][maturity] = Market(swivel, yield, element, pendle, address(0), address(0), address(new ZcToken(underlying, maturity, name, symbol, decimals)));
+        markets[underlying][maturity] = Market(swivel, yield, element, pendle, tempus, address(0), address(new ZcToken(underlying, maturity, name, name, decimals)));
 
-        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, markets[underlying][maturity].illuminate);
+        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, tempus, markets[underlying][maturity].illuminate);
 
         return (true);
     }
 
-    /// @notice Can be called by the admin to fill the rest of a new market and associate it with Tempus and Notional zero-coupon tokens (CTokens, nTokens)
+    /// @notice Can be called by the admin to fill the rest of a new market and associate it with Tempus and Notional zero-coupon tokens (Capital Tokens, nTokens)
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
-    /// @param tempus the address of the Swivel zcToken
     /// @param notional the address of the Yield yToken
-    function populateMarket(address underlying, uint256 maturity, address tempus, address notional) public onlyAdmin(admin) returns (bool) {
+    function populateMarket(address underlying, uint256 maturity, address notional) public onlyAdmin(admin) returns (bool) {
         
-        require(markets[underlying][maturity].tempus == address(0), 'market already exists');
-
-        markets[underlying][maturity].tempus = tempus;
+        require(markets[underlying][maturity].notional == address(0), 'market already exists');
 
         markets[underlying][maturity].notional = notional;
 
-        emit marketPopulated(underlying, maturity, tempus, notional);
+        emit marketPopulated(underlying, maturity, notional);
 
         return (true);
     }
