@@ -53,9 +53,9 @@ contract Illuminate {
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
 
-    // @param swivelAddress
-    // @param pendleAddress
-    // @param tempusAddress
+    // @param swivelAddress address of the swivel router
+    // @param pendleAddress address of the pendle router
+    // @param tempusAddress address of the tempus router
     constructor (address swivelAddress, address pendleAddress, address tempusAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
