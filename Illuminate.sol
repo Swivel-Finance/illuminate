@@ -14,6 +14,7 @@ import "./Interfaces/IYieldPool.sol";
 import "./Interfaces/IElementPool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
+import "./Utils/SafeTransferLib.sol";
 
 contract Illuminate {
 
@@ -24,6 +25,8 @@ contract Illuminate {
         address pendle;
         address tempus;
         address notional;
+        address sense;
+        address apwine;
         address illuminate;
     }
 
@@ -53,9 +56,9 @@ contract Illuminate {
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
 
-    // @param swivelAddress address of the swivel router
-    // @param pendleAddress address of the pendle router
-    // @param tempusAddress address of the tempus router
+    // @param swivelAddress
+    // @param pendleAddress
+    // @param tempusAddress
     constructor (address swivelAddress, address pendleAddress, address tempusAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
@@ -77,7 +80,7 @@ contract Illuminate {
         
         require(markets[underlying][maturity].illuminate == address(0), 'market already exists');
 
-        markets[underlying][maturity] = Market(swivel, yield, element, pendle, tempus, address(0), address(new ZcToken(underlying, maturity, name, name, decimals)));
+        markets[underlying][maturity] = Market(swivel, yield, element, pendle, tempus, address(0), address(0), address(0), address(new ZcToken(underlying, maturity, name, name, decimals)));
 
         emit marketCreated(underlying, maturity, swivel, yield, element, pendle, tempus, markets[underlying][maturity].illuminate);
 
@@ -88,7 +91,9 @@ contract Illuminate {
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
     /// @param notional the address of the Yield yToken
-    function populateMarket(address underlying, uint256 maturity, address notional) public onlyAdmin(admin) returns (bool) {
+    /// @param sense the address of the Sense PT
+    /// @param apwine the address of the APWine PT
+    function populateMarket(address underlying, uint256 maturity, address notional, address sense, address apwine) public onlyAdmin(admin) returns (bool) {
         
         require(markets[underlying][maturity].notional == address(0), 'market already exists');
 
@@ -107,7 +112,7 @@ contract Illuminate {
 
         Market memory market = markets[underlying][maturity];
 
-        IPErc20(market.swivel).transferFrom(msg.sender, address(this), amount);
+        SafeTransferLib.safeTransferFrom(ERC20(market.swivel), msg.sender, address(this), amount);
 
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
@@ -125,7 +130,7 @@ contract Illuminate {
 
         // Instantiate market and tokens       
         ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
-        IPErc20 underlyingToken = IPErc20(underlying);
+        ERC20 underlyingToken = ERC20(underlying);
         uint256 totalLent;
         uint256 totalReturned;
 
@@ -141,7 +146,7 @@ contract Illuminate {
         }
 
         // Transfer funds from user to Illuminate         
-        underlyingToken.transferFrom(msg.sender, address(this), totalLent);
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), totalLent);
         underlyingToken.approve(swivelRouter, totalLent);
 
         // Fill orders on Swivel 
@@ -166,7 +171,7 @@ contract Illuminate {
 
         Market memory market = markets[underlying][maturity];
 
-        IPErc20(market.yield).transferFrom(msg.sender, address(this), amount);
+        SafeTransferLib.safeTransferFrom(ERC20(market.yield), msg.sender, address(this), amount);
 
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
@@ -182,7 +187,7 @@ contract Illuminate {
     function yieldLend(address underlying, uint256 maturity, address yieldPool, uint128 amount) public returns (uint256) {
 
         // Instantiate market and tokens
-        IPErc20 u = IPErc20(underlying);
+        ERC20 underlyingToken = ERC20(underlying);
         ZcToken illuminateToken = ZcToken(markets[underlying][maturity].illuminate);
         IYieldPool Pool = IYieldPool(yieldPool);
 
@@ -191,14 +196,14 @@ contract Illuminate {
         require(address(Pool.base()) == underlying, 'Wrong Yield pool address: underlying');
 
         // Transfer funds from user to Illuminate       
-        u.transferFrom(msg.sender, address(this), amount);
-        u.approve(yieldPool, 2**256 - 1);
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
+        underlyingToken.approve(yieldPool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
 
         // Transfer funds to Yieldspace pool        
-        u.transfer(yieldPool, amount);
+        SafeTransferLib.safeTransfer(underlyingToken, yieldPool, amount);
 
         // "Sell Base" meaning purchase the zero coupons from YieldSpace pool
         Pool.sellBase(address(this), returned);
@@ -219,7 +224,7 @@ contract Illuminate {
 
         Market memory market = markets[underlying][maturity];
 
-        IElementToken(market.element).transferFrom(msg.sender, address(this), amount);
+        SafeTransferLib.safeTransferFrom(ERC20(market.element), msg.sender, address(this), amount);
 
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
@@ -238,7 +243,7 @@ contract Illuminate {
 
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
-        IPErc20 underlyingToken = IPErc20(underlying);
+        ERC20 underlyingToken = ERC20(underlying);
         IElementToken elementToken = IElementToken(market.element);
 
         // Require the Element pool provided matches the underlying and maturity market provided
@@ -246,7 +251,7 @@ contract Illuminate {
         require(address(elementToken.underlying()) == underlying, 'Wrong Element pool address: underlying');
 
         // Transfer funds from user to Illuminate
-        underlyingToken.transferFrom(msg.sender, address(this), amount);
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
         underlyingToken.approve(elementPool, 2**256 - 1);
 
         // Populate Balancer structs for a "SingleSwap"
@@ -288,7 +293,7 @@ contract Illuminate {
 
         Market memory market = markets[underlying][maturity];
 
-        IPErc20(market.pendle).transferFrom(msg.sender, address(this), amount);
+        SafeTransferLib.safeTransferFrom(ERC20(market.pendle), msg.sender, address(this), amount);
 
         ZcToken(market.illuminate).mint(msg.sender,amount);
 
@@ -307,13 +312,13 @@ contract Illuminate {
 
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
-        IPErc20 u = IPErc20(underlying);
+        ERC20 underlyingToken = ERC20(underlying);
         IPendleRouter Router = IPendleRouter(pendleRouter);
         ZcToken illuminateToken = ZcToken(market.illuminate);
 
-        // Transfer funds from user to Illuminate       
-        u.transferFrom(msg.sender, address(this), amount);
-        u.approve(pendleRouter, 2**256 - 1);
+        // Transfer funds from user to Illuminate    
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
+        underlyingToken.approve(pendleRouter, 2**256 - 1);
 
         // Swap on the Pendle Router using the provided market and params
         uint256 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
@@ -333,22 +338,22 @@ contract Illuminate {
     function illuminateLend(address underlying, uint256 maturity, address illuminatePool, uint128 amount) public returns (uint256) {
 
         // Instantiate market and tokens
-        IPErc20 u = IPErc20(underlying);
+        ERC20 underlyingToken = ERC20(underlying);
         IYieldPool Pool = IYieldPool(illuminatePool);
  
         // Require the Yield pool provided matches the underlying and maturity market provided      
         require(Pool.maturity() == maturity, 'Wrong Illuminate pool address: maturity');
         require(address(Pool.base()) == underlying, 'Wrong Illuminate pool address: underlying');
 
-        // Transfer funds from user to Illuminate       
-        u.transferFrom(msg.sender, address(this), amount);
-        u.approve(illuminatePool, 2**256 - 1);
+        // Transfer funds from user to Illuminate      
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount); 
+        underlyingToken.approve(illuminatePool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
 
         // Transfer funds to Yieldspace pool        
-        u.transfer(illuminatePool, amount);
+        SafeTransferLib.safeTransfer(underlyingToken, illuminatePool, amount);
 
         // "Sell Base" meaning purchase the zero coupons from YieldSpace pool
         Pool.sellBase(msg.sender, returned);
@@ -365,11 +370,11 @@ contract Illuminate {
     function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
 
         IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
-        IPErc20 underlyingToken = IPErc20(underlying);
+        ERC20 underlyingToken = ERC20(underlying);
 
         require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
 
-        underlyingToken.transfer(msg.sender, amount);
+        SafeTransferLib.safeTransfer(underlyingToken, msg.sender, amount);
 
         emit redeemed(underlying, maturity, amount);
 
