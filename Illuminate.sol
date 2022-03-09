@@ -16,6 +16,16 @@ import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 import "./Utils/SafeTransferLib.sol";
 
+interface ISensePool is IElementPool {
+}
+
+Interface IAPWineRouter {
+     function swapExactAmountIn(uint256 _pairID, uint256 _tokenIn, uint256 _tokenAmountIn, uint256 _tokenOut, uint256 _minAmountOut, address _to) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
+}
+
+Interface ISenseToken is IElementToken {
+}
+
 contract Illuminate {
 
     struct Market {
@@ -34,6 +44,7 @@ contract Illuminate {
     address public immutable swivelRouter;
     address public immutable pendleRouter;
     address public immutable tempusRouter;
+    address public immutable apwineRouter;
 
     // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
@@ -56,14 +67,16 @@ contract Illuminate {
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
 
-    // @param swivelAddress
-    // @param pendleAddress
-    // @param tempusAddress
-    constructor (address swivelAddress, address pendleAddress, address tempusAddress) {
+    // @param swivelAddress address of the swivel router
+    // @param pendleAddress address of the pendle router
+    // @param tempusAddress address of the tempus router
+    // @param apwineAddress address of the apwine router
+    constructor (address swivelAddress, address pendleAddress, address tempusAddress, address apwineAddress) {
         admin = msg.sender;
         swivelRouter = swivelAddress;
         pendleRouter = pendleAddress;
         tempusRouter = tempusAddress;
+        apwineRouter = apwineAddress;
     }
 
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, Pendle and Illuminate zero-coupon tokens (zcTokens, yTokens, PTokens, OTokens, ITokens)
