@@ -19,11 +19,11 @@ import "./Utils/SafeTransferLib.sol";
 interface ISensePool is IElementPool {
 }
 
-Interface IAPWineRouter {
+interface IAPWineRouter {
      function swapExactAmountIn(uint256 _pairID, uint256 _tokenIn, uint256 _tokenAmountIn, uint256 _tokenOut, uint256 _minAmountOut, address _to) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
 }
 
-Interface ISenseToken is IElementToken {
+interface ISenseToken is IElementToken {
 }
 
 contract Illuminate {
