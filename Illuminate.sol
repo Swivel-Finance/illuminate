@@ -379,11 +379,12 @@ contract Illuminate {
     /// @notice Can be called after maturity and after tokens have been redeemed to Illuminate to redeem underlying tokens 
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
-    /// @param amount the amount of underlying tokens to redeem and Illuminate tokens to burn
-    function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+    function redeem(address underlying, uint256 maturity) public returns (bool) {
 
         IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
         ERC20 underlyingToken = ERC20(underlying);
+
+        uint256 amount = illuminateToken.balanceOf(msg.sender);
 
         require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
 
