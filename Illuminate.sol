@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity >=0.8.4;
 
-import './ZcToken.sol';
+import "./ZcToken.sol";
 import "./Interfaces/IPErc20.sol";
 import "./Interfaces/IErc2612.sol";
 import "./Interfaces/IElementToken.sol";
@@ -10,24 +10,26 @@ import "./Interfaces/IPendleRouter.sol";
 import "./Interfaces/INotionalRouter.sol";
 import "./Interfaces/ITempusRouter.sol";
 import "./Interfaces/ISwivelRouter.sol";
+import "./Interfaces/IAPWineRouter.sol";
 import "./Interfaces/IYieldPool.sol";
 import "./Interfaces/IElementPool.sol";
+import "./Interfaces/ISensePool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 import "./Utils/SafeTransferLib.sol";
-
-interface ISensePool is IElementPool {
-}
-
-interface IAPWineRouter {
-     function swapExactAmountIn(uint256 _pairID, uint256 _tokenIn, uint256 _tokenAmountIn, uint256 _tokenOut, uint256 _minAmountOut, address _to) external returns (uint256 tokenAmountOut, uint256 spotPriceAfter);
-}
 
 interface ISenseToken is IElementToken {
 }
 
 contract Illuminate {
 
+    // TODO 
+    // APWINE Deposits / Redeems
+    // Notional Deposits / Redeems
+    // -----------------------------
+    // Once Stack too deep fixed in 8.13:
+    // Combine create & populate market
+    // Remove scoping and add a returned var to tempusLend
     struct Market {
         address swivel;
         address yield;
@@ -50,7 +52,7 @@ contract Illuminate {
     mapping (address => mapping (uint256 => Market)) public markets;
 
     event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address tempus, address indexed illuminate);
-    event marketPopulated(address indexed underlying, uint256 indexed maturity, address notional);
+    event marketPopulated(address indexed underlying, uint256 indexed maturity, address notional, address sense, address apwine);
     event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
@@ -60,9 +62,15 @@ contract Illuminate {
     event elementLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event senseLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event senseMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event senseRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event pendleLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event pendleMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event pendleRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event tempusLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event tempusMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event tempusRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event illuminateLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
@@ -107,12 +115,16 @@ contract Illuminate {
     /// @param sense the address of the Sense PT
     /// @param apwine the address of the APWine PT
     function populateMarket(address underlying, uint256 maturity, address notional, address sense, address apwine) public onlyAdmin(admin) returns (bool) {
-        
-        require(markets[underlying][maturity].notional == address(0), 'market already exists');
 
-        markets[underlying][maturity].notional = notional;
+        Market memory market = markets[underlying][maturity];
+    
+        market.notional = notional;
+        market.sense = sense;
+        market.apwine = apwine;
 
-        emit marketPopulated(underlying, maturity, notional);
+        markets[underlying][maturity] = market;
+
+        emit marketPopulated(underlying, maturity, notional, sense, apwine);
 
         return (true);
     }
@@ -298,6 +310,75 @@ contract Illuminate {
         return (returned);
     }
 
+    /// @notice Can be called before maturity to wrap Sense PT's into Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend   
+    function senseMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+
+        Market memory market = markets[underlying][maturity];
+
+        SafeTransferLib.safeTransferFrom(ERC20(market.sense), msg.sender, address(this), amount);
+
+        ZcToken(market.sense).mint(msg.sender,amount);
+
+        emit senseMinted(underlying, maturity, amount);
+
+        return (true);
+    }
+
+    /// @notice Can be called before maturity to lend to Sense while minting Illuminate tokens
+    /// @param sensePool the underlying token being redeemed
+    /// @param poolID the balancer poolID for the principal token
+    /// @param amount the amount of underlying tokens to lend
+    /// @param minimumBought the minimum amount of zero-coupon tokens to return accounting for slippage
+    /// @param deadline the maximum timestamp at which the transaction can be executed
+    function senseLend(address underlying, uint256 maturity, address sensePool, bytes32 poolID, uint128 amount, uint256 minimumBought, uint256 deadline) public returns(uint256){
+
+        // Instantiate market and tokens
+        Market memory market = markets[underlying][maturity];
+        ERC20 underlyingToken = ERC20(underlying);
+        ISenseToken senseToken = ISenseToken(market.sense);
+
+        // Require the Element pool provided matches the underlying and maturity market provided
+        require(senseToken.unlockTimestamp() == maturity, 'Wrong Element pool address: maturity');
+        require(address(senseToken.underlying()) == underlying, 'Wrong Element pool address: underlying');
+
+        // Transfer funds from user to Illuminate
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
+        underlyingToken.approve(sensePool, 2**256 - 1);
+
+        // Populate Balancer structs for a "SingleSwap"
+        ISensePool Pool = ISensePool(sensePool);
+        ISensePool.FundManagement memory _fundManagement = ISensePool.FundManagement({
+            sender: address(this),
+            fromInternalBalance: false,
+            recipient: payable(address(this)),
+            toInternalBalance: false
+        });
+        ISensePool.SingleSwap memory _singleSwap = ISensePool.SingleSwap({
+            poolId: poolID,
+            kind: ISensePool.SwapKind(0),
+            assetIn: IAsset(underlying),
+            assetOut: IAsset(market.sense),
+            amount: amount,
+            userData: "0x00000000000000000000000000000000000000000000000000000000000000"
+        });
+
+        // Swap on the Balancer pool using the provided structs and params
+        uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
+
+        // Scope instantiation to avoid stack limit and mint Illuminate zero coupons
+        {
+        ZcToken illuminateToken = ZcToken(market.illuminate);
+        illuminateToken.mint(msg.sender, returned);
+        }
+
+        emit senseLent(underlying, maturity, returned);
+
+        return (returned);
+    }
+
     /// @notice Can be called before maturity to wrap Pendle Ownership Tokens into Illuminate tokens
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
@@ -320,8 +401,8 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend
     /// @param minimumAmount the minimum amount of zero-coupon tokens to return accounting for slippage
-    /// @param pendleId the maximum timestamp at which the transaction can be executed
-    function PendleLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumAmount, bytes32 pendleId) public returns (uint256) {
+    /// @param pendleId the id of the given pendle market in bytes32
+    function pendleLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumAmount, bytes32 pendleId) public returns (uint256) {
 
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
@@ -379,12 +460,11 @@ contract Illuminate {
     /// @notice Can be called after maturity and after tokens have been redeemed to Illuminate to redeem underlying tokens 
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
-    function redeem(address underlying, uint256 maturity) public returns (bool) {
+    /// @param amount the amount of underlying tokens to redeem and Illuminate tokens to burn
+    function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
 
         IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
         ERC20 underlyingToken = ERC20(underlying);
-
-        uint256 amount = illuminateToken.balanceOf(msg.sender);
 
         require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
 
@@ -441,6 +521,21 @@ contract Illuminate {
         return (true);
     } 
 
+    /// @notice called at maturity to redeem all Sense PT's to Illuminate
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed    
+    function senseRedeem(address underlying, uint256 maturity) public returns (bool) {
+
+        ISenseToken senseToken = ISenseToken(markets[underlying][maturity].sense);
+
+        uint256 amount = senseToken.balanceOf(address(this));
+
+        require(senseToken.withdrawPrincipal(amount, address(this)) >= amount, "Element redemption failed");
+
+        emit senseRedeemed(underlying, maturity, amount);
+
+        return (true);
+    } 
     /// @notice called at maturity to redeem all Pendle PT's to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
@@ -458,6 +553,26 @@ contract Illuminate {
 
         return (true);
     }
+
+    /// @notice called at maturity to redeem all Tempus CT's to Illuminate
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param tempusPool the address of the given tempus pool
+    function tempusRedeem(address underlying, uint256 maturity, address tempusPool) public returns (bool) {
+
+        PErc20 tempusToken = PErc20(markets[underlying][maturity].tempus);
+        ITempusRouter Router = ITempusRouter(tempusRouter);
+
+        uint256 amount = tempusToken.balanceOf(address(this));
+
+        require(Router.redeemToBacking(ITempusPool(tempusPool), amount, 0, address(this)) >= amount, "Tempus redemption failed");
+
+        emit tempusRedeemed(underlying, maturity, amount);
+
+        return (true);
+    }
+
+
 
     modifier onlyAdmin(address a) {
         require(msg.sender == admin, 'sender must be admin');
