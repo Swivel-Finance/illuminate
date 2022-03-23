@@ -296,13 +296,13 @@ contract Illuminate {
 
         // Populate Balancer structs for a "SingleSwap"
         IElementPool Pool = IElementPool(elementPool);
-        IElementPool.FundManagement memory _fundManagement = IElementPool.FundManagement({
+        IElementPool.FundManagement memory fundManagement = IElementPool.FundManagement({
             sender: address(this),
             fromInternalBalance: false,
             recipient: payable(address(this)),
             toInternalBalance: false
         });
-        IElementPool.SingleSwap memory _singleSwap = IElementPool.SingleSwap({
+        IElementPool.SingleSwap memory singleSwap = IElementPool.SingleSwap({
             poolId: poolID,
             kind: IElementPool.SwapKind(0),
             assetIn: IAsset(underlying),
@@ -312,7 +312,7 @@ contract Illuminate {
         });
 
         // Swap on the Balancer pool using the provided structs and params
-        uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
+        uint256 returned = Pool.swap(singleSwap, fundManagement, minimumBought, deadline);
 
         // Scope instantiation to avoid stack limit and mint Illuminate zero coupons
         {
@@ -365,13 +365,13 @@ contract Illuminate {
 
         // Populate Balancer structs for a "SingleSwap"
         ISensePool Pool = ISensePool(sensePool);
-        ISensePool.FundManagement memory _fundManagement = ISensePool.FundManagement({
+        ISensePool.FundManagement memory fundManagement = ISensePool.FundManagement({
             sender: address(this),
             fromInternalBalance: false,
             recipient: payable(address(this)),
             toInternalBalance: false
         });
-        ISensePool.SingleSwap memory _singleSwap = ISensePool.SingleSwap({
+        ISensePool.SingleSwap memory singleSwap = ISensePool.SingleSwap({
             poolId: poolID,
             kind: ISensePool.SwapKind(0),
             assetIn: IAsset(underlying),
@@ -381,7 +381,7 @@ contract Illuminate {
         });
 
         // Swap on the Balancer pool using the provided structs and params
-        uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
+        uint256 returned = Pool.swap(singleSwap, fundManagement, minimumBought, deadline);
 
         // Scope instantiation to avoid stack limit and mint Illuminate zero coupons
         {
