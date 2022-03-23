@@ -11,9 +11,11 @@ import "./Interfaces/INotionalRouter.sol";
 import "./Interfaces/ITempusRouter.sol";
 import "./Interfaces/ISwivelRouter.sol";
 import "./Interfaces/IAPWineRouter.sol";
+import "./Interfaces/IAPWineVault.sol";
 import "./Interfaces/IYieldPool.sol";
 import "./Interfaces/IElementPool.sol";
 import "./Interfaces/ISensePool.sol";
+import "./Interfaces/IAPWinePool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 import "./Utils/SafeTransferLib.sol";
@@ -30,6 +32,16 @@ contract Illuminate {
     // Once Stack too deep fixed in 8.13:
     // Combine create & populate market
     // Remove scoping and add a returned var to tempusLend
+    // COMPLETE:
+    // Element: Mint/Lend/Redeem Tested: Mint/Lend
+    // Yield: Mint/Lend/Redeem Tested: Mint/Lend
+    // Swivel: Mint/Lend/Redeem Tested: Mint/Lend
+    // Sense(Element Fork): Mint/Lend/Redeem 
+    // Pendle: Mint/Lend/Redeem 
+    // Tempus: Mint/Lend/Redeem
+    // Notional:
+    // APWINE: Mint/Lend/Redeem
+    // Illuminate(AMM): Lend Tested: Lend
     struct Market {
         address swivel;
         address yield;
@@ -71,6 +83,9 @@ contract Illuminate {
     event tempusLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event tempusMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event tempusRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event APWineLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event APWineMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
+    event APWineRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event illuminateLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
 
@@ -425,6 +440,105 @@ contract Illuminate {
         return (returned);
     }
 
+    /// @notice Can be called before maturity to wrap APWine PTs into Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend   
+    function APWineMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+
+        Market memory market = markets[underlying][maturity];
+
+        SafeTransferLib.safeTransferFrom(ERC20(market.apwine), msg.sender, address(this), amount);
+
+        ZcToken(market.illuminate).mint(msg.sender,amount);
+
+        emit APWineMinted(underlying, maturity, amount);
+
+        return (true);
+    }
+
+    /// @notice Can be called before maturity to lend to APWine while minting Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend
+    /// @param minimumAmount the minimum amount of zero-coupon tokens to return accounting for slippage
+    /// @param APWinePool the address of a given APWine pool
+    function APWineLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumAmount, address APWinePool, uint256 pairId) public returns (uint256) {
+
+        // Instantiate market and tokens
+        Market memory market = markets[underlying][maturity];
+        ERC20 underlyingToken = ERC20(underlying);
+        IAPWinePool Pool = IAPWinePool(APWinePool);
+        ZcToken illuminateToken = ZcToken(market.illuminate);
+
+        // Transfer funds from user to Illuminate    
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
+        underlyingToken.approve(APWinePool, 2**256 - 1);
+
+        // Swap on the APWine Pool using the provided market and params
+        (uint256 returned,) = Pool.swapExactAmountIn(pairId, 1, amount, 0, minimumAmount, address(this));
+
+        // Mint Illuminate zero coupons
+        illuminateToken.mint(msg.sender, returned);
+
+        emit APWineLent(underlying, maturity, returned);
+
+        return (returned);
+    }
+
+    /// @notice Can be called before maturity to wrap APWine PTs into Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend   
+    function tempusMint(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+
+        Market memory market = markets[underlying][maturity];
+
+        SafeTransferLib.safeTransferFrom(ERC20(market.tempus), msg.sender, address(this), amount);
+
+        ZcToken(market.illuminate).mint(msg.sender, amount);
+
+        emit tempusMinted(underlying, maturity, amount);
+
+        return (true);
+    }
+
+    /// @notice Can be called before maturity to lend to APWine while minting Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param amount the amount of underlying tokens to lend
+    /// @param minimumRate the minimum amount of zero-coupon tokens to return accounting for slippage
+    /// @param tempusAMM the address of the generalized APWine amm
+    /// @param tempusPool the address of a given APWine pool
+    /// @param deadline the maximum timestamp at which the transaction can be executed
+    function tempusLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumRate, address tempusAMM, address tempusPool, uint256 deadline) public returns (uint256) {
+
+        // Instantiate market and tokens
+        Market memory market = markets[underlying][maturity];
+        ITempusRouter Router = ITempusRouter(tempusRouter);
+
+        // Transfer funds from user to Illuminate, Scope to avoid stack limit
+        {
+        ERC20 underlyingToken = ERC20(underlying);
+        SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
+        underlyingToken.approve(tempusRouter, 2**256 - 1);
+        }
+        // Read balance before swap to calculate difference
+        uint256 starting = IZcToken(market.tempus).balanceOf(address(this));
+
+        // Swap on the Tempus Router using the provided market and params
+        uint256 returned = (Router.depositAndFix(ITempusAMM(tempusAMM), ITempusPool(tempusPool), amount, true, minimumRate, deadline) - starting);
+
+        // Mint Illuminate zero coupons
+        {
+        ZcToken illuminateToken = ZcToken(market.illuminate);
+        illuminateToken.mint(msg.sender, returned);
+        }
+        emit APWineLent(underlying, maturity, returned);
+
+        return (returned);
+    }
+
     /// @notice Can be called before maturity to lend to the Illuminate AMM directly without needing approvals to it
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
@@ -572,7 +686,23 @@ contract Illuminate {
         return (true);
     }
 
+    /// @notice called at maturity to redeem all APWine PT's to Illuminate
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
+    /// @param APWineVault the address of the given APWine vault
+    function APWineRedeem(address underlying, uint256 maturity, address APWineVault) public returns (bool) {
 
+        PErc20 APWineToken = PErc20(markets[underlying][maturity].apwine);
+        IAPWineRouter Router = IAPWineRouter(apwineRouter);
+
+        uint256 amount = APWineToken.balanceOf(address(this));
+
+        Router.withdraw(IAPWineVault(APWineVault), amount);
+
+        emit APWineRedeemed(underlying, maturity, amount);
+
+        return (true);
+    }
 
     modifier onlyAdmin(address a) {
         require(msg.sender == admin, 'sender must be admin');
