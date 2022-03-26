@@ -100,6 +100,7 @@ contract Illuminate {
         apwineRouter = apwineAddress;
     }
 
+
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, Pendle and Illuminate zero-coupon tokens (zcTokens, yTokens, PTokens, OTokens, ITokens)
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
@@ -186,7 +187,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate         
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), totalLent);
-        underlyingToken.approve(swivelRouter, totalLent);
 
         // Fill orders on Swivel 
         ISwivelRouter(swivelRouter).initiate(orders, amounts, signatures); 
@@ -236,7 +236,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate       
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
-        underlyingToken.approve(yieldPool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
@@ -293,7 +292,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
-        underlyingToken.approve(elementPool, 2**256 - 1);
 
         // Populate Balancer structs for a "SingleSwap"
         IElementPool Pool = IElementPool(elementPool);
@@ -358,7 +356,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
-        underlyingToken.approve(sensePool, 2**256 - 1);
 
         uint256 returned = ISensePool(sensePool).swapUnderlyingForPTs(senseAdapter, maturity, amount, minimumBought);
 
@@ -403,7 +400,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate    
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
-        underlyingToken.approve(pendleRouter, 2**256 - 1);
 
         // Swap on the Pendle Router using the provided market and params
         uint256 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
@@ -449,7 +445,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate    
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
-        underlyingToken.approve(APWinePool, 2**256 - 1);
 
         // Swap on the APWine Pool using the provided market and params
         (uint256 returned,) = Pool.swapExactAmountIn(pairId, 1, amount, 0, minimumAmount, address(this));
@@ -497,7 +492,6 @@ contract Illuminate {
         {
         ERC20 underlyingToken = ERC20(underlying);
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
-        underlyingToken.approve(tempusRouter, 2**256 - 1);
         }
         // Read balance before swap to calculate difference
         uint256 starting = IZcToken(market.tempus).balanceOf(address(this));
@@ -532,7 +526,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate      
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount); 
-        underlyingToken.approve(illuminatePool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
