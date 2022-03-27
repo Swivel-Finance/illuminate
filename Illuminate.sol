@@ -11,6 +11,7 @@ import "./Interfaces/INotionalRouter.sol";
 import "./Interfaces/ITempusRouter.sol";
 import "./Interfaces/ISwivelRouter.sol";
 import "./Interfaces/IAPWineRouter.sol";
+import "./Interfaces/ISenseDivider.sol";
 import "./Interfaces/IAPWineVault.sol";
 import "./Interfaces/IYieldPool.sol";
 import "./Interfaces/IElementPool.sol";
@@ -19,9 +20,6 @@ import "./Interfaces/IAPWinePool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 import "./Utils/SafeTransferLib.sol";
-
-interface ISenseToken is IElementToken {
-}
 
 contract Illuminate {
 
@@ -102,6 +100,7 @@ contract Illuminate {
         apwineRouter = apwineAddress;
     }
 
+
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, Pendle and Illuminate zero-coupon tokens (zcTokens, yTokens, PTokens, OTokens, ITokens)
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
@@ -166,6 +165,7 @@ contract Illuminate {
     /// @param maturity the maturity of the market being redeemed
     /// @param orders the swivel orders being filled
     /// @param amounts the amount of underlying tokens lent to each order
+    /// @param signatures the signatures associated with each order
     function swivelLend(address underlying, uint256 maturity, address yieldPool, Hash.Order[] calldata orders, uint256[] calldata amounts, Sig.Components[] calldata signatures) public returns (uint256) {
 
         // Instantiate market and tokens       
@@ -187,7 +187,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate         
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), totalLent);
-        underlyingToken.approve(swivelRouter, totalLent);
 
         // Fill orders on Swivel 
         ISwivelRouter(swivelRouter).initiate(orders, amounts, signatures); 
@@ -237,7 +236,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate       
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
-        underlyingToken.approve(yieldPool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
@@ -274,6 +272,8 @@ contract Illuminate {
     }
 
     /// @notice Can be called before maturity to lend to Element while minting Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
     /// @param elementPool the underlying token being redeemed
     /// @param poolID the balancer poolID for the principal token
     /// @param amount the amount of underlying tokens to lend
@@ -292,17 +292,16 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
-        underlyingToken.approve(elementPool, 2**256 - 1);
 
         // Populate Balancer structs for a "SingleSwap"
         IElementPool Pool = IElementPool(elementPool);
-        IElementPool.FundManagement memory fundManagement = IElementPool.FundManagement({
+        IElementPool.FundManagement memory _fundManagement = IElementPool.FundManagement({
             sender: address(this),
             fromInternalBalance: false,
             recipient: payable(address(this)),
             toInternalBalance: false
         });
-        IElementPool.SingleSwap memory singleSwap = IElementPool.SingleSwap({
+        IElementPool.SingleSwap memory _singleSwap = IElementPool.SingleSwap({
             poolId: poolID,
             kind: IElementPool.SwapKind(0),
             assetIn: IAsset(underlying),
@@ -312,7 +311,7 @@ contract Illuminate {
         });
 
         // Swap on the Balancer pool using the provided structs and params
-        uint256 returned = Pool.swap(singleSwap, fundManagement, minimumBought, deadline);
+        uint256 returned = Pool.swap(_singleSwap, _fundManagement, minimumBought, deadline);
 
         // Scope instantiation to avoid stack limit and mint Illuminate zero coupons
         {
@@ -343,51 +342,25 @@ contract Illuminate {
     }
 
     /// @notice Can be called before maturity to lend to Sense while minting Illuminate tokens
+    /// @param underlying the underlying token being redeemed
+    /// @param maturity the maturity of the market being redeemed
     /// @param sensePool the underlying token being redeemed
-    /// @param poolID the balancer poolID for the principal token
+    /// @param senseAdapter the address of the Sense "Adapter" for a given maturity/asset market (unsure what "adapter" means 100%)
     /// @param amount the amount of underlying tokens to lend
     /// @param minimumBought the minimum amount of zero-coupon tokens to return accounting for slippage
-    /// @param deadline the maximum timestamp at which the transaction can be executed
-    function senseLend(address underlying, uint256 maturity, address sensePool, bytes32 poolID, uint128 amount, uint256 minimumBought, uint256 deadline) public returns(uint256){
+    function senseLend(address underlying, uint256 maturity, address sensePool, address senseAdapter, uint128 amount, uint256 minimumBought) public returns(uint256){
 
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
         ERC20 underlyingToken = ERC20(underlying);
-        ISenseToken senseToken = ISenseToken(market.sense);
-
-        // Require the Element pool provided matches the underlying and maturity market provided
-        require(senseToken.unlockTimestamp() == maturity, 'Wrong Element pool address: maturity');
-        require(address(senseToken.underlying()) == underlying, 'Wrong Element pool address: underlying');
 
         // Transfer funds from user to Illuminate
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);
-        underlyingToken.approve(sensePool, 2**256 - 1);
 
-        // Populate Balancer structs for a "SingleSwap"
-        ISensePool Pool = ISensePool(sensePool);
-        ISensePool.FundManagement memory fundManagement = ISensePool.FundManagement({
-            sender: address(this),
-            fromInternalBalance: false,
-            recipient: payable(address(this)),
-            toInternalBalance: false
-        });
-        ISensePool.SingleSwap memory singleSwap = ISensePool.SingleSwap({
-            poolId: poolID,
-            kind: ISensePool.SwapKind(0),
-            assetIn: IAsset(underlying),
-            assetOut: IAsset(market.sense),
-            amount: amount,
-            userData: "0x00000000000000000000000000000000000000000000000000000000000000"
-        });
+        uint256 returned = ISensePool(sensePool).swapUnderlyingForPTs(senseAdapter, maturity, amount, minimumBought);
 
-        // Swap on the Balancer pool using the provided structs and params
-        uint256 returned = Pool.swap(singleSwap, fundManagement, minimumBought, deadline);
-
-        // Scope instantiation to avoid stack limit and mint Illuminate zero coupons
-        {
         ZcToken illuminateToken = ZcToken(market.illuminate);
         illuminateToken.mint(msg.sender, returned);
-        }
 
         emit senseLent(underlying, maturity, returned);
 
@@ -427,7 +400,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate    
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
-        underlyingToken.approve(pendleRouter, 2**256 - 1);
 
         // Swap on the Pendle Router using the provided market and params
         uint256 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
@@ -473,7 +445,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate    
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
-        underlyingToken.approve(APWinePool, 2**256 - 1);
 
         // Swap on the APWine Pool using the provided market and params
         (uint256 returned,) = Pool.swapExactAmountIn(pairId, 1, amount, 0, minimumAmount, address(this));
@@ -521,7 +492,6 @@ contract Illuminate {
         {
         ERC20 underlyingToken = ERC20(underlying);
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
-        underlyingToken.approve(tempusRouter, 2**256 - 1);
         }
         // Read balance before swap to calculate difference
         uint256 starting = IZcToken(market.tempus).balanceOf(address(this));
@@ -534,7 +504,8 @@ contract Illuminate {
         ZcToken illuminateToken = ZcToken(market.illuminate);
         illuminateToken.mint(msg.sender, returned);
         }
-        emit APWineLent(underlying, maturity, returned);
+
+        emit tempusLent(underlying, maturity, returned);
 
         return (returned);
     }
@@ -555,7 +526,6 @@ contract Illuminate {
 
         // Transfer funds from user to Illuminate      
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount); 
-        underlyingToken.approve(illuminatePool, 2**256 - 1);
 
         // Preview exact swap slippage on YieldSpace pool
         uint128 returned = Pool.sellBasePreview(amount);
@@ -580,7 +550,7 @@ contract Illuminate {
         IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
         ERC20 underlyingToken = ERC20(underlying);
 
-        require(illuminateToken.burn(msg.sender, amount), "Illuminate token burn failed");
+        illuminateToken.burn(msg.sender, amount);
 
         SafeTransferLib.safeTransfer(underlyingToken, msg.sender, amount);
 
@@ -596,7 +566,7 @@ contract Illuminate {
 
         uint256 amount = IZcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
 
-        require(ISwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount), "Swivel redemption failed");
+        ISwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount);
 
         emit swivelRedeemed(underlying, maturity, amount);
 
@@ -612,7 +582,7 @@ contract Illuminate {
 
         uint256 amount = yieldToken.balanceOf(address(this));
 
-        require(yieldToken.redeem(address(this), address(this), amount) >= amount, "Yield redemption failed");
+        yieldToken.redeem(address(this), address(this), amount);
 
         emit yieldRedeemed(underlying, maturity, amount);
 
@@ -628,7 +598,7 @@ contract Illuminate {
 
         uint256 amount = elementToken.balanceOf(address(this));
 
-        require(elementToken.withdrawPrincipal(amount, address(this)) >= amount, "Element redemption failed");
+        elementToken.withdrawPrincipal(amount, address(this));
 
         emit elementRedeemed(underlying, maturity, amount);
 
@@ -638,18 +608,20 @@ contract Illuminate {
     /// @notice called at maturity to redeem all Sense PT's to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed    
-    function senseRedeem(address underlying, uint256 maturity) public returns (bool) {
+    /// @param senseDivider address of the senseRouter for a given maturity
+    function senseRedeem(address underlying, uint256 maturity, address senseDivider, address senseAdapter) public returns (bool) {
 
-        ISenseToken senseToken = ISenseToken(markets[underlying][maturity].sense);
+        IERC20 senseToken = IERC20(markets[underlying][maturity].sense);
 
         uint256 amount = senseToken.balanceOf(address(this));
 
-        require(senseToken.withdrawPrincipal(amount, address(this)) >= amount, "Element redemption failed");
+        ISenseDivider(senseDivider).redeem(senseAdapter, maturity, amount);
 
         emit senseRedeemed(underlying, maturity, amount);
 
         return (true);
-    } 
+    }
+
     /// @notice called at maturity to redeem all Pendle PT's to Illuminate
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
@@ -661,7 +633,7 @@ contract Illuminate {
 
         uint256 amount = pendleToken.balanceOf(address(this));
 
-        require(Router.redeemAfterExpiry(forgeId, underlying, maturity) >= amount, "Pendle redemption failed");
+        Router.redeemAfterExpiry(forgeId, underlying, maturity);
 
         emit pendleRedeemed(underlying, maturity, amount);
 
@@ -679,7 +651,7 @@ contract Illuminate {
 
         uint256 amount = tempusToken.balanceOf(address(this));
 
-        require(Router.redeemToBacking(ITempusPool(tempusPool), amount, 0, address(this)) >= amount, "Tempus redemption failed");
+        Router.redeemToBacking(ITempusPool(tempusPool), amount, 0, address(this));
 
         emit tempusRedeemed(underlying, maturity, amount);
 

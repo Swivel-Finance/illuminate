@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.4;
+pragma solidity >=0.8.4;
 
 import "./ERC/Erc2612.sol";
 import "./Interfaces/IZcToken.sol";
