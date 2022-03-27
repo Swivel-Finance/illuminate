@@ -153,6 +153,7 @@ contract Illuminate {
         market.notional = notional;
         market.sense = sense;
         market.apwine = apwine;
+        market.tempus= tempus;
 
         address[4] memory staticAddresses = [tempus, notional, sense, apwine];
 
