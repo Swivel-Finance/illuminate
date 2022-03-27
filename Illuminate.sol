@@ -17,6 +17,7 @@ import "./Interfaces/IYieldPool.sol";
 import "./Interfaces/IElementPool.sol";
 import "./Interfaces/ISensePool.sol";
 import "./Interfaces/IAPWinePool.sol";
+import "./Interfaces/ISushiPool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 import "./Utils/SafeTransferLib.sol";
@@ -100,7 +101,7 @@ contract Illuminate {
         pendleRouter = pendleAddress;
         tempusRouter = tempusAddress;
         apwineRouter = apwineAddress;
-        redeemer = address(new Redeemer(address(this), swivelAddress, pendleAddress, tempusAddress, apwineAddress));
+        redeemer = address(new Redeemer(address(this), swivelAddress, pendleAddress, tempusAddress, apwineAddress, admin));
     }
 
     function massApprove(address[] calldata tokens, address[] calldata spenders) external onlyAdmin(admin) {
@@ -411,21 +412,25 @@ contract Illuminate {
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
     /// @param amount the amount of underlying tokens to lend
-    /// @param minimumAmount the minimum amount of zero-coupon tokens to return accounting for slippage
-    /// @param pendleId the id of the given pendle market in bytes32
-    function pendleLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumAmount, bytes32 pendleId) public returns (uint256) {
+    /// @param minimumBought the minimum amount of zero-coupon tokens to return accounting for slippage
+    /// @param deadline the maximum timestamp at which the transaction can be executed
+    function pendleLend(address underlying, uint256 maturity, uint256 amount, uint256 minimumBought, uint256 deadline) public returns (uint256) {
 
         // Instantiate market and tokens
         Market memory market = markets[underlying][maturity];
         ERC20 underlyingToken = ERC20(underlying);
-        IPendleRouter Router = IPendleRouter(pendleRouter);
+        ISushiPool Pool = ISushiPool(pendleRouter);
         ZcToken illuminateToken = ZcToken(market.illuminate);
 
         // Transfer funds from user to Illuminate    
         SafeTransferLib.safeTransferFrom(underlyingToken, msg.sender, address(this), amount);   
 
+        address[] memory path = new address[](2);
+        path[0] = underlying;
+        path[1] = market.pendle;
+
         // Swap on the Pendle Router using the provided market and params
-        uint256 returned = Router.swapExactIn(underlying, market.pendle, amount, minimumAmount, pendleId);
+        uint256 returned = Pool.swapExactTokensForTokens(amount, minimumBought, path, address(this), deadline)[0];
 
         // Mint Illuminate zero coupons
         illuminateToken.mint(msg.sender, returned);
@@ -562,141 +567,6 @@ contract Illuminate {
         emit illuminateLent(underlying, maturity, returned);
 
         return (returned);
-    }
-
-    /// @notice Can be called after maturity and after tokens have been redeemed to Illuminate to redeem underlying tokens 
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed
-    /// @param amount the amount of underlying tokens to redeem and Illuminate tokens to burn
-    function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
-
-        IZcToken illuminateToken = IZcToken(markets[underlying][maturity].illuminate);
-        ERC20 underlyingToken = ERC20(underlying);
-
-        illuminateToken.burn(msg.sender, amount);
-
-        SafeTransferLib.safeTransfer(underlyingToken, msg.sender, amount);
-
-        emit redeemed(underlying, maturity, amount);
-
-        return (true);
-    }
-    
-    /// @notice called at maturity to redeem all Swivel zcTokens to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed
-    function swivelRedeem(address underlying, uint256 maturity) public returns (bool) {
-
-        uint256 amount = IZcToken(markets[underlying][maturity].swivel).balanceOf(address(this));
-
-        ISwivelRouter(swivelRouter).redeemZcToken(underlying,maturity,amount);
-
-        emit swivelRedeemed(underlying, maturity, amount);
-
-        return (true);
-    }
-
-    /// @notice called at maturity to redeem all Yield yTokens to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed    
-    function yieldRedeem(address underlying, uint256 maturity) public returns (bool) {
-
-        IYieldToken yieldToken = IYieldToken(markets[underlying][maturity].illuminate);
-
-        uint256 amount = yieldToken.balanceOf(address(this));
-
-        yieldToken.redeem(address(this), address(this), amount);
-
-        emit yieldRedeemed(underlying, maturity, amount);
-
-        return (true);
-    }
-
-    /// @notice called at maturity to redeem all Element PT's to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed    
-    function elementRedeem(address underlying, uint256 maturity) public returns (bool) {
-
-        IElementToken elementToken = IElementToken(markets[underlying][maturity].element);
-
-        uint256 amount = elementToken.balanceOf(address(this));
-
-        elementToken.withdrawPrincipal(amount, address(this));
-
-        emit elementRedeemed(underlying, maturity, amount);
-
-        return (true);
-    } 
-
-    /// @notice called at maturity to redeem all Sense PT's to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed    
-    /// @param senseDivider address of the senseRouter for a given maturity
-    function senseRedeem(address underlying, uint256 maturity, address senseDivider, address senseAdapter) public returns (bool) {
-
-        IERC20 senseToken = IERC20(markets[underlying][maturity].sense);
-
-        uint256 amount = senseToken.balanceOf(address(this));
-
-        ISenseDivider(senseDivider).redeem(senseAdapter, maturity, amount);
-
-        emit senseRedeemed(underlying, maturity, amount);
-
-        return (true);
-    }
-
-    /// @notice called at maturity to redeem all Pendle PT's to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed
-    /// @param forgeId the Pendle forge ID for the given underyling and maturity market pair
-    function pendleRedeem(address underlying, uint256 maturity, bytes32 forgeId) public returns (bool) {
-
-        PErc20 pendleToken = PErc20(markets[underlying][maturity].pendle);
-        IPendleRouter Router = IPendleRouter(pendleRouter);
-
-        uint256 amount = pendleToken.balanceOf(address(this));
-
-        Router.redeemAfterExpiry(forgeId, underlying, maturity);
-
-        emit pendleRedeemed(underlying, maturity, amount);
-
-        return (true);
-    }
-
-    /// @notice called at maturity to redeem all Tempus CT's to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed
-    /// @param tempusPool the address of the given tempus pool
-    function tempusRedeem(address underlying, uint256 maturity, address tempusPool) public returns (bool) {
-
-        PErc20 tempusToken = PErc20(markets[underlying][maturity].tempus);
-        ITempusRouter Router = ITempusRouter(tempusRouter);
-
-        uint256 amount = tempusToken.balanceOf(address(this));
-
-        Router.redeemToBacking(ITempusPool(tempusPool), amount, 0, address(this));
-
-        emit tempusRedeemed(underlying, maturity, amount);
-
-        return (true);
-    }
-
-    /// @notice called at maturity to redeem all APWine PT's to Illuminate
-    /// @param underlying the underlying token being redeemed
-    /// @param maturity the maturity of the market being redeemed
-    /// @param APWineVault the address of the given APWine vault
-    function APWineRedeem(address underlying, uint256 maturity, address APWineVault) public returns (bool) {
-
-        PErc20 APWineToken = PErc20(markets[underlying][maturity].apwine);
-        IAPWineRouter Router = IAPWineRouter(apwineRouter);
-
-        uint256 amount = APWineToken.balanceOf(address(this));
-
-        Router.withdraw(IAPWineVault(APWineVault), amount);
-
-        emit APWineRedeemed(underlying, maturity, amount);
-
-        return (true);
     }
 
     modifier onlyAdmin(address a) {
