@@ -20,6 +20,7 @@ import "./Interfaces/IAPWinePool.sol";
 import "./Interfaces/IAsset.sol";
 import "./Utils/CastU256U128.sol";
 import "./Utils/SafeTransferLib.sol";
+import "./Redeemer.sol";
 
 contract Illuminate {
 
@@ -57,12 +58,13 @@ contract Illuminate {
     address public immutable pendleRouter;
     address public immutable tempusRouter;
     address public immutable apwineRouter;
+    address public immutable redeemer;
 
     // Mapping for underlying <-> maturity pairings / market pairs
     mapping (address => mapping (uint256 => Market)) public markets;
 
-    event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address tempus, address indexed illuminate);
-    event marketPopulated(address indexed underlying, uint256 indexed maturity, address notional, address sense, address apwine);
+    event marketCreated(address indexed underlying, uint256 indexed maturity, address swivel, address yield, address element, address pendle, address indexed illuminate);
+    event marketPopulated(address indexed underlying, uint256 indexed maturity, address tempus, address notional, address sense, address apwine);
     event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
@@ -98,8 +100,15 @@ contract Illuminate {
         pendleRouter = pendleAddress;
         tempusRouter = tempusAddress;
         apwineRouter = apwineAddress;
+        redeemer = address(new Redeemer(address(this), swivelAddress, pendleAddress, tempusAddress, apwineAddress));
     }
 
+    function massApprove(address[] calldata tokens, address[] calldata spenders) external onlyAdmin(admin) {
+        require(tokens.length == spenders.length, 'array mismatch');
+        for (uint256 i=0; i < tokens.length; i++) {
+            IERC20(tokens[i]).approve(spenders[i], 2**256 - 1);
+        }
+    }
 
     /// @notice Can be called by the admin to create a new market of associated Swivel, Yield, Element, Pendle and Illuminate zero-coupon tokens (zcTokens, yTokens, PTokens, OTokens, ITokens)
     /// @param underlying the address of the underlying token deposit
@@ -108,16 +117,23 @@ contract Illuminate {
     /// @param yield the address of the Yield yToken
     /// @param element the address of the Element Principal Token
     /// @param pendle the address of the Pendle Ownership Token
-    /// @param tempus the address of the Tempus Capital Token
     /// @param name name of the Illuminate IToken
     /// @param decimals the number of decimals in the underlying token
-    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, address tempus, string calldata name, uint8 decimals) public onlyAdmin(admin) returns (bool) {
+    function createMarket(address underlying, uint256 maturity, address swivel, address yield, address element, address pendle, string calldata name, uint8 decimals) public onlyAdmin(admin) returns (bool) {
         
         require(markets[underlying][maturity].illuminate == address(0), 'market already exists');
 
-        markets[underlying][maturity] = Market(swivel, yield, element, pendle, tempus, address(0), address(0), address(0), address(new ZcToken(underlying, maturity, name, name, decimals)));
+        address illuminate = address(new ZcToken(underlying, maturity, name, name, decimals));
 
-        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, tempus, markets[underlying][maturity].illuminate);
+        address[5] memory staticAddresses = [swivel,yield,element,pendle,illuminate];
+
+        for (uint256 i=0; i < staticAddresses.length; i++) {
+            IERC20(staticAddresses[i]).approve(redeemer, 2**256 - 1);
+        }
+
+        markets[underlying][maturity] = Market(swivel, yield, element, pendle, address(0), address(0), address(0), address(0), illuminate);
+
+        emit marketCreated(underlying, maturity, swivel, yield, element, pendle, markets[underlying][maturity].illuminate);
 
         return (true);
     }
@@ -125,10 +141,11 @@ contract Illuminate {
     /// @notice Can be called by the admin to fill the rest of a new market and associate it with Tempus and Notional zero-coupon tokens (Capital Tokens, nTokens)
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
+    /// @param tempus the address of the Tempus Capital Token
     /// @param notional the address of the Yield yToken
     /// @param sense the address of the Sense PT
     /// @param apwine the address of the APWine PT
-    function populateMarket(address underlying, uint256 maturity, address notional, address sense, address apwine) public onlyAdmin(admin) returns (bool) {
+    function populateMarket(address underlying, uint256 maturity, address tempus, address notional, address sense, address apwine) public onlyAdmin(admin) returns (bool) {
 
         Market memory market = markets[underlying][maturity];
     
@@ -136,9 +153,15 @@ contract Illuminate {
         market.sense = sense;
         market.apwine = apwine;
 
+        address[4] memory staticAddresses = [tempus, notional, sense, apwine];
+
+        for (uint256 i=0; i < staticAddresses.length; i++) {
+            IERC20(staticAddresses[i]).approve(redeemer, 2**256 - 1);
+        }
+
         markets[underlying][maturity] = market;
 
-        emit marketPopulated(underlying, maturity, notional, sense, apwine);
+        emit marketPopulated(underlying, maturity, tempus, notional, sense, apwine);
 
         return (true);
     }
