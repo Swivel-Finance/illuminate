@@ -68,27 +68,20 @@ contract Illuminate {
     event marketPopulated(address indexed underlying, uint256 indexed maturity, address tempus, address notional, address sense, address apwine);
     event swivelLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event swivelMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event swivelRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event yieldLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event yieldMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event yieldRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event elementMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event elementRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event senseLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event senseMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event senseRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event pendleLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event pendleMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event pendleRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event tempusLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event tempusMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event tempusRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event APWineLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event APWineMinted(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event APWineRedeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
     event illuminateLent(address indexed underlying, uint256 indexed maturity, uint256 amount);
-    event redeemed(address indexed underlying, uint256 indexed maturity, uint256 amount);
+
 
 
     // @param swivelAddress address of the swivel router
