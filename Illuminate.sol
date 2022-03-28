@@ -136,7 +136,7 @@ contract Illuminate {
     /// @param underlying the address of the underlying token deposit
     /// @param maturity the maturity of the market, it must be the identical across protocols or within a 1 day buffer
     /// @param tempus the address of the Tempus Capital Token
-    /// @param notional the address of the Yield yToken
+    /// @param notional the address of the Notional fCash
     /// @param sense the address of the Sense PT
     /// @param apwine the address of the APWine PT
     function populateMarket(address underlying, uint256 maturity, address tempus, address notional, address sense, address apwine) public onlyAdmin(admin) returns (bool) {
