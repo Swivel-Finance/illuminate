@@ -213,11 +213,11 @@ contract Illuminate {
         uint256 yieldAmount = yieldLend(underlying, maturity, yieldPool, CastU256U128.u128(totalReturned));
 
         // Mint Illuminate zero coupons
-        illuminateToken.mint(msg.sender, (totalLent+yieldAmount));
+        illuminateToken.mint(msg.sender, (totalLent));
 
-        emit swivelLent(underlying, maturity, totalLent+yieldAmount);
+        emit swivelLent(underlying, maturity, totalLent);
 
-        return (totalLent+yieldAmount);
+        return (totalLent);
     }
 
     /// @notice Can be called before maturity to wrap Yield yTokens into Illuminate tokens

@@ -46,16 +46,18 @@ contract Redeemer {
     /// @notice Can be called after maturity and after tokens have been redeemed to Illuminate to redeem underlying tokens 
     /// @param underlying the underlying token being redeemed
     /// @param maturity the maturity of the market being redeemed
-    /// @param amount the amount of underlying tokens to redeem and Illuminate tokens to burn
-    function redeem(address underlying, uint256 maturity, uint256 amount) public returns (bool) {
+    /// @param owner the owner of the zcTokens being redeemed
+    function redeem(address underlying, uint256 maturity, address owner) public returns (bool) {
 
         IZcToken illuminateToken = IZcToken(IIlluminate(illuminate).markets(underlying, maturity).illuminate);
 
         ERC20 underlyingToken = ERC20(underlying);
 
-        illuminateToken.burn(msg.sender, amount);
+        amount = illuminateToken.balanceOf(owner);
 
-        SafeTransferLib.safeTransfer(underlyingToken, msg.sender, amount);
+        illuminateToken.burn(owner, amount);
+
+        SafeTransferLib.safeTransfer(underlyingToken, owner, amount);
 
         emit redeemed(underlying, maturity, amount);
 
