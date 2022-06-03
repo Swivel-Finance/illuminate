@@ -18,6 +18,6 @@ Illuminate smart contracts are located here, stored by version. Their associated
 
 ### Current Deployments
 * Rinkeby
-  * MarketPlace: tbd
-  * Lender: tbd
-  * Redeemer: tdb
+  * MarketPlace: 0x1bD3197487E3eac7Ed0fEeb6cB5bc04370639C05
+  * Lender: 0x915c23620aD5c60Fa9F9280A64AD9bD290317D39
+  * Redeemer: 0x936E467Dbb4f73B44E0dcF78aA2138275fca04ba

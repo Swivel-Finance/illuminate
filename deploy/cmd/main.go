@@ -57,8 +57,8 @@ func main() {
 	}
 
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)          // in wei
-	auth.GasLimit = uint64(80000000000) // let's see if 8 mill will go...
+	auth.Value = big.NewInt(0)      // in wei
+	auth.GasLimit = uint64(8000000) // let's see if 8 mill will go...
 	//auth.GasPrice = big.NewInt(10000000) // if u wanna just hardcode it - use gwei
 	auth.GasPrice = gasPrice // let geth estimate
 	fmt.Printf("Using gas price: %v\n", gasPrice)
@@ -69,10 +69,10 @@ func main() {
 	// admin := common.HexToAddress(os.Getenv("ADMIN"))
 
 	// addresses for 3rd party contracts needed
-	// swivelAddr := common.HexToAddress("")
-	// pendleAddr := common.HexToAddress("")
-	// tempusAddr := common.HexToAddress("")
-	// apwineAddr := common.HexToAddress("")
+	// swivelAddr := common.HexToAddress("0x3a09584FF42CDFe27Fe72Da0533bba24E9C28AaD")
+	// pendleAddr := common.HexToAddress("0x0")
+	// tempusAddr := common.HexToAddress("0x0")
+	// apwineAddr := common.HexToAddress("0x0")
 
 	/*
 		We simply turn these steps on and off by commenting them.
@@ -91,21 +91,20 @@ func main() {
 
 	// TODO we dont return the address here as we don't try to chain them atm
 	// deployLender(auth, client, swivelAddr, pendleAddr, tempusAddr)
-	// lenderAddr := common.HexToAddress("")
+	// lenderAddr := common.HexToAddress("0x915c23620aD5c60Fa9F9280A64AD9bD290317D39")
 
 	// deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr)
-	// redeemerAddr := common.HexToAddress("")
+	// redeemerAddr := common.HexToAddress("0x936E467Dbb4f73B44E0dcF78aA2138275fca04ba")
 
 	// deployMarketPlace(auth, client, redeemerAddr)
-	// marketPlaceAddr := common.HexToAddress("")
+	// marketPlaceAddr := common.HexToAddress("0x1bD3197487E3eac7Ed0fEeb6cB5bc04370639C05")
 
-	//setMarketPlaceAddressLender(auth, client, lenderAddr, marketPlaceAddr)
-	//setMarketPlaceAddressRedeemer(auth, client, redeemerAddr, marketPlaceAddr)
+	// setMarketPlaceAddressLender(auth, client, lenderAddr, marketPlaceAddr)
+	// setMarketPlaceAddressRedeemer(auth, client, redeemerAddr, marketPlaceAddr)
 
 	// createMarket(auth, client, marketPlaceAddr)
 
 	// transferAdminLender(auth, client, lenderAddr, admin)
 	// transferAdminRedeemer(auth, client, redeemerAddr, admin)
 	// transferAdminMarketplace(auth, client, marketPlaceAddr, admin)
-
 }
