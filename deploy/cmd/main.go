@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -70,10 +69,10 @@ func main() {
 	// admin := common.HexToAddress(os.Getenv("ADMIN"))
 
 	// addresses for 3rd party contracts needed
-	swivelAddr := common.HexToAddress("0x3a09584FF42CDFe27Fe72Da0533bba24E9C28AaD")
-	pendleAddr := common.HexToAddress("0x0")
-	tempusAddr := common.HexToAddress("0x0")
-	apwineAddr := common.HexToAddress("0x0")
+	// swivelAddr := common.HexToAddress("0x3a09584FF42CDFe27Fe72Da0533bba24E9C28AaD")
+	// pendleAddr := common.HexToAddress("0x0")
+	// tempusAddr := common.HexToAddress("0x0")
+	// apwineAddr := common.HexToAddress("0x0")
 
 	/*
 		We simply turn these steps on and off by commenting them.
@@ -92,13 +91,13 @@ func main() {
 
 	// TODO we dont return the address here as we don't try to chain them atm
 	//deployLender(auth, client, swivelAddr, pendleAddr, tempusAddr)
-	lenderAddr := common.HexToAddress("0x088ebF836EC2a1E66a3aD41dB9CB6a90e21361Df")
+	// lenderAddr := common.HexToAddress("0x888cF9ca505189619CAe52721E2C6D31EDCD11F2")
 
-	deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr, lenderAddr)
-	// redeemerAddr := common.HexToAddress("0x936E467Dbb4f73B44E0dcF78aA2138275fca04ba")
+	// deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr, lenderAddr)
+	// redeemerAddr := common.HexToAddress("0xa5Ba7D94C6bdCfD50518c00e204304deC17fe54f")
 
 	// deployMarketPlace(auth, client, redeemerAddr)
-	// marketPlaceAddr := common.HexToAddress("0x1bD3197487E3eac7Ed0fEeb6cB5bc04370639C05")
+	// marketPlaceAddr := common.HexToAddress("0x86b93ac76815E37373Ae5665A83f9db8311d8300")
 
 	// setMarketPlaceAddressLender(auth, client, lenderAddr, marketPlaceAddr)
 	// setMarketPlaceAddressRedeemer(auth, client, redeemerAddr, marketPlaceAddr)
