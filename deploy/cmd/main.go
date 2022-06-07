@@ -73,7 +73,7 @@ func main() {
 	swivelAddr := common.HexToAddress("0x3a09584FF42CDFe27Fe72Da0533bba24E9C28AaD")
 	pendleAddr := common.HexToAddress("0x0")
 	tempusAddr := common.HexToAddress("0x0")
-	//apwineAddr := common.HexToAddress("0x0")
+	apwineAddr := common.HexToAddress("0x0")
 
 	/*
 		We simply turn these steps on and off by commenting them.
@@ -91,10 +91,10 @@ func main() {
 	*/
 
 	// TODO we dont return the address here as we don't try to chain them atm
-	deployLender(auth, client, swivelAddr, pendleAddr, tempusAddr)
-	//lenderAddr := common.HexToAddress("0x915c23620aD5c60Fa9F9280A64AD9bD290317D39")
+	//deployLender(auth, client, swivelAddr, pendleAddr, tempusAddr)
+	lenderAddr := common.HexToAddress("0x088ebF836EC2a1E66a3aD41dB9CB6a90e21361Df")
 
-	// deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr)
+	deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr, lenderAddr)
 	// redeemerAddr := common.HexToAddress("0x936E467Dbb4f73B44E0dcF78aA2138275fca04ba")
 
 	// deployMarketPlace(auth, client, redeemerAddr)
