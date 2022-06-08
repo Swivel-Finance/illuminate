@@ -18,6 +18,6 @@ Illuminate smart contracts are located here, stored by version. Their associated
 
 ### Current Deployments
 * Rinkeby
-  * MarketPlace: 0x1bD3197487E3eac7Ed0fEeb6cB5bc04370639C05
-  * Lender: 0x915c23620aD5c60Fa9F9280A64AD9bD290317D39
-  * Redeemer: 0x936E467Dbb4f73B44E0dcF78aA2138275fca04ba
+  * MarketPlace: 0x86b93ac76815E37373Ae5665A83f9db8311d8300
+  * Lender: 0x888cF9ca505189619CAe52721E2C6D31EDCD11F2
+  * Redeemer: 0xa5Ba7D94C6bdCfD50518c00e204304deC17fe54f

@@ -90,14 +90,14 @@ func main() {
 	*/
 
 	// TODO we dont return the address here as we don't try to chain them atm
-	// deployLender(auth, client, swivelAddr, pendleAddr, tempusAddr)
-	// lenderAddr := common.HexToAddress("0x915c23620aD5c60Fa9F9280A64AD9bD290317D39")
+	//deployLender(auth, client, swivelAddr, pendleAddr, tempusAddr)
+	// lenderAddr := common.HexToAddress("0x888cF9ca505189619CAe52721E2C6D31EDCD11F2")
 
-	// deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr)
-	// redeemerAddr := common.HexToAddress("0x936E467Dbb4f73B44E0dcF78aA2138275fca04ba")
+	// deployRedeemer(auth, client, swivelAddr, pendleAddr, tempusAddr, apwineAddr, lenderAddr)
+	// redeemerAddr := common.HexToAddress("0xa5Ba7D94C6bdCfD50518c00e204304deC17fe54f")
 
 	// deployMarketPlace(auth, client, redeemerAddr)
-	// marketPlaceAddr := common.HexToAddress("0x1bD3197487E3eac7Ed0fEeb6cB5bc04370639C05")
+	// marketPlaceAddr := common.HexToAddress("0x86b93ac76815E37373Ae5665A83f9db8311d8300")
 
 	// setMarketPlaceAddressLender(auth, client, lenderAddr, marketPlaceAddr)
 	// setMarketPlaceAddressRedeemer(auth, client, redeemerAddr, marketPlaceAddr)
