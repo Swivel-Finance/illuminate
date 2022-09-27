@@ -1,8 +1,8 @@
-.vscode
+# Foundry files
+out/
+solidity-files-cache.json
+.gas-snapshot
+broadcast/
 
-# mac files
-.DS_Store
-
-# vim files
-.swp
-.swo
+# Workspace
+.vscode/

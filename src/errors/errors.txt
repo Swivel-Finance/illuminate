@@ -1,0 +1,26 @@
+The implicit Errors enum:
+
+[
+  'unauthorized', 0
+  'paused', 1
+  'incorrect maturity', 2
+  'incorrect underlying', 3
+  'array length mismatch', 4
+  'marketplace already set', 5
+  'invalid principal', 6
+  'market not matured', 7
+  'lender already set', 8
+  'market already exists', 9
+  'pool already exists', 10
+  'principal tokens not received', 11
+  'yieldspace pool does not match principal token', 12
+  'underlying tokens not received', 13
+  'minimum fee not paid', 14
+  'zc token redemption failed', 15
+  'too much slippage', 16
+  'redemptions paused', 17
+  'no withdrawal scheduled', 18
+  'withdrawal still on hold', 19
+  'insufficient allowance', 20
+  'market is past maturity', 21
+]
