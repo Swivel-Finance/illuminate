@@ -26,7 +26,7 @@ Illuminate's smart contracts are located here, stored by version. Their associat
   * Redeemer: 0xD2667bB2471a8cf5b97622F555d2c58efe735f7A
   * Deployed Market: 
     * maturity: 1672525036 (DEC 22)
-    * underlying: 0x07865c6E87B9F70255377e024ace6630C1Eaa37F (USDC)
+    * underlying: 0x07865c6E87B9F70255377e024ace6630C1Eaa37F (USDC) -- Minted through app.compound.finance
     * iPT Yield Space Pool: 0x40af6C32198Db0c387031613d8d495b0D86084Ee
     * Illuminate PT (ERC 5095): 0x6AD625525CB514206259999cbD1a9bE0CD975798
     * Swivel PT (zc token): 0x3E3fe32063e1389bEE9CEE4A8a499e603052d1ee
