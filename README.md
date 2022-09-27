@@ -17,7 +17,13 @@ Should the lToken *not* trade at the lowest price on the market (meaning the hig
 Illuminate smart contracts are located here, stored by version. Their associated `abi` and `bin` compilation assets are also here for convenience.
 
 ### Current Deployments
-* Rinkeby
-  * MarketPlace: 0x86b93ac76815E37373Ae5665A83f9db8311d8300
-  * Lender: 0x888cF9ca505189619CAe52721E2C6D31EDCD11F2
-  * Redeemer: 0xa5Ba7D94C6bdCfD50518c00e204304deC17fe54f
+* Goerli
+  * MarketPlace: 0xE3289aBF62D967fB3722DD0711578F812A7C84e1
+  * Lender: 0xF780bBBe6aA834bad2C41232c9c39763fb0bda47
+  * Redeemer: 0xD2667bB2471a8cf5b97622F555d2c58efe735f7A
+  * Deployed Market: 
+    * maturity: 1672525036 (DEC 22)
+    * underlying: 0x07865c6E87B9F70255377e024ace6630C1Eaa37F (USDC)
+    * iPT Yield Space Pool: 0x40af6C32198Db0c387031613d8d495b0D86084Ee
+    * Illuminate PT (ERC 5095): 0x6AD625525CB514206259999cbD1a9bE0CD975798
+    * Swivel PT (zc token): 0x3E3fe32063e1389bEE9CEE4A8a499e603052d1ee
