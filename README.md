@@ -12,7 +12,7 @@ Users can deposit an integrated protocol's (swivel, yield, notional, sense, pend
 
 A frontend can then direct a user to the correct illuminate.sol lending function, which then lends to a given protocol (acquiring zero-coupon tokens) and deposits/mints _iPTs_.
 
-On-chain applications can also purchase the iPT through a our Marketplace.sol router, or direct YieldSpace AMM implementation with the knowledge that the rate is gaurunteed to be the highest collateralized rate in web3.
+On-chain applications can also purchase the iPT through our Marketplace.sol router, or direct YieldSpace AMM implementation with the knowledge that the rate is gaurunteed to be the highest collateralized rate in web3.
 
 Should the iPT *not* trade at the lowest price on the market (meaning the highest rate for buyers), arbitrageurs can simply deposit/mint iPTs with the cheapest alternative, and arbitrage the current open market trading price.
 
