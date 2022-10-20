@@ -32,6 +32,10 @@ Illuminate's smart contracts are located here, stored by version. Their associat
     * iPT Yield Space Pool: 0x40af6C32198Db0c387031613d8d495b0D86084Ee
     * Illuminate PT (ERC 5095): 0x6AD625525CB514206259999cbD1a9bE0CD975798
     * Swivel PT (zc token): 0x3E3fe32063e1389bEE9CEE4A8a499e603052d1ee
+    
+### Building
+
+To build the project, run `forge build --via-ir`.
 
 ### Testing 
 
