@@ -13,6 +13,7 @@ contract MarketPlace is IMarketPlace {
     uint128 private sellUnderlyingReturn;
     uint128 private buyUnderlyingReturn;
     bool private pausedReturn;
+    address private redeemerReturn;
 
     struct TokenArgs {
         uint256 maturity;
@@ -33,6 +34,10 @@ contract MarketPlace is IMarketPlace {
     mapping(address => SwapTokenArgs) public sellUnderlyingCalled;
     mapping(address => SwapTokenArgs) public buyUnderlyingCalled;
     uint256 public pausedCalled;
+
+    function redeemerReturns(address r) external {
+        redeemerReturn = r;
+    }
 
     function tokenReturns(address m) external {
         tokenReturn = m;
@@ -127,5 +132,9 @@ contract MarketPlace is IMarketPlace {
     ) external override returns (uint128) {
         buyUnderlyingCalled[u] = SwapTokenArgs(m, a, s);
         return buyUnderlyingReturn;
+    }
+
+    function redeemer() external view returns (address) {
+        return redeemerReturn;
     }
 }

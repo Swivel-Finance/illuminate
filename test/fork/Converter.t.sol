@@ -16,7 +16,6 @@ contract ConverterTest is Test {
         c = new Converter();
     }
 
-    // todo this test fails randomly due to safemath subtraction overflow
     function testAaveToken() public {
         address token = Contracts.AUSDC;
         deal(Contracts.USDC, msg.sender, amount);
@@ -40,7 +39,7 @@ contract ConverterTest is Test {
         // make sure aTokens are with the caller of convert
         assertEq(amount, IERC20(token).balanceOf(address(this)));
         // convert aTokens -> underlying (USDC)
-        c.convert(token, Contracts.USDC, amount, 0);
+        c.convert(token, Contracts.USDC, amount);
         // make sure we got the underlying (USDC) back
         assertEq(amount, IERC20(Contracts.USDC).balanceOf(address(this)));
     }
@@ -58,7 +57,7 @@ contract ConverterTest is Test {
         vm.stopPrank();
 
         // convert cUSDC -> USDC for the caller
-        c.convert(token, Contracts.USDC, amount, 0);
+        c.convert(token, Contracts.USDC, amount);
         // compute expected amount
         uint256 expected = (amount *
             ICompoundToken(token).exchangeRateCurrent()) / 1e18;
@@ -66,7 +65,7 @@ contract ConverterTest is Test {
         assertEq(expected, IERC20(Contracts.USDC).balanceOf(address(this)));
     }
 
-    function testWrappedStakedEthSkip() public {
+    function testWrappedStakedEth() public {
         address token = Contracts.WSTETH;
         // give caller wstETH
         deal(token, address(this), amount, true);
@@ -78,15 +77,10 @@ contract ConverterTest is Test {
         IERC20(token).approve(address(c), 2**256 - 1);
         vm.stopPrank();
 
-        vm.startPrank(address(c));
-        IERC20(token).approve(address(Contracts.UNISWAP_ROUTER), 2**256 - 1);
-        vm.stopPrank();
+        // convert wstETH -> stETH for the caller
+        c.convert(token, Contracts.STETH, amount);
 
-        // compute expected amount
-        uint256 minExpected = (amount * 9) / 10;
-        // convert wstETH -> wETH for the caller
-        c.convert(token, Contracts.WETH, amount, minExpected);
-        // caller should have USDC
-        assertGt(minExpected, IERC20(Contracts.WETH).balanceOf(address(this)));
+        // check that the caller received staked eth
+        assertGt(IERC20(Contracts.STETH).balanceOf(address(this)), amount);
     }
 }

@@ -5,7 +5,6 @@ contract Converter {
     struct ConvertArg {
         address underling;
         uint256 amount;
-        uint256 minimum;
     }
 
     mapping(address => ConvertArg) public convertCalled;
@@ -13,9 +12,8 @@ contract Converter {
     function convert(
         address c,
         address u,
-        uint256 a,
-        uint256 m
+        uint256 a
     ) external {
-        convertCalled[c] = ConvertArg(u, a, m);
+        convertCalled[c] = ConvertArg(u, a);
     }
 }

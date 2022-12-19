@@ -38,4 +38,6 @@ interface IMarketPlace {
         uint128,
         uint128
     ) external returns (uint128);
+
+    function redeemer() external view returns (address);
 }

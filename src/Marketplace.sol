@@ -4,16 +4,19 @@ pragma solidity 0.8.16;
 
 import 'src/tokens/ERC5095.sol';
 import 'src/lib/Safe.sol';
+import 'src/lib/RevertMsgExtractor.sol';
+import 'src/errors/Exception.sol';
 
 import 'src/interfaces/ILender.sol';
 import 'src/interfaces/IPool.sol';
-
-import 'src/errors/Exception.sol';
+import 'src/interfaces/IPendleToken.sol';
+import 'src/interfaces/IAPWineToken.sol';
+import 'src/interfaces/IAPWineFutureVault.sol';
 
 /// @title MarketPlace
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
 /// @notice This contract is in charge of managing the available principals for each loan market.
-/// @notice In addition, this contract routes swap orders between metaprincipal tokens and their respective underlying to YieldSpace pools.
+/// @notice In addition, this contract routes swap orders between Illuminate PTs and their respective underlying to YieldSpace pools.
 contract MarketPlace {
     /// @notice the available principals
     /// @dev the order of this enum is used to select principals from the markets
@@ -31,13 +34,12 @@ contract MarketPlace {
     }
 
     /// @notice markets are defined by a tuple that points to a fixed length array of principal token addresses.
-    /// @notice The principal tokens whose addresses correspond to their Principals enum value, thus the array should be ordered in that way
     mapping(address => mapping(uint256 => address[9])) public markets;
 
     /// @notice pools map markets to their respective YieldSpace pools for the MetaPrincipal token
     mapping(address => mapping(uint256 => address)) public pools;
 
-    /// @notice address that is allowed to create markets, set fees, etc. It is commonly used in the authorized modifier.
+    /// @notice address that is allowed to create markets, set pools, etc. It is commonly used in the authorized modifier.
     address public admin;
     /// @notice address of the deployed redeemer contract
     address public immutable redeemer;
@@ -48,18 +50,53 @@ contract MarketPlace {
     event CreateMarket(
         address indexed underlying,
         uint256 indexed maturity,
-        address[9] tokens
+        address[9] tokens,
+        address element,
+        address apwine
     );
-    /// @notice emitted upon change of principal token
+    /// @notice emitted upon setting a principal token
     event SetPrincipal(
         address indexed underlying,
         uint256 indexed maturity,
-        address indexed principal
+        address indexed principal,
+        uint8 protocol
     );
-    /// @notice emitted on change of admin
+    /// @notice emitted upon swapping with the pool
+    event Swap(
+        address indexed underlying,
+        uint256 indexed maturity,
+        address sold,
+        address bought,
+        uint256 received,
+        uint256 spent,
+        address spender
+    );
+    /// @notice emitted upon minting tokens with the pool
+    event Mint(
+        address indexed underlying,
+        uint256 indexed maturity,
+        uint256 underlyingIn,
+        uint256 principalTokensIn,
+        uint256 minted,
+        address minter
+    );
+    /// @notice emitted upon burning tokens with the pool
+    event Burn(
+        address indexed underlying,
+        uint256 indexed maturity,
+        uint256 tokensBurned,
+        uint256 underlyingReceived,
+        uint256 principalTokensReceived,
+        address burner
+    );
+    /// @notice emitted upon changing the admin
     event SetAdmin(address indexed admin);
-    /// @notice emitted on change of pool
-    event SetPool(address indexed pool);
+    /// @notice emitted upon setting a pool
+    event SetPool(
+        address indexed underlying,
+        uint256 indexed maturity,
+        address indexed pool
+    );
 
     /// @notice ensures that only a certain address can call the function
     /// @param a address that msg.sender must be to be authorized
@@ -82,12 +119,13 @@ contract MarketPlace {
     /// @notice creates a new market for the given underlying token and maturity
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    /// @param t principal token addresses for this market minus the illuminate principal
-    /// @param n name for the illuminate token
-    /// @param s symbol for the illuminate token
-    /// @param d decimals for the illuminate token
-    /// @param e address of the element vault that corresponds to this market
-    /// @param a address of the apwine router that corresponds to this market
+    /// @param t principal token addresses for this market
+    /// @param n name for the Illuminate token
+    /// @param s symbol for the Illuminate token
+    /// @param a address of the APWine router that corresponds to this market
+    /// @param e address of the Element vault that corresponds to this market
+    /// @param h address of a helper contract, used for Sense approvals if active in the market
+    /// @param sensePeriphery address of the Sense periphery contract that must be approved by the lender
     /// @return bool true if successful
     function createMarket(
         address u,
@@ -95,84 +133,144 @@ contract MarketPlace {
         address[8] calldata t,
         string calldata n,
         string calldata s,
-        uint8 d,
+        address a,
         address e,
-        address a
+        address h,
+        address sensePeriphery
     ) external authorized(admin) returns (bool) {
         {
+            // Get the Illuminate principal token for this market (if one exists)
             address illuminate = markets[u][m][
                 (uint256(Principals.Illuminate))
             ];
+
+            // If illuminate PT already exists, a new market cannot be created
             if (illuminate != address(0)) {
                 revert Exception(9, 0, 0, illuminate, address(0));
             }
         }
 
-        address illuminateToken;
-        {
-            illuminateToken = address(
-                new ERC5095(u, m, redeemer, lender, address(this), n, s, d)
-            );
-        }
+        // Create an Illuminate principal token for the new market
+        address illuminateToken = address(
+            new ERC5095(
+                u,
+                m,
+                redeemer,
+                lender,
+                address(this),
+                n,
+                s,
+                IERC20(u).decimals()
+            )
+        );
 
         {
-            // the market will have the illuminate principal as its zeroth item,
-            // thus t should have Principals[1] as [0]
+            // create the principal tokens array
             address[9] memory market = [
-                illuminateToken, // illuminate
-                t[0], // swivel
-                t[1], // yield
-                t[2], // element
-                t[3], // pendle
-                t[4], // tempus
-                t[5], // sense
-                t[6], // apwine
-                t[7] // notional
+                illuminateToken, // Illuminate
+                t[0], // Swivel
+                t[1], // Yield
+                t[2], // Element
+                t[3], // Pendle
+                t[4], // Tempus
+                t[5], // Sense
+                t[6], // APWine
+                t[7] // Notional
             ];
 
-            // necessary to get around stack too deep
-            address underlying = u;
-            uint256 maturity = m;
+            // Set the market
+            markets[u][m] = market;
 
-            // set the market
-            markets[underlying][maturity] = market;
-        }
+            // Have the lender contract approve the several contracts
+            ILender(lender).approve(u, a, e, t[7], sensePeriphery);
 
-        // todo also call the next two in the setPrincipal call?
-        // Max approve lender spending on the element and apwine contracts
-        ILender(lender).approve(u, e, a, t[7]);
+            // Have the redeemer contract approve the Pendle principal token
+            if (t[3] != address(0)) {
+                address underlyingYieldToken = IPendleToken(t[3])
+                    .underlyingYieldToken();
+                IRedeemer(redeemer).approve(underlyingYieldToken);
+            }
 
-        // Max approve converters's ability to convert redeemer's pendle PTs
-        IRedeemer(redeemer).approve(t[3]);
+            // Allow converter to spend interest bearing asset
+            if (t[5] != address(0)) {
+                IRedeemer(redeemer).approve(h);
+            }
 
-        {
-            address[9] memory tokens = markets[u][m];
-            emit CreateMarket(u, m, tokens);
+            // Approve interest bearing token conversion to underlying for APWine
+            if (t[6] != address(0)) {
+                address futureVault = IAPWineToken(t[6]).futureVault();
+                address interestBearingToken = IAPWineFutureVault(futureVault)
+                    .getIBTAddress();
+                IRedeemer(redeemer).approve(interestBearingToken);
+            }
+
+            emit CreateMarket(u, m, market, e, a);
         }
         return true;
     }
 
     /// @notice allows the admin to set an individual market
-    /// @param p enum value of the principal token
-    /// @param u underlying token address
-    /// @param m maturity timestamp for the market
+    /// @param p principal value according to the MarketPlace's Principals Enum
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
     /// @param a address of the new principal token
+    /// @param h a supplementary address (apwine needs a router, element needs a vault, sense needs interest bearing asset)
+    /// @param sensePeriphery address of the Sense periphery contract that must be approved by the lender
     /// @return bool true if the principal set, false otherwise
     function setPrincipal(
         uint8 p,
         address u,
         uint256 m,
-        address a
+        address a,
+        address h,
+        address sensePeriphery
     ) external authorized(admin) returns (bool) {
+        // Get the current principal token for the principal token being set
         address market = markets[u][m][p];
+
+        // Verify that it has not already been set
         if (market != address(0)) {
             revert Exception(9, 0, 0, market, address(0));
         }
+
+        // Set the principal token in the markets mapping
         markets[u][m][p] = a;
 
-        // todo: should we handle special protocol based approvals here?
+        if (p == uint8(Principals.Element)) {
+            // Approve Element vault if setting Element's principal token
+            ILender(lender).approve(u, address(0), h, address(0), address(0));
+        } else if (p == uint8(Principals.Pendle)) {
+            // Principal token must be approved for Pendle's redeem
+            address underlyingYieldToken = IPendleToken(a)
+                .underlyingYieldToken();
+            IRedeemer(redeemer).approve(underlyingYieldToken);
+        } else if (p == uint8(Principals.Sense)) {
+            // Approve converter to transfer yield token for Sense's redeem
+            IRedeemer(redeemer).approve(h);
 
-        emit SetPrincipal(u, m, a);
+            // Approve Periphery to be used from Lender
+            ILender(lender).approve(
+                u,
+                address(0),
+                address(0),
+                address(0),
+                sensePeriphery
+            );
+        } else if (p == uint8(Principals.Apwine)) {
+            // Approve converter to transfer yield token for APWine's redeem
+            address futureVault = IAPWineToken(a).futureVault();
+            address interestBearingToken = IAPWineFutureVault(futureVault)
+                .getIBTAddress();
+            IRedeemer(redeemer).approve(interestBearingToken);
+
+            // Approve APWine router if setting APWine's principal token
+            ILender(lender).approve(u, h, address(0), address(0), address(0));
+        } else if (p == uint8(Principals.Notional)) {
+            // Principal token must be approved for Notional's lend
+            ILender(lender).approve(u, address(0), address(0), a, address(0));
+        }
+
+        emit SetPrincipal(u, m, a, p);
         return true;
     }
 
@@ -186,7 +284,7 @@ contract MarketPlace {
     }
 
     /// @notice sets the address for a pool
-    /// @param u address of the underlying asset
+    /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param a address of the pool
     /// @return bool true if the pool set, false otherwise
@@ -195,20 +293,32 @@ contract MarketPlace {
         uint256 m,
         address a
     ) external authorized(admin) returns (bool) {
+        // Verify that the pool has not already been set
         address pool = pools[u][m];
+
+        // Revert if the pool already exists
         if (pool != address(0)) {
             revert Exception(10, 0, 0, pool, address(0));
         }
+
+        // Set the pool
         pools[u][m] = a;
-        emit SetPool(a);
+
+        // Get the principal token
+        ERC5095 pt = ERC5095(markets[u][m][uint8(Principals.Illuminate)]);
+
+        // Set the pool for the principal token
+        pt.setPool(a);
+
+        emit SetPool(u, m, a);
         return true;
     }
 
-    /// @notice sells the PT for the PT via the pool
-    /// @param u address of the underlying asset
+    /// @notice sells the PT for the underlying via the pool
+    /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    /// @param a amount of PT to swap
-    /// @param s slippage cap, minimum number of tokens that must be received
+    /// @param a amount of PTs to sell
+    /// @param s slippage cap, minimum amount of underlying that must be received
     /// @return uint128 amount of underlying bought
     function sellPrincipalToken(
         address u,
@@ -216,26 +326,38 @@ contract MarketPlace {
         uint128 a,
         uint128 s
     ) external returns (uint128) {
+        // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
+
+        // Preview amount of underlying received by selling `a` PTs
+        uint256 expected = pool.sellFYTokenPreview(a);
+
+        // Verify that the amount needed does not exceed the slippage parameter
+        if (expected < s) {
+            revert Exception(16, expected, s, address(0), address(0));
+        }
+
+        // Transfer the principal tokens to the pool
         Safe.transferFrom(
             IERC20(address(pool.fyToken())),
             msg.sender,
             address(pool),
             a
         );
-        uint128 preview = pool.sellFYTokenPreview(a);
-        if (preview < s) {
-            revert Exception(16, preview, 0, address(0), address(0));
-        }
 
-        return pool.sellFYToken(msg.sender, preview);
+        // Execute the swap
+        uint128 received = pool.sellFYToken(msg.sender, Cast.u128(expected));
+        emit Swap(u, m, address(pool.fyToken()), u, received, a, msg.sender);
+
+        return received;
     }
 
-    /// @notice buys the PUT for the underlying via the pool
-    /// @param u address of the underlying asset
+    /// @notice buys the PT for the underlying via the pool
+    /// @notice determines how many underlying to sell by using the preview
+    /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying tokens to sell
-    /// @param s slippage cap, minimum number to tokens to receive after swap
+    /// @param a amount of PTs to be purchased
+    /// @param s slippage cap, maximum number of underlying that can be sold
     /// @return uint128 amount of underlying sold
     function buyPrincipalToken(
         address u,
@@ -243,20 +365,37 @@ contract MarketPlace {
         uint128 a,
         uint128 s
     ) external returns (uint128) {
+        // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
-        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
-        uint128 preview = pool.buyFYTokenPreview(a);
-        if (preview < s) {
-            revert Exception(16, preview, 0, address(0), address(0));
+
+        // Get the amount of base hypothetically required to purchase `a` PTs
+        uint128 expected = pool.buyFYTokenPreview(a);
+
+        // Verify that the amount needed does not exceed the slippage parameter
+        if (expected > s) {
+            revert Exception(16, expected, 0, address(0), address(0));
         }
-        return pool.buyFYToken(msg.sender, preview, 0);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(
+            IERC20(pool.base()),
+            msg.sender,
+            address(pool),
+            expected
+        );
+
+        // Execute the swap to purchase `a` base tokens
+        uint128 spent = pool.buyFYToken(msg.sender, a, expected);
+
+        emit Swap(u, m, u, address(pool.fyToken()), a, spent, msg.sender);
+        return spent;
     }
 
     /// @notice sells the underlying for the PT via the pool
-    /// @param u address of the underlying asset
+    /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying to swap
-    /// @param s slippage cap, minimum number of tokens that must be received
+    /// @param a amount of underlying to sell
+    /// @param s slippage cap, minimum number of PTs that must be received
     /// @return uint128 amount of PT purchased
     function sellUnderlying(
         address u,
@@ -264,20 +403,33 @@ contract MarketPlace {
         uint128 a,
         uint128 s
     ) external returns (uint128) {
+        // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
-        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
-        uint128 preview = pool.sellBasePreview(a);
-        if (preview < s) {
-            revert Exception(16, preview, 0, address(0), address(0));
+
+        // Get the number of PTs received for selling `a` underlying tokens
+        uint128 expected = pool.sellBasePreview(a);
+
+        // Verify slippage does not exceed the one set by the user
+        if (expected < s) {
+            revert Exception(16, expected, 0, address(0), address(0));
         }
-        return pool.sellBase(msg.sender, preview);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
+
+        // Execute the swap
+        uint128 received = pool.sellBase(msg.sender, expected);
+
+        emit Swap(u, m, u, address(pool.fyToken()), received, a, msg.sender);
+        return received;
     }
 
     /// @notice buys the underlying for the PT via the pool
-    /// @param u address of the underlying asset
+    /// @notice determines how many PTs to sell by using the preview
+    /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    /// @param a amount of PT to swap
-    /// @param s slippage cap, minimum number of tokens to be received after swap
+    /// @param a amount of underlying to be purchased
+    /// @param s slippage cap, maximum number of PTs that can be sold
     /// @return uint128 amount of PTs sold
     function buyUnderlying(
         address u,
@@ -285,18 +437,30 @@ contract MarketPlace {
         uint128 a,
         uint128 s
     ) external returns (uint128) {
+        // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
+
+        // Get the amount of PTs hypothetically required to purchase `a` underlying
+        uint256 expected = pool.buyBasePreview(a);
+
+        // Verify that the amount needed does not exceed the slippage parameter
+        if (expected > s) {
+            revert Exception(16, expected, 0, address(0), address(0));
+        }
+
+        // Transfer the principal tokens to the pool
         Safe.transferFrom(
             IERC20(address(pool.fyToken())),
             msg.sender,
             address(pool),
-            a
+            expected
         );
-        uint128 preview = pool.buyBasePreview(a);
-        if (preview < s) {
-            revert Exception(16, preview, 0, address(0), address(0));
-        }
-        return pool.buyBase(msg.sender, preview, 0);
+
+        // Execute the swap to purchase `a` underlying tokens
+        uint128 spent = pool.buyBase(msg.sender, a, Cast.u128(expected));
+
+        emit Swap(u, m, address(pool.fyToken()), u, a, spent, msg.sender);
+        return spent;
     }
 
     /// @notice mint liquidity tokens in exchange for adding underlying and PT
@@ -306,8 +470,8 @@ contract MarketPlace {
     /// @param m the maturity of the principal token
     /// @param b number of base tokens
     /// @param p the principal token amount being sent
-    /// @param minRatio minimum ratio of underlying to PT in the pool.
-    /// @param maxRatio maximum ratio of underlying to PT in the pool.
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
+    /// @param maxRatio maximum ratio of LP tokens to PT in the pool.
     /// @return uint256 number of base tokens passed to the method
     /// @return uint256 number of yield tokens passed to the method
     /// @return uint256 the amount of tokens minted.
@@ -326,15 +490,26 @@ contract MarketPlace {
             uint256
         )
     {
+        // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
+
+        // Transfer the underlying tokens to the pool
         Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), b);
+
+        // Transfer the principal tokens to the pool
         Safe.transferFrom(
             IERC20(address(pool.fyToken())),
             msg.sender,
             address(pool),
             p
         );
-        return pool.mint(msg.sender, msg.sender, minRatio, maxRatio);
+
+        // Mint the tokens and return the leftover assets to the caller
+        (uint256 underlyingIn, uint256 principalTokensIn, uint256 minted) = pool
+            .mint(msg.sender, msg.sender, minRatio, maxRatio);
+
+        emit Mint(u, m, underlyingIn, principalTokensIn, minted, msg.sender);
+        return (underlyingIn, principalTokensIn, minted);
     }
 
     /// @notice Mint liquidity tokens in exchange for adding only underlying
@@ -344,8 +519,8 @@ contract MarketPlace {
     /// @param m the maturity of the principal token
     /// @param a the underlying amount being sent
     /// @param p amount of `PT` being bought in the Pool, from this we calculate how much underlying it will be taken in.
-    /// @param minRatio minimum ratio of underlying to PT in the pool.
-    /// @param maxRatio maximum ratio of underlying to PT in the pool.
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
+    /// @param maxRatio maximum ratio of LP tokens to PT in the pool.
     /// @return uint256 number of base tokens passed to the method
     /// @return uint256 number of yield tokens passed to the method
     /// @return uint256 the amount of tokens minted.
@@ -364,22 +539,38 @@ contract MarketPlace {
             uint256
         )
     {
+        // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
+
+        // Transfer the underlying tokens to the pool
         Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
-        return pool.mintWithBase(msg.sender, msg.sender, p, minRatio, maxRatio);
+
+        // Mint the tokens to the user
+        (uint256 underlyingIn, , uint256 minted) = pool.mintWithBase(
+            msg.sender,
+            msg.sender,
+            p,
+            minRatio,
+            maxRatio
+        );
+
+        emit Mint(u, m, underlyingIn, 0, minted, msg.sender);
+        return (underlyingIn, 0, minted);
     }
 
     /// @notice burn liquidity tokens in exchange for underlying and PT.
     /// @param u the address of the underlying token
     /// @param m the maturity of the principal token
-    /// @param minRatio minimum ratio of underlying to PT in the pool
-    /// @param maxRatio maximum ratio of underlying to PT in the pool
+    /// @param a the amount of liquidity tokens to burn
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool
+    /// @param maxRatio maximum ratio of LP tokens to PT in the pool
     /// @return uint256 amount of LP tokens burned
     /// @return uint256 amount of base tokens received
     /// @return uint256 amount of fyTokens received
     function burn(
         address u,
         uint256 m,
+        uint256 a,
         uint256 minRatio,
         uint256 maxRatio
     )
@@ -390,35 +581,88 @@ contract MarketPlace {
             uint256
         )
     {
-        return
-            IPool(pools[u][m]).burn(msg.sender, msg.sender, minRatio, maxRatio);
+        // Get the pool for the market
+        IPool pool = IPool(pools[u][m]);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(address(pool)), msg.sender, address(pool), a);
+
+        // Burn the tokens
+        (
+            uint256 tokensBurned,
+            uint256 underlyingReceived,
+            uint256 principalTokensReceived
+        ) = pool.burn(msg.sender, msg.sender, minRatio, maxRatio);
+
+        emit Burn(
+            u,
+            m,
+            tokensBurned,
+            underlyingReceived,
+            principalTokensReceived,
+            msg.sender
+        );
+        return (tokensBurned, underlyingReceived, principalTokensReceived);
     }
 
     /// @notice burn liquidity tokens in exchange for underlying.
     /// @param u the address of the underlying token
     /// @param m the maturity of the principal token
-    /// @param minRatio minimum ratio of underlying to PT in the pool.
-    /// @param maxRatio minimum ratio of underlying to PT in the pool.
+    /// @param a the amount of liquidity tokens to burn
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
+    /// @param maxRatio minimum ratio of LP tokens to PT in the pool.
     /// @return uint256 amount of PT tokens sent to the pool
     /// @return uint256 amount of underlying tokens returned
     function burnForUnderlying(
         address u,
         uint256 m,
+        uint256 a,
         uint256 minRatio,
         uint256 maxRatio
     ) external returns (uint256, uint256) {
-        return IPool(pools[u][m]).burnForBase(msg.sender, minRatio, maxRatio);
+        // Get the pool for the market
+        IPool pool = IPool(pools[u][m]);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(address(pool)), msg.sender, address(pool), a);
+
+        // Burn the tokens in exchange for underlying tokens
+        (uint256 tokensBurned, uint256 underlyingReceived) = pool.burnForBase(
+            msg.sender,
+            minRatio,
+            maxRatio
+        );
+
+        emit Burn(u, m, tokensBurned, underlyingReceived, 0, msg.sender);
+        return (tokensBurned, underlyingReceived);
     }
 
     /// @notice provides an interface to receive principal token addresses from markets
-    /// @param u underlying asset contract address
-    /// @param m maturity timestamp for the market
-    /// @param p principal index mapping to the Principals enum
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param p principal value according to the MarketPlace's Principals Enum
     function token(
         address u,
         uint256 m,
         uint256 p
     ) external view returns (address) {
         return markets[u][m][p];
+    }
+
+    /// @notice Allows batched call to self (this contract).
+    /// @param c An array of inputs for each call.
+    function batch(bytes[] calldata c)
+        external
+        payable
+        returns (bytes[] memory results)
+    {
+        results = new bytes[](c.length);
+        for (uint256 i; i < c.length; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(
+                c[i]
+            );
+            if (!success) revert(RevertMsgExtractor.getRevertMsg(result));
+            results[i] = result;
+        }
     }
 }

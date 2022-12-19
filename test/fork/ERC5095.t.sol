@@ -10,6 +10,7 @@ import 'src/MarketPlace.sol' as mp;
 import 'src/Redeemer.sol' as r;
 
 import 'forge-std/Test.sol';
+using stdStorage for StdStorage;
 
 contract ERC5095Test is Test {
     ERC5095 token;
@@ -26,19 +27,17 @@ contract ERC5095Test is Test {
             address(0),
             address(0),
             address(0),
-            address(0),
             address(0)
         );
         marketplace = new mp.MarketPlace(address(redeemer), lender);
-        marketplace.setPool(
-            Contracts.USDC,
-            maturity,
-            Contracts.YIELD_POOL_USDC
-        );
+        stdstore
+            .target(address(marketplace))
+            .sig('pools(address,uint256)')
+            .with_key(Contracts.USDC)
+            .with_key(maturity)
+            .depth(0)
+            .checked_write(Contracts.YIELD_POOL_USDC);
         redeemer.setMarketPlace(address(marketplace));
-
-        console.log('pool', marketplace.pools(Contracts.USDC, maturity));
-        console.log('yield pool', Contracts.YIELD_POOL_USDC);
 
         token = new ERC5095(
             Contracts.USDC,
@@ -51,13 +50,18 @@ contract ERC5095Test is Test {
             18
         );
 
+        vm.startPrank(address(marketplace));
+        token.setPool(Contracts.YIELD_POOL_USDC);
+        vm.stopPrank();
+
         marketplace.setPrincipal(
             uint8(0),
             Contracts.USDC,
             maturity,
-            address(token)
+            address(token),
+            address(0),
+            address(0)
         );
-        console.log('got here');
 
         // approve for pool interactions
         IERC20(Contracts.USDC).approve(address(token), type(uint256).max);
@@ -99,15 +103,12 @@ contract ERC5095Test is Test {
     function testMaxRedeem() public {
         uint256 amount = 100000;
         deal(address(token), address(this), amount);
-        assertGt(token.maxRedeem(address(this)), 0);
-
-        vm.warp(maturity + 1);
         assertEq(token.maxRedeem(address(this)), amount);
     }
 
     function testMaxWithdraw() public {
         uint256 amount = 100000;
-        deal(address(token), address(token), amount);
+        deal(address(token), address(this), amount);
         assertGt(token.maxWithdraw(address(this)), 0);
 
         vm.warp(maturity + 1);
@@ -132,16 +133,38 @@ contract ERC5095Test is Test {
     }
 
     function testPreviewRedeem() public {
-        uint256 amount = 100000;
+        stdstore
+            .target(address(redeemer))
+            .sig('holdings(address,uint256)')
+            .with_key(Contracts.USDC)
+            .with_key(maturity)
+            .depth(0)
+            .checked_write(100000);
+        vm.startPrank(address(lender));
+        token.authMint(address(this), 80000);
+        vm.stopPrank();
+
+        uint256 amount = 80000;
         assertGt(token.previewRedeem(amount), 0);
 
         vm.warp(maturity + 1);
-        assertEq(token.previewRedeem(amount), amount);
+        assertEq(token.previewRedeem(amount / 2), 40000);
     }
 
     function testPreviewWithdraw() public {
+        stdstore
+            .target(address(redeemer))
+            .sig('holdings(address,uint256)')
+            .with_key(Contracts.USDC)
+            .with_key(maturity)
+            .depth(0)
+            .checked_write(80000);
+        vm.startPrank(address(lender));
+        token.authMint(address(this), 100000);
+        vm.stopPrank();
+
         uint256 amount = 1000000;
-        assertGt(token.previewWithdraw(amount), amount);
+        assertGt(token.previewWithdraw(amount / 2), 40000);
 
         vm.warp(maturity + 1);
         assertGt(token.previewWithdraw(amount), 0);
@@ -177,6 +200,7 @@ contract ERC5095Test is Test {
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
+        deal(address(token), address(this), shares);
         token.withdraw(amount, address(this), address(this));
         assertGt(IERC20(Contracts.USDC).balanceOf(address(this)), 0);
     }
@@ -186,7 +210,15 @@ contract ERC5095Test is Test {
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
-        deal(address(token), address(this), shares);
+        deal(address(token), address(this), shares, true);
+        stdstore
+            .target(address(redeemer))
+            .sig('holdings(address,uint256)')
+            .with_key(Contracts.USDC)
+            .with_key(maturity)
+            .depth(0)
+            .checked_write(120000);
+
         deal(Contracts.USDC, address(redeemer), amount);
         token.withdraw(amount, address(this), address(this));
         assertGt(IERC20(Contracts.USDC).balanceOf(address(this)), 0);
@@ -196,6 +228,7 @@ contract ERC5095Test is Test {
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
+        deal(address(token), address(this), shares);
         token.redeem(amount, address(this), address(this));
         assertGt(IERC20(Contracts.USDC).balanceOf(address(this)), 0);
     }
@@ -205,7 +238,14 @@ contract ERC5095Test is Test {
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
-        deal(address(token), address(this), shares);
+        deal(address(token), address(this), shares, true);
+        stdstore
+            .target(address(redeemer))
+            .sig('holdings(address,uint256)')
+            .with_key(Contracts.USDC)
+            .with_key(maturity)
+            .depth(0)
+            .checked_write(120000);
         deal(Contracts.USDC, address(redeemer), amount);
         token.redeem(amount, address(this), address(this));
         assertGt(IERC20(Contracts.USDC).balanceOf(address(this)), 0);

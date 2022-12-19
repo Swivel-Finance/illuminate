@@ -3,8 +3,9 @@ pragma solidity ^0.8.16;
 
 library Contracts {
     // Sent to the lender contract constructor
-    // Swivel.sol v2 deployed contract
-    address constant SWIVEL = 0x093e4D20D9b2c3c8f68E8a20262D8Fb8EBCE08FA;
+    // Swivel.sol v3 deployed contract
+    address constant SWIVEL = 0x373a06bD3067f8DA90239a47f316F09312b7800F;
+    uint256 constant SWIVEL_BLOCK = 15947632;
     // Sushiswap router (https://docs.sushi.com/docs/Developers/Deployment%20Addresses)
     // note used on lender
     address constant PENDLE = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
@@ -18,8 +19,8 @@ library Contracts {
     // NOTE this is the DAI wrapped-fcash address
     address constant NOTIONAL_TOKEN =
         0xfcB060E09e452EEFf142949Bec214c187CDF25fA;
-    // Via the marketplace's markets call with USDC underlying and a maturity of 1664550000
-    address constant SWIVEL_TOKEN = 0x6b88d76Dacd986c18AAd117d706139619A6016f6;
+    // Via the marketplace's markets call with USDC underlying and a maturity of 1664550000 (v2)
+    address constant SWIVEL_TOKEN = 0x70e6DBaA67421878681E37FF5C6F1D1C333cC938;
     // Via sushi swap market (Dec 2022 - https://app.pendle.finance/market)
     address constant PENDLE_TOKEN = 0x8fcb1783bF4b71A51F702aF0c266729C4592204a;
     // via contracts.json (https://etherscan.io/address/0x53C2a1bA37FF3cDaCcb3EA030DB3De39358e5593#readContract)
@@ -30,7 +31,7 @@ library Contracts {
     // amm points to in order to continue with verification purposes
     // AMM Registry -> getFutureVaultAt(futureVaultAt via ProtocolRegistry) -> getFutureAMMPool
     address constant APWINE_AMM_POOL =
-        0x0CC36e3cc5eACA6d046b537703ae946874d57299;
+        0xb932c4801240753604c768c991eb640BCD7C06EB;
     // (element token) https://app.element.fi/fixedrates/0xCFe60a1535ecc5B0bc628dC97111C8bb01637911
     address constant ELEMENT_TOKEN = 0xf38c3E836Be9cD35072055Ff6a9Ba570e0B70797;
     // (sense adapter)
@@ -42,6 +43,8 @@ library Contracts {
     // found via etherscan via contracts.json or something
     address constant YIELD_POOL_USDC =
         0xf5Fd5A9Db9CcCc6dc9f5EF1be3A859C39983577C;
+    address constant YIELD_POOL_USDC_2 = // DEC 22
+        0xB2fff7FEA1D455F0BCdd38DA7DeE98af0872a13a;
     address constant YIELD_POOL_DAI =
         0x6BaC09a67Ed1e1f42c29563847F77c28ec3a04FC;
     // (amm) https://etherscan.io/address/0x811f4F0241A9A4583C052c08BDA7F6339DBb13f7#readContract
@@ -56,8 +59,9 @@ library Contracts {
     // (controller, used to call getNextPeriodStart (for maturity check))
     address constant APWINE_CONTROLLER =
         0x4bA30FA240047c17FC557b8628799068d4396790;
-    // (apwine PT - 90D-TrueFi-tfUSDC) https://etherscan.io/address/0x2b8692963c8ec4cdf30047a20f12c43e4d9aef6c
-    address constant APWINE_TOKEN = 0x2B8692963C8eC4cdF30047a20F12C43E4d9aEf6C;
+    // (apwine PT - USDT market) https://etherscan.io/address/0x2b8692963c8ec4cdf30047a20f12c43e4d9aef6c
+    address constant APWINE_TOKEN = 0x2d31591f7a650579125bC9BC1622E07fFD219033;
+    address constant APWINE_FUTURE_VAULT = 0xb524c16330A76182Ef617F08F5E6996f577AC64A;
     // (element router)
     address constant ELEMENT_VAULT = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     // (element USDC pool) https://raw.githubusercontent.com/element-fi/elf-deploy/main/changelog/releases/mainnet/v1.1.0:7/addresses.json
@@ -91,6 +95,9 @@ library Contracts {
     address constant CUSDC = 0x39AA39c021dfbaE8faC545936693aC917d5E7563;
     address constant AAVE_POOL = 0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9;
     address constant WSTETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-    address constant UNISWAP_ROUTER =
-        0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
+    address constant STETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
+    address constant USDT = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    address constant CDAI = 0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643;
+
+    address constant EUDAI = 0xe025E3ca2bE02316033184551D4d3Aa22024D9DC;
 }

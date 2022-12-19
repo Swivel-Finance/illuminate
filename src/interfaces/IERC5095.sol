@@ -43,5 +43,9 @@ interface IERC5095 is IERC2612 {
 
     function authBurn(address, uint256) external returns (bool);
 
-    function authApproval(address, uint256) external returns (bool);
+    function authApprove(
+        address,
+        address,
+        uint256
+    ) external returns (bool);
 }

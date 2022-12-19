@@ -5,6 +5,8 @@ import 'forge-std/Test.sol';
 import 'test/fork/Contracts.sol';
 import 'test/lib/Hash.sol';
 
+using stdStorage for StdStorage;
+
 import 'src/Lender.sol';
 import 'src/Redeemer.sol';
 import 'src/Converter.sol';
@@ -38,18 +40,23 @@ contract LenderTest is Test {
         // Deploy converter
         c = new Converter();
         // Deploy lender
-        l = new Lender(Contracts.SWIVEL, Contracts.PENDLE, Contracts.TEMPUS);
+        l = new Lender(
+            Contracts.SWIVEL,
+            Contracts.PENDLE,
+            Contracts.APWINE_ROUTER
+        );
         // Deploy redeemer
         r = new Redeemer(
             address(l),
             Contracts.SWIVEL, // swivel
             Contracts.PENDLE_ROUTER, // pendle
-            Contracts.TEMPUS, // tempus
-            Contracts.APWINE_CONTROLLER // apwine
+            Contracts.TEMPUS // tempus
         ); // Deploy marketplace
         mp = new MarketPlace(address(r), address(l));
         // Set the redeemer's converter
-        r.setConverter(address(c));
+        r.setConverter(address(c), new address[](0));
+        // Set the redeemer's marketplace
+        r.setMarketPlace(address(mp));
 
         // Given msg.sender some USDC to work with
         deal(Contracts.USDC, msg.sender, startingBalance);
@@ -65,7 +72,7 @@ contract LenderTest is Test {
         contracts[3] = Contracts.PENDLE_TOKEN; // Pendle
         contracts[4] = Contracts.TEMPUS_TOKEN; // Tempus
         contracts[5] = Contracts.SENSE_TOKEN; // Sense
-        contracts[6] = Contracts.APWINE_AMM_POOL; // APWine
+        contracts[6] = Contracts.APWINE_TOKEN; // APWine
         contracts[7] = Contracts.NOTIONAL_TOKEN; // Notional
 
         mp.createMarket(
@@ -74,10 +81,22 @@ contract LenderTest is Test {
             contracts,
             'TEST-TOKEN',
             'TEST',
-            18,
             Contracts.ELEMENT_VAULT,
-            Contracts.APWINE_ROUTER
+            Contracts.APWINE_ROUTER,
+            Contracts.WSTETH,
+            Contracts.SENSE_PERIPHERY
         );
+
+        // Approve lender to use special protocol contracts
+        address[] memory underlyings = new address[](3);
+        underlyings[0] = Contracts.USDC;
+        underlyings[1] = Contracts.USDC;
+        underlyings[2] = Contracts.DAI;
+        address[] memory approvedContracts = new address[](3);
+        approvedContracts[0] = Contracts.TEMPUS;
+        approvedContracts[1] = Contracts.PENDLE;
+        approvedContracts[2] = Contracts.SWIVEL;
+        l.approve(underlyings, approvedContracts);
     }
 
     function runCheatcodes(address u) internal {
@@ -125,11 +144,6 @@ contract LenderTest is Test {
         // Set up the market
         deployMarket(Contracts.USDC);
 
-        // We need the lender contract to approve spending TEMPUS
-        vm.startPrank(address(l));
-        IERC20(Contracts.USDC).approve(Contracts.TEMPUS, 2**256 - 1);
-        vm.stopPrank();
-
         // Approve the sender's activities and call lend from the sender
         runCheatcodes(Contracts.USDC);
 
@@ -155,15 +169,9 @@ contract LenderTest is Test {
         assertEq(expected, IERC20(ipt).balanceOf(msg.sender));
     }
 
-    // TODO: Stuck on missing deployments
     function testPendleLend() public {
         // Set up the market
         deployMarket(Contracts.USDC);
-
-        // We need the lender contract to approve spending TEMPUS
-        vm.startPrank(address(l));
-        IERC20(Contracts.USDC).approve(Contracts.PENDLE, 2**256 - 1);
-        vm.stopPrank();
 
         // Approve the sender's activities and call lend from the sender
         runCheatcodes(Contracts.USDC);
@@ -186,91 +194,6 @@ contract LenderTest is Test {
         // Make sure the same amount of iPTs were minted to the user
         address ipt = mp.markets(Contracts.USDC, maturity, 0);
         assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
-    }
-
-    function testSwivelLendSkip() public {
-        vm.startPrank(address(l));
-        IERC20(Contracts.DAI).approve(Contracts.SWIVEL, type(uint256).max);
-        vm.stopPrank();
-
-        vm.startPrank(user1_pk);
-        IERC20(Contracts.DAI).approve(Contracts.SWIVEL, type(uint256).max);
-        vm.stopPrank();
-
-        deployMarket(Contracts.DAI);
-
-        runCheatcodes(Contracts.DAI);
-
-        startingBalance = 500000e18;
-        deal(Contracts.DAI, address(l), startingBalance);
-        deal(Contracts.DAI, user1_pk, startingBalance);
-
-        Swivel.Order[] memory orders = new Swivel.Order[](1);
-        Swivel.Components[] memory signatures = new Swivel.Components[](1);
-        uint256[] memory amounts = new uint256[](1);
-
-        bytes32 key;
-        orders[0] = Swivel.Order(
-            key, // key
-            1, // protocol
-            user1_pk, // maker
-            Contracts.DAI, // underlying
-            true, // vault
-            false, // exit
-            1000, // principal
-            1040, // premium
-            1664550000, // maturity
-            1664550000 // expiry
-        );
-
-        Hash.Order memory ord = Hash.Order(
-            orders[0].key,
-            orders[0].protocol,
-            orders[0].maker,
-            orders[0].underlying,
-            orders[0].vault,
-            orders[0].exit,
-            orders[0].principal,
-            orders[0].premium,
-            orders[0].maturity,
-            orders[0].expiry
-        );
-
-        bytes32 messageDigest = Hash.message(
-            Hash.DOMAIN_TYPEHASH,
-            Hash.order(ord)
-        );
-
-        {
-            (uint8 v, bytes32 r1, bytes32 s) = vm.sign(user1_sk, messageDigest);
-            signatures[0] = Swivel.Components(v, r1, s);
-        }
-        amounts[0] = 1000;
-
-        //uint256 returned = l.lend(
-        l.lend(
-            uint8(MarketPlace.Principals.Swivel),
-            Contracts.DAI,
-            maturity,
-            amounts,
-            Contracts.YIELD_POOL_DAI,
-            orders,
-            signatures,
-            101,
-            true,
-            0
-        );
-
-        // todo uncomment these
-        // // Make sure the principal tokens were transferred to the lender
-        // assertEq(
-        //     returned,
-        //     IERC20(Contracts.SWIVEL_TOKEN).balanceOf(address(l))
-        // );
-
-        // // Make sure the same amount of iPTs were minted to the user
-        // address ipt = mp.markets(Contracts.DAI, maturity, 0);
-        // assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
     }
 
     function testNotionalLend() public {
@@ -299,20 +222,23 @@ contract LenderTest is Test {
     }
 
     function testAPWineLend() public {
-        deployMarket(Contracts.USDC);
-
         // Run cheats/approvals
-        runCheatcodes(Contracts.USDC);
+        deployMarket(Contracts.USDT);
+
+        deal(Contracts.USDT, address(this), startingBalance);
+
+        // Approve lender to spend the underlying
+        Safe.approve(IERC20(Contracts.USDT), address(l), 2**256 - 1);
 
         // Execute the lend
         uint256 returned = l.lend(
             uint8(7),
-            Contracts.USDC,
+            Contracts.USDT,
             maturity,
             amount,
             minReturn,
             deadline,
-            Contracts.APWINE_ROUTER
+            Contracts.APWINE_AMM_POOL
         );
 
         // Make sure the principal tokens were transferred to the lender
@@ -320,8 +246,8 @@ contract LenderTest is Test {
         assertEq(returned, IERC20(pt).balanceOf(address(l)));
 
         // Make sure the same amount of iPTs were minted to the user
-        address ipt = mp.markets(Contracts.USDC, maturity, 0);
-        assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
+        address ipt = mp.markets(Contracts.USDT, maturity, 0);
+        assertEq(returned, IERC20(ipt).balanceOf(address(this)));
     }
 
     function testElementLend() public {
@@ -356,10 +282,6 @@ contract LenderTest is Test {
     function testSenseLend() public {
         deployMarket(Contracts.WETH);
 
-        vm.startPrank(address(l));
-        IERC20(Contracts.WETH).approve(Contracts.SENSE_PERIPHERY, 2**256 - 1);
-        vm.stopPrank();
-
         // Run cheats/approvals
         runCheatcodes(Contracts.WETH);
 
@@ -380,15 +302,12 @@ contract LenderTest is Test {
 
         // Make sure the same amount of iPTs were minted to the user
         address ipt = mp.markets(Contracts.WETH, maturity, 0);
+
         assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
     }
 
     // This test is here for gas measurement purposes only
     function testSwivelLendWithSwappedPremiumGasSkip() public {
-        vm.startPrank(address(l));
-        IERC20(Contracts.DAI).approve(Contracts.SWIVEL, type(uint256).max);
-        vm.stopPrank();
-
         vm.startPrank(user1_pk);
         IERC20(Contracts.DAI).approve(Contracts.SWIVEL, type(uint256).max);
         vm.stopPrank();
@@ -449,9 +368,40 @@ contract LenderTest is Test {
             Contracts.YIELD_POOL_DAI,
             orders,
             signatures,
-            101,
             false,
             0
+        );
+    }
+
+    function testMint() public {
+        vm.startPrank(msg.sender);
+        IERC20(Contracts.ELEMENT_TOKEN).approve(address(l), startingBalance);
+        vm.stopPrank();
+
+        deployMarket(Contracts.USDC);
+
+        // Run cheats/approvals
+        runCheatcodes(Contracts.USDC);
+
+        // Set the period start and block.timestamp to a viable value for this test
+        stdstore
+            .target(address(l))
+            .sig('periodStart(uint8)')
+            .with_key(uint8(MarketPlace.Principals.Element))
+            .depth(0)
+            .checked_write(1635528110 - 2000);
+        vm.warp(1635528110 - 1000);
+
+        deal(Contracts.ELEMENT_TOKEN, msg.sender, startingBalance);
+
+        l.mint(uint8(3), Contracts.USDC, maturity, startingBalance);
+
+        address ipt = mp.markets(Contracts.USDC, maturity, 0);
+        assertEq(startingBalance, IERC20(ipt).balanceOf(msg.sender));
+        assertEq(0, IERC20(Contracts.ELEMENT_TOKEN).balanceOf(msg.sender));
+        assertEq(
+            startingBalance,
+            IERC20(Contracts.ELEMENT_TOKEN).balanceOf(address(l))
         );
     }
 }

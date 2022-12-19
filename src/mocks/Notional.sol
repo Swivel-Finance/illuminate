@@ -39,6 +39,8 @@ contract Notional is INotional, ERC20 {
 
     function deposit(uint256 a, address r) external returns (uint256) {
         depositCalled[r] = a;
+        uint256 current = this.balanceOf(address(0));
+        balanceOfReturns(current + a);
         return depositReturn;
     }
 

@@ -6,7 +6,6 @@ interface IConverter {
     function convert(
         address,
         address,
-        uint256,
         uint256
     ) external;
 }

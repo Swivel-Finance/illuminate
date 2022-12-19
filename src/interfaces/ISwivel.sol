@@ -12,6 +12,7 @@ interface ISwivel {
     ) external returns (bool);
 
     function redeemZcToken(
+        uint8 p,
         address u,
         uint256 m,
         uint256 a
