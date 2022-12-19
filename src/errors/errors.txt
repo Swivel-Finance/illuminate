@@ -13,7 +13,7 @@ The implicit Errors enum:
   'market already exists', 9
   'pool already exists', 10
   'principal tokens not received', 11
-  'yieldspace pool does not match principal token', 12
+  'pool does not match principal token', 12
   'underlying tokens not received', 13
   'minimum fee not paid', 14
   'zc token redemption failed', 15
@@ -23,4 +23,14 @@ The implicit Errors enum:
   'withdrawal still on hold', 19
   'insufficient allowance', 20
   'market is past maturity', 21
+  'decimals do not match', 22
+  'fee change is not scheduled', 23
+  'fee change is not ready yet', 24
+  'fee is set too high', 25
+  'principal token not set', 26
+  'pool does not match underlying token', 27
+  'compound redeem returned error', 28
+  'invalid periphery contract', 29
+  'reentrancy not allowed', 30
+  'rate limit exceeded for protocol', 31
 ]

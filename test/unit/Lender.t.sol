@@ -5,6 +5,7 @@ import 'forge-std/Test.sol';
 
 import 'src/Lender.sol';
 import 'src/mocks/MarketPlace.sol' as mock_mp;
+import 'src/mocks/Redeemer.sol' as mock_r;
 import 'src/mocks/ERC20.sol' as mock_erc20;
 import 'src/mocks/IlluminatePrincipalToken.sol' as mock_ipt;
 
@@ -17,6 +18,7 @@ import 'src/mocks/Pendle.sol' as mock_p;
 import 'src/mocks/PendleToken.sol' as mock_pt;
 import 'src/mocks/Tempus.sol' as mock_t;
 import 'src/mocks/TempusPool.sol' as mock_tp;
+import 'src/mocks/TempusAMM.sol' as mock_tamm;
 import 'src/mocks/TempusToken.sol' as mock_tt;
 import 'src/mocks/SenseAdapter.sol' as mock_sa;
 import 'src/mocks/SenseDivider.sol' as mock_sd;
@@ -48,6 +50,7 @@ contract LenderTest is Test {
 
     // mocked internal contracts
     mock_mp.MarketPlace mp;
+    mock_r.Redeemer r;
     mock_ipt.IlluminatePrincipalToken ipt;
 
     // mocked external contracts
@@ -62,6 +65,7 @@ contract LenderTest is Test {
     mock_pt.PendleToken pt; // Pendle's principal token
     mock_t.Tempus t; // Tempus router
     mock_tp.TempusPool tp; // Tempus pool
+    mock_tamm.TempusAMM tamm; // Tempus AMM
     mock_tt.TempusToken tt; // Tempus principal token
     mock_sa.SenseAdapter sa; // Sense Adapter
     mock_sd.SenseDivider sd; // Sense Divider
@@ -78,20 +82,24 @@ contract LenderTest is Test {
         // Deploy mocked external contracts
         deployInterfaceMocks();
         // Deploy lender
-        l = new Lender(address(sw), address(p), address(t));
+        l = new Lender(address(sw), address(p), address(apwr));
+        // Deploy redeemer
+        r = new mock_r.Redeemer();
         // Deploy marketplace
         mp = new mock_mp.MarketPlace();
         mp.iptReturns(address(ipt));
         // Set the lender in the marketplace
         l.setMarketPlace(address(mp));
+        // Set the redeemeer for the marketplace
+        mp.redeemerReturns(address(r));
     }
 
     function deployInterfaceMocks() internal {
         underlying = address(new mock_erc20.ERC20());
         ipt = new mock_ipt.IlluminatePrincipalToken();
         // swivel setup
-        sw = new mock_sw.Swivel(underlying);
         zct = new mock_erc20.ERC20();
+        sw = new mock_sw.Swivel(underlying, address(zct));
         swy = new mock_y.Yield(address(zct));
         // yield setup
         yt = new mock_yt.YieldToken();
@@ -101,10 +109,11 @@ contract LenderTest is Test {
         ev = new mock_ev.ElementVault(address(et));
         // pendle setup
         pt = new mock_pt.PendleToken();
-        p = new mock_p.Pendle();
+        p = new mock_p.Pendle(address(pt));
         // tempus setup
         tp = new mock_tp.TempusPool();
         tt = new mock_tt.TempusToken();
+        tamm = new mock_tamm.TempusAMM();
         t = new mock_t.Tempus(address(tt));
         // sense setup
         sa = new mock_sa.SenseAdapter();
@@ -172,8 +181,7 @@ contract LenderTest is Test {
 
         // mock the calls
         mock_erc20.ERC20(underlying).transferFromReturns(true);
-        sw.initiateReturns(true);
-        // todo: lend returned premium methods (requires modifiable balanceOf)
+        mock_erc20.ERC20(underlying).transferReturns(true);
         ipt.mintReturns(true);
         mp.tokenReturns(address(zct));
 
@@ -186,25 +194,26 @@ contract LenderTest is Test {
             address(swy),
             orders,
             components,
-            fee,
             false,
             0
         );
 
         // transfer
-        uint256 collected = l.fees(underlying);
+        uint256 collected = l.fees(underlying) -
+            ((total - fee) / 2) /
+            l.feenominator();
         (address transferFromTo, uint256 transferFromAmount) = mock_erc20
             .ERC20(underlying)
             .transferFromCalled(address(this));
         assertEq(address(l), transferFromTo);
-        assertEq(fee + total, transferFromAmount);
+        assertEq(total, transferFromAmount);
         // fee
         assertEq(fee, collected);
         // initiate
-        assertEq(amounts[1], sw.initiateCalledAmount(address(yt)));
+        assertEq(total - fee, sw.initiateCalledAmount(address(yt)));
         assertEq(components[1].v, sw.initiateCalledSignature(address(yt)));
         // mint
-        assertEq(total, ipt.mintCalled(address(this)));
+        assertEq(total - fee, ipt.mintCalled(address(this)));
     }
 
     function testYieldLend() public {
@@ -213,6 +222,7 @@ contract LenderTest is Test {
         mp.tokenReturns(address(yt));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         y.fyTokenReturns(address(yt));
+        y.baseReturns(underlying);
         yt.balanceOfReturns(starting);
         y.sellBasePreviewReturns(uint128(baseSold));
         mock_erc20.ERC20(underlying).transferReturns(true);
@@ -255,7 +265,7 @@ contract LenderTest is Test {
         uint256 deadline = block.timestamp + 10;
         address pool = address(ev);
         bytes32 id = bytes32('asdf');
-        uint256 purchased = amount + 50;
+        uint256 purchased = amount - expectedFee;
 
         mp.tokenReturns(address(et));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
@@ -306,7 +316,7 @@ contract LenderTest is Test {
         assertEq(swapDeadline, deadline);
 
         // mint check
-        assertEq(purchased, ipt.mintCalled(address(this)));
+        assertEq(amount - expectedFee, ipt.mintCalled(address(this)));
     }
 
     function testPendleLend() public {
@@ -318,8 +328,8 @@ contract LenderTest is Test {
         uint256 deadline = block.timestamp + 10;
         mp.tokenReturns(address(pt));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
-        p.swapExactTokensForTokensReturns(output);
         ipt.mintReturns(true);
+        p.swapExactTokensForTokensFor(amount + 10);
 
         l.lend(4, underlying, maturity, amount, minReturn, deadline);
 
@@ -342,7 +352,6 @@ contract LenderTest is Test {
         assertEq(collected, expectedFee);
 
         // swap check
-        // todo why isn't path also returned?
         (uint256 swapAmount, uint256 minimumBought, uint256 swapDeadline) = p
             .swapExactTokensForTokensCalled(address(l));
         assertEq(swapAmount, amount - collected);
@@ -350,7 +359,7 @@ contract LenderTest is Test {
         assertEq(swapDeadline, deadline);
 
         // mint check
-        assertEq(purchased, ipt.mintCalled(address(this)));
+        assertEq(amount + 10, ipt.mintCalled(address(this)));
     }
 
     function testTempusLend() public {
@@ -358,6 +367,9 @@ contract LenderTest is Test {
         uint256 deadline = block.timestamp + 10;
         // mocks
         mp.tokenReturns(address(tt));
+        tt.poolReturns(address(tp));
+        tp.controllerReturns(address(t));
+        tamm.tempusPoolReturns(address(tp));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         ipt.mintReturns(true);
 
@@ -369,7 +381,7 @@ contract LenderTest is Test {
             amount,
             minReturn,
             deadline,
-            address(tp)
+            address(tamm)
         );
 
         // markets check
@@ -397,9 +409,9 @@ contract LenderTest is Test {
             uint256 minimumReturned,
             uint256 swapDeadline
         ) = t.depositAndFixCalled(amount - collected);
-        assertEq(amm, address(tp));
+        assertEq(amm, address(tamm));
         assertEq(bt, true);
-        assertEq(minimumReturned, minReturn);
+        assertEq(minimumReturned, 0);
         assertEq(swapDeadline, deadline);
 
         // mint check
@@ -409,12 +421,17 @@ contract LenderTest is Test {
     function testSenseLend() public {
         uint256 minReturn = amount / 2;
         uint256 senseMaturity = maturity - 20;
-        uint256 returned = amount + 25;
+        uint256 returned = (amount + 25) * 10**2;
         uint256 starting = 1124;
 
         mp.tokenReturns(address(st));
         st.balanceOfReturns(starting);
+        st.decimalsReturns(8);
+        ipt.decimalsReturns(6);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+        sp.dividerReturns(address(sd));
         sp.swapUnderlyingForPTsReturns(returned);
+        sd.ptReturns(address(st));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         ipt.mintReturns(true);
 
@@ -456,15 +473,16 @@ contract LenderTest is Test {
         assertEq(minimum, minReturn);
 
         // mint check
-        assertEq(returned, ipt.mintCalled(address(this)));
+        assertEq(returned / 10**2, ipt.mintCalled(address(this)));
     }
 
     function testAPWineLend() public {
         uint256 minReturn = amount / 2;
         uint256 deadline = block.timestamp + 10;
         uint256 returned = amount + 50;
-        mp.tokenReturns(address(apwp));
+        mp.tokenReturns(address(apwt));
         apwp.getPTAddressReturns(address(apwt));
+        apwp.getUnderlyingOfIBTAddressReturns(underlying);
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         apwr.swapExactAmountInReturns(returned);
         ipt.mintReturns(true);
@@ -476,7 +494,7 @@ contract LenderTest is Test {
             amount,
             minReturn,
             deadline,
-            address(apwr)
+            address(apwp)
         );
 
         // markets check
@@ -552,10 +570,10 @@ contract LenderTest is Test {
     }
 
     function testNotionalSlippageCheck() public {
-        uint256 received = 4;
-        uint256 minReceived = 5;
+        uint256 deposited = 4;
+        uint256 minPTsExpected = 5;
         mp.tokenReturns(address(n));
-        n.depositReturns(received);
+        n.depositReturns(deposited);
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         ipt.mintReturns(true);
 
@@ -563,14 +581,211 @@ contract LenderTest is Test {
             abi.encodeWithSelector(
                 Exception.selector,
                 16,
-                received,
-                minReceived,
+                deposited,
+                minPTsExpected,
                 address(0),
                 address(0)
             )
         );
-        //abi.encodeWithSelector(MyContract.CustomError.selector, 1, 2)
 
-        l.lend(8, underlying, maturity, amount, minReceived);
+        l.lend(8, underlying, maturity, deposited, minPTsExpected);
+    }
+
+    function testMint() public {
+        mp.tokenReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(6);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_000_000_000
+        );
+
+        // transferFrom check
+        (address receiver, uint256 amountTransferred) = n.transferFromCalled(
+            address(this)
+        );
+        assertEq(receiver, address(l));
+        assertEq(amountTransferred, 1_000_000_000);
+        // authMint check
+        uint256 amountMinted = ipt.mintCalled(address(this));
+        assertEq(amountMinted, 1_000_000_000);
+        // protocolFlow check
+        assertEq(
+            l.protocolFlow(uint8(MarketPlace.Principals.Notional)),
+            1000e27
+        );
+    }
+
+    function testMintDecimalMismatch() public {
+        mp.tokenReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(8);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            100_000_000_000
+        );
+
+        // transferFrom check
+        (address receiver, uint256 amountTransferred) = n.transferFromCalled(
+            address(this)
+        );
+        assertEq(receiver, address(l));
+        assertEq(amountTransferred, 100_000_000_000);
+        // authMint check
+        uint256 amountMinted = ipt.mintCalled(address(this));
+        assertEq(amountMinted, 1_000_000_000);
+        // protocolFlow check
+        assertEq(
+            l.protocolFlow(uint8(MarketPlace.Principals.Notional)),
+            1000e27
+        );
+
+        // attempt to mint with another decimal number for underlying
+        n.decimalsReturns(11);
+        mock_erc20.ERC20(underlying).decimalsReturns(7);
+
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            200_000_000_000_000
+        );
+
+        // protocolFlow check
+        assertEq(
+            l.protocolFlow(uint8(MarketPlace.Principals.Notional)),
+            3000e27
+        );
+    }
+
+    function testFailInvalidFeenominator() public {
+        // Fails due to being too early
+        l.scheduleFeeChange();
+        vm.expectRevert(Exception.selector);
+        l.setFee(1000000);
+
+        // Fails due to being too small
+        vm.warp(l.feeChange() + 1);
+        vm.expectRevert(Exception.selector);
+        l.setFee(0);
+
+        // works
+        l.setFee(1000000);
+        assertEq(l.feenominator(), 1000000);
+    }
+
+    function testFailInvalidWithdrawals() public {
+        mock_erc20.ERC20 token = new mock_erc20.ERC20();
+        token.transferReturns(true);
+
+        // Fails due to not being scheduled
+        vm.expectRevert(Exception.selector);
+        l.withdraw(address(token));
+
+        // Fails due to being too early
+        l.scheduleWithdrawal(address(token));
+        vm.expectRevert(Exception.selector);
+        l.withdraw(address(token));
+
+        // Works
+        vm.warp(l.withdrawals(address(token)) + 1);
+        l.withdraw(address(token));
+    }
+
+    function testFailExistingMarketPlace() public {
+        l.setMarketPlace(msg.sender);
+        vm.expectRevert();
+        l.setMarketPlace(msg.sender);
+    }
+
+    function testFailPausedMarket() public {
+        l.pause(msg.sender, maturity, 3, true);
+
+        vm.expectRevert(Exception.selector);
+        l.lend(3, msg.sender, maturity, 0, 0, 0, address(0), bytes32('0x0'));
+    }
+
+    // rate limiting unit tests
+    function testFailExceedRateLimit() public {
+        mp.tokenReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(6);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+
+        vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            2_000_000_000
+        );
+    }
+
+    function testFailExceedRateLimit2() public {
+        mp.tokenReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(6);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+
+        vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_000_000_000
+        );
+
+        vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_100_000_000
+        );
+    }
+
+    function testFailExceedRateLimitAfterReset() public {
+        mp.tokenReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(6);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+
+        vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_000_000_000
+        );
+
+        skip(1 days + 1 minutes);
+
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_100_000_000
+        );
+
+        vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_000_000_000
+        );
     }
 }

@@ -2,6 +2,7 @@
 pragma solidity 0.8.16;
 
 import 'forge-std/Test.sol';
+using stdStorage for StdStorage;
 
 import 'test/fork/Contracts.sol';
 
@@ -36,19 +37,18 @@ contract RedeemerTest is Test {
         // Deploy converter
         c = new Converter();
         // Deploy lender
-        l = new Lender(Contracts.SWIVEL, Contracts.PENDLE, Contracts.TEMPUS);
+        l = new Lender(Contracts.SWIVEL, Contracts.PENDLE, Contracts.APWINE_ROUTER);
         // Deploy redeemer
         r = new Redeemer(
             address(l),
             Contracts.SWIVEL, // swivel
             Contracts.PENDLE_ROUTER, // pendle
-            Contracts.TEMPUS, // tempus
-            Contracts.APWINE_CONTROLLER // apwine
+            Contracts.TEMPUS // tempus
         );
         // Deploy marketplace
         mp = new MarketPlace(address(r), address(l));
         // Set the redeemer's converter
-        r.setConverter(address(c));
+        r.setConverter(address(c), new address[](0));
     }
 
     /// @param u underlying asset (e.g. USDC)
@@ -72,8 +72,8 @@ contract RedeemerTest is Test {
         contracts[2] = Contracts.ELEMENT_TOKEN; // Element
         contracts[3] = Contracts.PENDLE_TOKEN; // Pendle
         contracts[4] = Contracts.TEMPUS_TOKEN; // Tempus
-        contracts[5] = Contracts.SENSE_ADAPTER; // Sense (note: this is a wstETH market)
-        contracts[6] = Contracts.APWINE_AMM_POOL; // APWine
+        contracts[5] = Contracts.SENSE_TOKEN; // Sense (note: this is a wstETH market)
+        contracts[6] = Contracts.APWINE_TOKEN; // APWine
         contracts[7] = Contracts.NOTIONAL_TOKEN; // Notional
 
         mp.createMarket(
@@ -82,10 +82,16 @@ contract RedeemerTest is Test {
             contracts,
             'TEST-TOKEN',
             'TEST',
-            18,
             Contracts.ELEMENT_VAULT,
-            Contracts.APWINE_ROUTER
+            Contracts.APWINE_ROUTER,
+            Contracts.WSTETH,
+            Contracts.SENSE_PERIPHERY
         );
+
+        // Approve the redeemer to spend the lender's principal tokens
+        vm.startPrank(l.admin());
+        l.approve(u, maturity, address(r));
+        vm.stopPrank();
     }
 
     /// @param p token to be given to the lender contract
@@ -118,25 +124,16 @@ contract RedeemerTest is Test {
             // give lender principal tokens
             deal(principalToken, address(l), startingBalance);
 
-            // approve lender to transfer principal tokens
-            vm.startPrank(address(l));
-            IERC20(principalToken).approve(address(r), startingBalance);
-            vm.stopPrank();
-
-            vm.startPrank(msg.sender);
-
             // execute the redemption
             r.redeem(2, Contracts.USDC, maturity);
-            vm.stopPrank();
         }
-        // give user illuminate tokens
+
+        // give msg.sender illuminate tokens
         address illuminateToken = mp.markets(Contracts.USDC, maturity, 0);
         deal(illuminateToken, msg.sender, startingBalance, true);
 
-        // run the contract from msg.sender
-        vm.startPrank(msg.sender);
-
         // execute the redemption
+        vm.startPrank(msg.sender);
         r.redeem(Contracts.USDC, maturity);
         vm.stopPrank();
 
@@ -147,34 +144,6 @@ contract RedeemerTest is Test {
         assertEq(IERC20(illuminateToken).balanceOf(msg.sender), 0);
     }
 
-    function testSwivelRedeem() public {
-        address principalToken = Contracts.SWIVEL_TOKEN;
-
-        // deploy market
-        deployMarket(Contracts.USDC, 0);
-
-        // give lender principal tokens
-        deal(principalToken, address(l), startingBalance);
-
-        // approve lender to transfer principal tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(msg.sender);
-
-        // TODO once swivel is unpaused.
-        // execute the redemption
-        // bool result = r.redeem(1, Contracts.USDC, maturity);
-        // assertTrue(result);
-
-        // verify that the underlying is now held by the redeemer contract
-        // assertEq(IERC20(Contracts.USDC).balanceOf(address(r)), startingBalance);
-
-        // verify the lender no longer holds the principal token
-        // assertEq(IERC20(Contracts.principalToken).balanceOf(address(l)), 0);
-    }
-
     function testYieldRedeem() public {
         address principalToken = Contracts.YIELD_TOKEN;
 
@@ -182,13 +151,6 @@ contract RedeemerTest is Test {
 
         // give lender principal tokens
         deal(principalToken, address(l), startingBalance);
-
-        // approve lender to transfer principal tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(msg.sender);
 
         // execute the redemption
         r.redeem(2, Contracts.USDC, maturity);
@@ -208,13 +170,6 @@ contract RedeemerTest is Test {
         // give lender principal tokens
         deal(principalToken, address(l), startingBalance);
 
-        // approve lender to transfer principal tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(msg.sender);
-
         // execute the redemption
         r.redeem(3, Contracts.USDC, maturity);
 
@@ -232,13 +187,6 @@ contract RedeemerTest is Test {
 
         // give lender principal tokens
         deal(principalToken, address(l), startingBalance);
-
-        // approve lender to transfer principal tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(msg.sender);
 
         // execute the redemption
         r.redeem(8, Contracts.DAI, maturity);
@@ -258,13 +206,6 @@ contract RedeemerTest is Test {
         // give lender principal tokens
         deal(principalToken, address(l), startingBalance);
 
-        // approve lender to transfer principal tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(msg.sender);
-
         // execute the redemption
         r.redeem(5, Contracts.USDC, maturity);
 
@@ -275,115 +216,88 @@ contract RedeemerTest is Test {
         assertEq(IERC20(principalToken).balanceOf(address(l)), 0);
     }
 
-    // todo find out what's wrong here (slots not found in APWine pt)
-    // currently getting FutureVault: ERR_FYT_AMOUNT
-    function testAPWineRedeemSkip() public {
+    function testAPWineRedeem() public {
         address principalToken = Contracts.APWINE_TOKEN;
-        // Move block.timestamp well into the future
-        skip(matured);
+        deployMarket(Contracts.USDT, 0);
 
-        // Gets PTs to the lender contract by executing a lend operation
-        // Set the addresses
-        l.setMarketPlace(address(mp));
-        r.setMarketPlace(address(mp));
-        // Create a special market for apwine
-        address[8] memory contracts;
-        contracts[0] = Contracts.SWIVEL_TOKEN; // Swivel
-        contracts[1] = Contracts.YIELD_TOKEN; // Yield
-        contracts[2] = Contracts.ELEMENT_TOKEN; // Element
-        contracts[3] = Contracts.PENDLE_TOKEN; // Pendle
-        contracts[4] = Contracts.TEMPUS_TOKEN; // Tempus
-        contracts[5] = Contracts.SENSE_ADAPTER; // Sense (note: this is a wstETH market)
-        contracts[6] = Contracts.APWINE_AMM_POOL; // APWine
-        contracts[7] = Contracts.NOTIONAL_TOKEN; // Notional
-        mp.createMarket(
-            Contracts.USDC,
-            block.timestamp,
-            contracts,
-            'TEST-TOKEN',
-            'TEST',
-            18,
-            Contracts.ELEMENT_VAULT,
-            Contracts.APWINE_ROUTER
-        );
-        // Give msg.sender some USDC to work with
-        deal(Contracts.USDC, address(this), startingBalance);
-        assertEq(startingBalance, IERC20(Contracts.USDC).balanceOf(msg.sender));
-        vm.startPrank(address(this));
-        // Approve lender to spend the underlying
-        IERC20(Contracts.USDC).approve(address(l), 2**256 - 1);
-        vm.stopPrank();
-        //give lender principal tokens
-        l.lend(
-            uint8(7),
-            Contracts.USDC,
-            block.timestamp,
-            100000,
-            0, // minReturn
-            2**256 - 1, // deadline
-            Contracts.APWINE_ROUTER
-        );
-        assertGt(IERC20(principalToken).balanceOf(address(l)), 100000);
+        deal(Contracts.USDT, address(this), startingBalance);
 
-        // approve lender to transfer principal tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), 2**256 - 1);
+        // Swap for APWine PTs
+        uint256[] memory pairPath = new uint256[](1);
+        pairPath[0] = 0;
+        uint256[] memory tokenPath = new uint256[](2);
+        tokenPath[0] = 1;
+        tokenPath[1] = 0;
+        Safe.approve(IERC20(Contracts.USDT), Contracts.APWINE_ROUTER, type(uint256).max);
+        IAPWineRouter(Contracts.APWINE_ROUTER).swapExactAmountIn(
+            Contracts.APWINE_AMM_POOL,
+            pairPath,
+            tokenPath,
+            startingBalance,
+            0,
+            address(address(l)),
+            type(uint256).max,
+            address(0)
+        );
+
+        // Launch a new period (to make the PTs redeemable)
+        vm.startPrank(Contracts.APWINE_CONTROLLER);
+        IAPWineFutureVault(Contracts.APWINE_FUTURE_VAULT).startNewPeriod();
         vm.stopPrank();
-        vm.startPrank(msg.sender);
 
         // execute the redemption
-        r.redeem(7, Contracts.USDC, block.timestamp);
+        r.redeem(7, Contracts.USDT, maturity);
         // verify that the underlying is now held by the redeemer contract
-        assertGt(IERC20(Contracts.USDC).balanceOf(address(r)), 0);
+        assertGt(IERC20(Contracts.USDT).balanceOf(address(r)), 0);
         // verify the lender no longer holds the principal token
         assertEq(IERC20(principalToken).balanceOf(address(l)), 0);
     }
 
-    function testSenseRedeemSkip() public {
-        // note for sense, we provide the adapter
-        // note to get token, get divider from adapter and then pt from divider
-        address principalToken = Contracts.SENSE_ADAPTER;
+    function testSenseRedeem() public {
+        address principalToken = Contracts.SENSE_TOKEN;
 
-        uint256 settledTimestamp = Contracts.SENSE_VALID_SETTLEMENT_TS -
-            block.timestamp;
-        deployMarket(Contracts.WETH, settledTimestamp);
-        assertEq(block.timestamp, Contracts.SENSE_VALID_SETTLEMENT_TS);
+
+        // set timestamp between 3 and 6 hours after maturity
+        deployMarket(Contracts.STETH, 0);
 
         // give lender principal tokens
         deal(Contracts.SENSE_TOKEN, address(l), startingBalance);
 
-        // settle the series
+        // set the timestamp within the settlement window for the series sponsor
+        uint256 settledTimestamp = Contracts.SENSE_MATURITY + 1 minutes;
+        vm.warp(settledTimestamp);
+
+        // only the sponsor can settle the series
+        address sponsor = 0xe09fE5ACb74c1d98507f87494Cf6AdEBD3B26b1e;
+        vm.startPrank(sponsor);
         ISenseDivider(Contracts.SENSE_DIVIDER).settleSeries(
-            principalToken,
+            Contracts.SENSE_ADAPTER,
             Contracts.SENSE_MATURITY
         );
-
-        // approve redeemer to spend lender's tokens
-        vm.startPrank(address(l));
-        IERC20(Contracts.SENSE_TOKEN).approve(address(r), startingBalance);
         vm.stopPrank();
 
         // execute the redemption
-        r.redeem(6, Contracts.WETH, maturity, Contracts.SENSE_MATURITY);
+        r.redeem(
+            6,
+            Contracts.STETH,
+            maturity,
+            Contracts.SENSE_MATURITY,
+            7,
+            Contracts.SENSE_PERIPHERY
+        );
 
         // verify that the underlying is now held by the redeemer contract
-        assertGt(IERC20(Contracts.WETH).balanceOf(address(r)), 0);
+        assertGt(IERC20(Contracts.STETH).balanceOf(address(r)), 0);
         // verify the lender no longer holds the principal token
         assertEq(IERC20(principalToken).balanceOf(address(l)), 0);
     }
 
     function testPendleRedeem() public {
-        address principalToken = Contracts.PENDLE_TOKEN;
-
         deployMarket(Contracts.USDC, 0);
 
         // give lender principal tokens
+        address principalToken = Contracts.PENDLE_TOKEN;
         deal(principalToken, address(l), startingBalance);
-
-        // approve redeemer to spend lender's tokens
-        vm.startPrank(address(l));
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
 
         // execute the redemption
         r.redeem(4, Contracts.USDC, maturity);
@@ -404,39 +318,30 @@ contract RedeemerTest is Test {
         address principalToken = mp.markets(Contracts.USDC, maturity, 0);
 
         // starting balances
-        deal(principalToken, user, startingBalance);
+        deal(principalToken, user, startingBalance, true);
         deal(Contracts.USDC, address(r), startingBalance);
+        // update holdings
+        stdstore
+            .target(address(r))
+            .sig('holdings(address,uint256)')
+            .with_key(Contracts.USDC).with_key(maturity)
+            .depth(0)
+            .checked_write(startingBalance);
 
         vm.startPrank(user);
-        IERC20(Contracts.USDC).approve(address(r), startingBalance / 2);
+        IERC20(principalToken).approve(address(r), startingBalance);
         vm.stopPrank();
 
         // call autoRedeem
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = startingBalance / 4;
         address[] memory onBehalfOf = new address[](1);
         onBehalfOf[0] = user;
 
-        uint256 fee = r.autoRedeem(
-            Contracts.USDC,
-            maturity,
-            onBehalfOf,
-            amounts
-        );
+        uint256 fee = r.autoRedeem(Contracts.USDC, maturity, onBehalfOf);
 
         // check balances
-        assertEq(
-            IERC20(Contracts.USDC).balanceOf(user),
-            (startingBalance / 4) - fee
-        );
-        assertEq(
-            IERC20(Contracts.USDC).balanceOf(address(r)),
-            (startingBalance * 3) / 4
-        );
-        assertEq(
-            IERC20(principalToken).balanceOf(user),
-            (startingBalance * 3) / 4
-        );
+        assertEq(IERC20(Contracts.USDC).balanceOf(address(r)), 0);
+        assertEq(IERC20(Contracts.USDC).balanceOf(user), startingBalance - fee);
+        assertEq(IERC20(principalToken).balanceOf(user), 0);
         assertEq(IERC20(Contracts.USDC).balanceOf(address(this)), fee);
     }
 
@@ -452,12 +357,10 @@ contract RedeemerTest is Test {
         deal(Contracts.USDC, address(r), startingBalance);
 
         // call autoRedeem
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = startingBalance / 4;
         address[] memory onBehalfOf = new address[](1);
         onBehalfOf[0] = user;
 
         vm.expectRevert(Exception.selector);
-        r.autoRedeem(Contracts.USDC, maturity, onBehalfOf, amounts);
+        r.autoRedeem(Contracts.USDC, maturity, onBehalfOf);
     }
 }

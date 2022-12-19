@@ -5,10 +5,11 @@ import 'src/interfaces/ITempusPool.sol';
 
 contract TempusPool is ITempusPool {
     uint256 private maturityTimeReturn;
-    IERC20Metadata private backingTokenReturn;
+    address private backingTokenReturn;
     address private principalShareReturn;
     uint256 private currentInterfaceRateReturn;
     uint256 private initialInterestRateReturn;
+    address private controllerReturn;
 
     function maturityTimeReturns(uint256 m) external {
         maturityTimeReturn = m;
@@ -18,11 +19,11 @@ contract TempusPool is ITempusPool {
         return maturityTimeReturn;
     }
 
-    function backingTokenReturns(IERC20Metadata b) external {
+    function backingTokenReturns(address b) external {
         backingTokenReturn = b;
     }
 
-    function backingToken() external view returns (IERC20Metadata) {
+    function backingToken() external view returns (address) {
         return backingTokenReturn;
     }
 
@@ -48,5 +49,13 @@ contract TempusPool is ITempusPool {
 
     function initialInterestRate() external view returns (uint256) {
         return initialInterestRateReturn;
+    }
+
+    function controllerReturns(address t) external {
+        controllerReturn = t;
+    }
+
+    function controller() external view returns (address) {
+        return controllerReturn;
     }
 }

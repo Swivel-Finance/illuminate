@@ -3,5 +3,5 @@
 pragma solidity 0.8.16;
 
 interface ISwivelToken {
-    function maturity() external returns (uint256);
+    function maturity() external view returns (uint256);
 }

@@ -111,4 +111,6 @@ interface IPool {
     ) external returns (uint256, uint256);
 
     function cumulativeBalancesRatio() external view returns (uint256);
+
+    function sync() external;
 }

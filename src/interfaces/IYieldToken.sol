@@ -7,5 +7,5 @@ interface IYieldToken {
 
     function underlying() external returns (address);
 
-    function maturity() external returns (uint256);
+    function maturity() external view returns (uint256);
 }

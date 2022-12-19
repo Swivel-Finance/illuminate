@@ -13,4 +13,6 @@ interface ISenseDivider {
 
     // only used by integration tests
     function settleSeries(address, uint256) external;
+
+    function adapterAddresses(uint256) external view returns (address);
 }

@@ -7,6 +7,8 @@ import 'src/interfaces/IERC20.sol';
 interface IYield {
     function maturity() external view returns (uint32);
 
+    function base() external view returns (IERC20);
+
     function sellBase(address, uint128) external returns (uint128);
 
     function sellBasePreview(uint128) external view returns (uint128);
