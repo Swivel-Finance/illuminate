@@ -36,6 +36,11 @@ contract Pool {
         uint256 maxRatio;
     }
 
+    struct TransferFromArgs {
+        address to;
+        uint256 amount;
+    }
+
     address private fyTokenReturn;
     address private baseReturn;
     address private baseTokenReturn;
@@ -71,6 +76,7 @@ contract Pool {
     mapping(address => MintWithBaseArg) public mintWithBaseCalled;
     mapping(address => BurnArg) public burnCalled;
     mapping(address => BurnForBaseArg) public burnForBaseCalled;
+    mapping(address => TransferFromArgs) public transferFromCalled;
 
     function fyTokenReturns(address f) external {
         fyTokenReturn = f;
@@ -276,5 +282,17 @@ contract Pool {
     ) external returns (uint256, uint256) {
         burnForBaseCalled[t] = BurnForBaseArg(minRatio, maxRatio);
         return (burnForBaseTokensBurned, burnForBaseOut);
+    }
+
+    function transferFrom(
+        address f,
+        address t,
+        uint256 a
+    ) public returns (bool) {
+        TransferFromArgs memory args;
+        args.to = t;
+        args.amount = a;
+        transferFromCalled[f] = args;
+        return true;
     }
 }

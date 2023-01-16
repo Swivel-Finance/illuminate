@@ -7,7 +7,7 @@ interface IPendleToken {
 
     function underlyingYieldToken() external returns (address);
 
-    function expiry() external returns (uint256);
+    function expiry() external view returns (uint256);
 
     function forge() external returns (address);
 }

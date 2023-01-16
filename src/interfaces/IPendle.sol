@@ -9,7 +9,7 @@ interface IPendle {
         address[] calldata,
         address,
         uint256
-    ) external returns (uint256[] memory amounts);
+    ) external returns (uint256[] memory);
 
     function redeemAfterExpiry(
         bytes32,

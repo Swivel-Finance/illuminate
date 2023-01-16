@@ -11,6 +11,7 @@ contract Yield {
     uint128 private sellBaseReturn;
     uint128 private sellBasePreviewReturn;
     address private fyTokenReturn;
+    address private baseReturn;
 
     mapping(address => uint256) public sellBaseCalled;
     uint256 public sellBasePreviewCalled;
@@ -51,5 +52,13 @@ contract Yield {
 
     function fyToken() external view returns (address) {
         return fyTokenReturn;
+    }
+
+    function baseReturns(address b) external {
+        baseReturn = b;
+    }
+
+    function base() external view returns (address) {
+        return baseReturn;
     }
 }

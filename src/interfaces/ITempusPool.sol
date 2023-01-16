@@ -7,7 +7,9 @@ import 'src/interfaces/IERC20Metadata.sol';
 interface ITempusPool {
     function maturityTime() external view returns (uint256);
 
-    function backingToken() external view returns (IERC20Metadata);
+    function backingToken() external view returns (address);
+
+    function controller() external view returns (address);
 
     // Used for integration testing
     function principalShare() external view returns (address);

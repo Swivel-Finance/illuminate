@@ -23,6 +23,7 @@ import 'src/mocks/TempusToken.sol' as mock_tt;
 import 'src/mocks/TempusPool.sol' as mock_tp;
 import 'src/mocks/SenseAdapter.sol' as mock_sa;
 import 'src/mocks/SenseDivider.sol' as mock_sd;
+import 'src/mocks/SensePeriphery.sol' as mock_sp;
 import 'src/mocks/APWineAMMPool.sol' as mock_apwammpool;
 import 'src/mocks/APWineController.sol' as mock_apwc;
 import 'src/mocks/APWineFutureVault.sol' as mock_apwfv;
@@ -57,8 +58,8 @@ contract RedeemerTest is Test {
     mock_tp.TempusPool tp;
     mock_sa.SenseAdapter sa;
     mock_sd.SenseDivider sd;
+    mock_sp.SensePeriphery sp;
     mock_erc20.ERC20 st;
-    mock_apwammpool.APWineAMMPool apwp;
     mock_apwc.APWineController apwc;
     mock_apwfv.APWineFutureVault apwfv;
     mock_apwr.APWineRouter apwr;
@@ -73,8 +74,7 @@ contract RedeemerTest is Test {
             address(0), // lender
             address(sw), // swivel
             address(p), // pendle
-            address(t), // tempus
-            address(apwc) // apwine
+            address(t) // tempus
         );
         // Deploy marketplace
         mp = new mock_mp.MarketPlace();
@@ -87,26 +87,26 @@ contract RedeemerTest is Test {
         // Set the lender for the redeemer
         r.setLender(address(l));
         // Set the converter for the redeemer
-        r.setConverter(address(c));
+        r.setConverter(address(c), new address[](0));
     }
 
     function deployInterfaceMocks() internal {
         underlying = address(new mock_erc20.ERC20());
         ipt = new mock_ipt.IlluminatePrincipalToken();
-        sw = new mock_sw.Swivel(underlying);
         swt = new mock_swt.SwivelToken();
+        sw = new mock_sw.Swivel(underlying, address(swt));
         yt = new mock_yt.YieldToken();
         et = new mock_et.ElementToken();
         pt = new mock_pt.PendleToken();
         pf = new mock_pf.PendleForge();
-        p = new mock_p.Pendle();
+        p = new mock_p.Pendle(address(pt));
         tt = new mock_tt.TempusToken();
         tp = new mock_tp.TempusPool();
         t = new mock_t.Tempus(address(tt));
         st = new mock_erc20.ERC20();
         sa = new mock_sa.SenseAdapter();
         sd = new mock_sd.SenseDivider(underlying);
-        apwp = new mock_apwammpool.APWineAMMPool();
+        sp = new mock_sp.SensePeriphery(address(st));
         apwc = new mock_apwc.APWineController();
         apwfv = new mock_apwfv.APWineFutureVault();
         apwt = new mock_apwt.APWineToken();
@@ -119,15 +119,17 @@ contract RedeemerTest is Test {
         ipt.balanceOfReturns(amount);
         ipt.transferFromReturns(true);
         ipt.totalSupplyReturns(amount);
+        ipt.maturityReturns(maturity);
         mock_erc20.ERC20(underlying).transferReturns(true);
+        l.illuminatePausedReturns(false);
 
         /// Setup holdings to have holdings by running a redemption
-        mp.tokenReturns(address(swt));
+        mp.marketsReturns(address(swt));
         swt.maturityReturns(maturity);
         swt.balanceOfReturns(amount);
         swt.transferFromReturns(true);
         sw.redeemZcTokenReturns(true);
-        r.redeem(1, underlying, maturity);
+        r.redeem(1, underlying, maturity, 5);
         assertEq(r.holdings(underlying, maturity), amount);
 
         r.redeem(underlying, maturity);
@@ -150,19 +152,20 @@ contract RedeemerTest is Test {
     }
 
     function testSwivelRedeem() public {
-        mp.tokenReturns(address(swt));
+        mp.marketsReturns(address(swt));
         swt.maturityReturns(maturity);
         swt.balanceOfReturns(amount);
         swt.transferFromReturns(true);
         sw.redeemZcTokenReturns(true);
         mock_erc20.ERC20(underlying).balanceOfReturns(amount);
+        uint8 euler = 5;
 
-        r.redeem(1, underlying, maturity);
+        r.redeem(1, underlying, maturity, euler);
 
         // holdings check
         assertEq(r.holdings(underlying, maturity), amount);
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -173,15 +176,22 @@ contract RedeemerTest is Test {
             .transferFromCalled(address(l));
         assertEq(address(r), transferFromTo);
         assertEq(amount, transferFromAmount);
+        // transferPremium check
+        calledMaturity = l.transferPremiumCalled(underlying);
+        assertEq(maturity, calledMaturity);
         // redeemZcToken check
-        (uint256 amountRedeemed, uint256 maturityRedeemed) = sw
-            .redeemZcTokenCalled(underlying);
+        (
+            uint8 protocolRedeemed,
+            uint256 amountRedeemed,
+            uint256 maturityRedeemed
+        ) = sw.redeemZcTokenCalled(underlying);
+        assertEq(euler, protocolRedeemed);
         assertEq(maturity, maturityRedeemed);
         assertEq(amount, amountRedeemed);
     }
 
     function testYieldRedeem() public {
-        mp.tokenReturns(address(yt));
+        mp.marketsReturns(address(yt));
         yt.maturityReturns(maturity);
         yt.balanceOfReturns(amount);
         yt.transferFromReturns(true);
@@ -189,7 +199,7 @@ contract RedeemerTest is Test {
         r.redeem(2, underlying, maturity);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -206,7 +216,7 @@ contract RedeemerTest is Test {
     }
 
     function testElementRedeem() public {
-        mp.tokenReturns(address(et));
+        mp.marketsReturns(address(et));
         et.unlockTimestampReturns(maturity);
         et.balanceOfReturns(amount);
         et.transferFromReturns(true);
@@ -215,7 +225,7 @@ contract RedeemerTest is Test {
         r.redeem(3, underlying, maturity);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -234,7 +244,7 @@ contract RedeemerTest is Test {
     function testPendleRedeem() public {
         bytes32 forgeId = bytes32('fixed rate');
         address compoundingToken = address(yt); // just use another token address
-        mp.tokenReturns(address(pt));
+        mp.marketsReturns(address(pt));
         pt.expiryReturns(maturity);
         pt.forgeReturns(address(pf));
         pt.balanceOfReturns(amount);
@@ -246,7 +256,7 @@ contract RedeemerTest is Test {
         r.redeem(4, underlying, maturity);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -266,18 +276,15 @@ contract RedeemerTest is Test {
             keccak256(abi.encodePacked(forgeId)),
             keccak256(abi.encodePacked(forgeIdCalled))
         );
-        (
-            address underlyingCalled,
-            uint256 amountCalled,
-            uint256 minimumCalled
-        ) = c.convertCalled(compoundingToken);
+        (address underlyingCalled, uint256 amountCalled) = c.convertCalled(
+            compoundingToken
+        );
         assertEq(underlying, underlyingCalled);
         assertEq(amount, amountCalled);
-        assertEq(0, minimumCalled);
     }
 
     function testTempusRedeem() public {
-        mp.tokenReturns(address(tt));
+        mp.marketsReturns(address(tt));
         tt.poolReturns(address(tp));
         tp.maturityTimeReturns(maturity);
         tt.transferFromReturns(true);
@@ -286,7 +293,7 @@ contract RedeemerTest is Test {
         r.redeem(5, underlying, maturity);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -312,8 +319,10 @@ contract RedeemerTest is Test {
         uint256 starting = 1000;
         uint256 senseMaturity = maturity - 100;
         address target = address(yt); // just use an arbitrary token here
-        mp.tokenReturns(address(sa));
-        sa.dividerReturns(address(sd));
+        mp.marketsReturns(address(st));
+        mock_erc20.ERC20(underlying).allowanceReturns(11);
+        sp.dividerReturns(address(sd));
+        sd.adapterAddressesReturns(address(sa));
         sd.ptReturns(address(st));
         st.balanceOfReturns(amount);
         mock_erc20.ERC20(underlying).balanceOfReturns(starting);
@@ -321,10 +330,10 @@ contract RedeemerTest is Test {
         sa.targetReturns(target);
         mock_erc20.ERC20(target).balanceOfReturns(amount);
 
-        r.redeem(6, underlying, maturity, senseMaturity);
+        r.redeem(6, underlying, maturity, senseMaturity, 199, address(sp));
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -342,23 +351,24 @@ contract RedeemerTest is Test {
         assertEq(senseMaturityCalled, senseMaturity);
         assertEq(amountCalled, amount);
         // convert check
-        (
-            address underlyingCalled,
-            uint256 convertAmount,
-            uint256 minimumCalled
-        ) = c.convertCalled(target);
+        (address underlyingCalled, uint256 convertAmount) = c.convertCalled(
+            target
+        );
         assertEq(underlying, underlyingCalled);
         assertEq(amount, convertAmount);
-        assertEq(0, minimumCalled);
     }
 
     function testAPWineRedeem() public {
-        uint256 duration = 12409;
-        mp.tokenReturns(address(apwp));
-        apwp.getPTAddressReturns(address(apwt));
+        mock_erc20.ERC20 ibt = new mock_erc20.ERC20();
+        mock_erc20.ERC20 fyt = new mock_erc20.ERC20();
+        fyt.balanceOfReturns(amount - 10);
+        mp.marketsReturns(address(apwt));
+        mp.iptReturns(address(ipt));
+        ipt.maturityReturns(maturity);
         apwt.futureVaultReturns(address(apwfv));
-        apwfv.periodDurationReturns(duration);
         apwfv.getControllerAddressReturns(address(apwc));
+        apwfv.getFYTofPeriodReturns(address(fyt));
+        apwfv.getIBTAddressReturns(address(ibt));
         apwc.getNextPeriodStartReturns(maturity);
         apwt.transferFromReturns(true);
         apwt.balanceOfReturns(amount);
@@ -366,7 +376,7 @@ contract RedeemerTest is Test {
         r.redeem(7, underlying, maturity);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -377,27 +387,26 @@ contract RedeemerTest is Test {
             .transferFromCalled(address(l));
         assertEq(address(r), transferFromTo);
         assertEq(amount, transferFromAmount);
+        // transfer FYTs lender -> redeemer check
+        assertEq(amount - 10, l.transferFYTsCalled(address(fyt)));
         // withdraw check
         uint256 redeemed = apwc.withdrawCalled(address(apwfv));
-        assertEq(redeemed, amount);
+        assertEq(redeemed, amount - 10);
     }
 
     function testNotionalRedeem() public {
-        uint256 redeemed = amount + 10;
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         mp.iptReturns(address(ipt));
         n.getMaturityReturns(block.timestamp - 1);
         n.balanceOfReturns(amount);
         n.transferFromReturns(true);
-        n.maxRedeemReturns(redeemed);
-        n.redeemReturns(redeemed);
         ipt.burnReturns(true);
         mock_erc20.ERC20(underlying).transferReturns(true);
 
         r.redeem(8, underlying, maturity);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -408,12 +417,9 @@ contract RedeemerTest is Test {
             .transferFromCalled(address(l));
         assertEq(address(r), transferFromTo);
         assertEq(amount, transferFromAmount);
-        // maxRedeem check
-        address user = n.maxRedeemCalled();
-        assertEq(address(r), user);
         // redeem check
         (uint256 shares, address receiver) = n.redeemCalled(address(r));
-        assertEq(redeemed, shares);
+        assertEq(amount, shares);
         assertEq(address(r), receiver);
     }
 
@@ -431,16 +437,18 @@ contract RedeemerTest is Test {
         ipt.balanceOfReturns(amount);
         ipt.transferFromReturns(true);
         ipt.totalSupplyReturns(amount);
+        ipt.maturityReturns(maturity);
         mock_erc20.ERC20(underlying).transferReturns(true);
+        l.illuminatePausedReturns(false);
 
         /// Setup holdings to have holdings by running a redemption
-        mp.tokenReturns(address(swt));
+        mp.marketsReturns(address(swt));
         swt.maturityReturns(maturity);
         swt.balanceOfReturns(amount / 2);
         swt.transferFromReturns(true);
         sw.redeemZcTokenReturns(true);
         mock_erc20.ERC20(underlying).balanceOfReturns(amount / 2);
-        r.redeem(1, underlying, maturity);
+        r.redeem(1, underlying, maturity, 5);
         assertEq(r.holdings(underlying, maturity), amount / 2);
 
         r.redeem(underlying, maturity);
@@ -464,5 +472,34 @@ contract RedeemerTest is Test {
         // holdings check
         uint256 holdings = r.holdings(underlying, maturity);
         assertEq(holdings, 0);
+    }
+
+    function testFailInvalidPrincipal() public {
+        address zero = address(0);
+        // Swivel, Yield, Element, Pendle, APWine, Tempus and Notional
+        vm.expectRevert(Exception.selector);
+        r.redeem(uint8(0), address(0), 0);
+
+        // Sense
+        vm.expectRevert(
+            abi.encodeWithSelector(Exception.selector, 6, 0, 0, zero, zero)
+        );
+        r.redeem(0, address(0), 0, 0, 0, address(0));
+    }
+
+    function testFailPausePrincipal() public {
+        l.pausedReturns(true);
+
+        vm.expectRevert(Exception.selector);
+        r.redeem(uint8(0), address(0), 0);
+
+        assertTrue(l.pausedCalled(uint8(0)));
+    }
+
+    function testPauseProtocol() public {
+        l.illuminatePausedReturns(true);
+
+        vm.expectRevert();
+        r.redeem(address(0), 0);
     }
 }

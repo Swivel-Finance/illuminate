@@ -36,7 +36,7 @@ library Hash {
     //     ')'
     // ));
     bytes32 internal constant DOMAIN_TYPEHASH =
-        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
+        0x33a944726038178b6e6e3425554538c8846b7d9376a33d0dd7bbb91f89cef01f;
 
     // EIP712 typeHash of an Order
     // keccak256(abi.encodePacked(
@@ -104,13 +104,12 @@ library Hash {
 
     /// @param o A Swivel Order
     function order(Order memory o) internal pure returns (bytes32) {
-        // TODO assembly
         return
             keccak256(
                 abi.encode(
-                    ORDER_TYPEHASH,
-                    o.protocol,
+                    Hash.ORDER_TYPEHASH,
                     o.key,
+                    o.protocol,
                     o.maker,
                     o.underlying,
                     o.vault,

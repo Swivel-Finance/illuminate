@@ -12,4 +12,6 @@ interface IRedeemer {
     ) external returns (uint256);
 
     function approve(address p) external;
+
+    function holdings(address u, uint256 m) external view returns (uint256);
 }

@@ -12,6 +12,7 @@ contract SenseDivider {
 
     uint256 private redeemReturn;
     address private ptReturn;
+    address private adapterAddressesReturn;
 
     mapping(address => RedeemArg) public redeemCalled;
     mapping(address => uint256) public ptCalled;
@@ -40,8 +41,15 @@ contract SenseDivider {
         ptReturn = p;
     }
 
-    // todo has the same problem as balanceOf (needs to write to ptCalled)
     function pt(address, uint256) external view returns (address) {
         return ptReturn;
+    }
+
+    function adapterAddressesReturns(address a) external {
+        adapterAddressesReturn = a;
+    }
+
+    function adapterAddresses(uint256) external view returns (address) {
+        return adapterAddressesReturn;
     }
 }

@@ -3,7 +3,7 @@
 pragma solidity 0.8.16;
 
 interface IMarketPlace {
-    function token(
+    function markets(
         address,
         uint256,
         uint256
@@ -38,4 +38,6 @@ interface IMarketPlace {
         uint128,
         uint128
     ) external returns (uint128);
+
+    function redeemer() external view returns (address);
 }

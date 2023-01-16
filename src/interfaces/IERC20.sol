@@ -71,6 +71,12 @@ interface IERC20 {
     ) external returns (bool);
 
     /**
+     * @dev Returns the number of decimals the token uses - e.g. 8, means to
+     * divide the token amount by 100000000 to get its user representation.
+     */
+    function decimals() external view returns (uint8);
+
+    /**
      * @dev Emitted when `value` tokens are moved from one account (`from`) to
      * another (`to`).
      *

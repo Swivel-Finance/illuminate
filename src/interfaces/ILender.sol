@@ -7,6 +7,15 @@ interface ILender {
         address,
         address,
         address,
+        address,
         address
     ) external;
+
+    function transferFYTs(address, uint256) external;
+
+    function transferPremium(address, uint256) external;
+
+    function paused(uint8) external returns (bool);
+
+    function halted() external returns (bool);
 }

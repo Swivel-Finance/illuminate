@@ -5,7 +5,7 @@ import 'src/interfaces/IMarketPlace.sol';
 import 'src/mocks/IlluminatePrincipalToken.sol';
 
 contract MarketPlace is IMarketPlace {
-    address private tokenReturn;
+    address private marketsReturn;
     address private poolsReturn;
     address private iptReturn;
     uint128 private sellPrincipalTokenReturn;
@@ -13,8 +13,9 @@ contract MarketPlace is IMarketPlace {
     uint128 private sellUnderlyingReturn;
     uint128 private buyUnderlyingReturn;
     bool private pausedReturn;
+    address private redeemerReturn;
 
-    struct TokenArgs {
+    struct MarketsArgs {
         uint256 maturity;
         uint256 principal;
     }
@@ -25,17 +26,21 @@ contract MarketPlace is IMarketPlace {
         uint128 slippage;
     }
 
-    mapping(address => TokenArgs) public tokenCalled;
+    mapping(address => MarketsArgs) public marketsCalled;
     mapping(address => uint256) public poolsCalled;
-    mapping(address => TokenArgs) public iptCalled;
+    mapping(address => MarketsArgs) public iptCalled;
     mapping(address => SwapTokenArgs) public sellPrincipalTokenCalled;
     mapping(address => SwapTokenArgs) public buyPrincipalTokenCalled;
     mapping(address => SwapTokenArgs) public sellUnderlyingCalled;
     mapping(address => SwapTokenArgs) public buyUnderlyingCalled;
     uint256 public pausedCalled;
 
-    function tokenReturns(address m) external {
-        tokenReturn = m;
+    function redeemerReturns(address r) external {
+        redeemerReturn = r;
+    }
+
+    function marketsReturns(address m) external {
+        marketsReturn = m;
     }
 
     function poolsReturns(address p) external {
@@ -63,17 +68,17 @@ contract MarketPlace is IMarketPlace {
     }
 
     /// @dev we want this to return the ipt when the user passes 0 for p
-    function token(
+    function markets(
         address u,
         uint256 m,
         uint256 p
     ) external override returns (address) {
         if (p == 0) {
-            iptCalled[u] = TokenArgs(m, p);
+            iptCalled[u] = MarketsArgs(m, p);
             return iptReturn;
         }
-        tokenCalled[u] = TokenArgs(m, p);
-        return tokenReturn;
+        marketsCalled[u] = MarketsArgs(m, p);
+        return marketsReturn;
     }
 
     function pools(address, uint256) external view returns (address) {
@@ -127,5 +132,9 @@ contract MarketPlace is IMarketPlace {
     ) external override returns (uint128) {
         buyUnderlyingCalled[u] = SwapTokenArgs(m, a, s);
         return buyUnderlyingReturn;
+    }
+
+    function redeemer() external view returns (address) {
+        return redeemerReturn;
     }
 }

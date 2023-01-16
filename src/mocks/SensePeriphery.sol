@@ -14,6 +14,7 @@ contract SensePeriphery {
     ERC20 pt;
 
     uint256 private swapUnderlyingForPTsReturn;
+    address private dividerReturn;
 
     mapping(address => SwapUnderlyingForPTsArg)
         public swapUnderlyingForPTsCalled;
@@ -37,5 +38,13 @@ contract SensePeriphery {
         );
         swapUnderlyingForPTsCalled[a] = SwapUnderlyingForPTsArg(s, l, m);
         return swapUnderlyingForPTsReturn;
+    }
+
+    function dividerReturns(address d) external {
+        dividerReturn = d;
+    }
+
+    function divider() external view returns (address) {
+        return dividerReturn;
     }
 }

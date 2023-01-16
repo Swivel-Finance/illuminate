@@ -65,8 +65,7 @@ contract ERC20 {
         approveReturn = b;
     }
 
-    function allowance(address o, address s) public returns (uint256) {
-        allowanceCalled[o] = s;
+    function allowance(address, address) public view returns (uint256) {
         return allowanceReturn;
     }
 

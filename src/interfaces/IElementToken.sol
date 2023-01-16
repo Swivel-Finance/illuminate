@@ -3,7 +3,7 @@
 pragma solidity 0.8.16;
 
 interface IElementToken {
-    function unlockTimestamp() external returns (uint256);
+    function unlockTimestamp() external view returns (uint256);
 
     function underlying() external returns (address);
 
