@@ -6,3 +6,4 @@ broadcast/
 
 # Workspace
 .vscode/
+.env
