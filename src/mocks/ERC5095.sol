@@ -6,8 +6,10 @@ import 'src/mocks/ERC20.sol';
 contract ERC5095 is ERC20 {
     address private poolReturn;
     bool private setPoolReturn;
+    bool private approveMarketPlaceReturn;
 
     address public setPoolCalled;
+    address public approveMarketPlaceCalled;
 
     function poolReturns(address p) external {
         poolReturn = p;
@@ -25,5 +27,15 @@ contract ERC5095 is ERC20 {
         setPoolCalled = p;
 
         return setPoolReturn;
+    }
+
+    function approveMarketPlaceReturns(bool p) external {
+        approveMarketPlaceReturn = p;
+    }
+
+    function approveMarketPlace(address a) external returns (bool) {
+        approveMarketPlaceCalled = a;
+
+        return approveMarketPlaceReturn;
     }
 }

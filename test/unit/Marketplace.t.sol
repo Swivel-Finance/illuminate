@@ -118,6 +118,7 @@ contract MarketplaceTest is Test {
         c.createReturns(address(ipt));
         ipt.poolReturns(address(pool));
         ipt.setPoolReturns(true);
+        ipt.approveMarketPlaceReturns(true);
 
         uint256 newMaturity = maturity + 20;
 
@@ -136,6 +137,9 @@ contract MarketplaceTest is Test {
         // Test that the pool was set
         mp.setPool(underlying, newMaturity, address(pool));
         assertEq(mp.pools(underlying, newMaturity), address(pool));
+        
+        // verify that tokens have been approved
+        assertEq(ipt.approveMarketPlaceCalled(), address(pool));
 
         // verify pool is set
         assertEq(ipt.pool(), address(pool));
