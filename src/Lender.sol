@@ -879,6 +879,11 @@ contract Lender {
         uint256 a,
         uint256 r
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
+        // Confirm that we are using Notional's PT to avoid conflicts with other ERC4626 tokens
+        if (p != uint8(MarketPlace.Principals.Notional)) {
+            revert Exception(6, p, 0,address(0), address(0));
+        }
+
         // Instantiate Notional princpal token
         address token = IMarketPlace(marketPlace).markets(u, m, p);
 
