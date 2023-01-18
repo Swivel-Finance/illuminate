@@ -184,11 +184,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return IYield(pool).buyBasePreview(Cast.u128(a));
     }
 
-    /// @notice Before maturity spends `assets` of underlying, and sends `shares` of PTs to `receiver`. Post or at maturity, reverts.
+    /// @notice Before maturity spends `a` of underlying, and sends PTs to `r`. Post or at maturity, reverts.
     /// @param r The receiver of the principal tokens
     /// @param a The amount of underlying tokens deposited
-    /// @param m Maximum number of shares that the user will deposit
-    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    /// @param m Minimum number of shares that the user will receive
+    /// @return uint256 The amount of principal tokens purchased
     function deposit(address r, uint256 a, uint256 m) external returns (uint256) {
         // Execute the deposit
         return _deposit(r, a, m);
@@ -199,17 +199,14 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param a The amount of underlying tokens deposited
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function deposit(address r, uint256 a) external override returns (uint256) {
-        // Preview how many shares are needed to withdraw the desired amount of underlying
-        uint128 shares = Cast.u128(previewDeposit(a));
-
         // Execute the deposit
-        return _deposit(r, a, shares);
+        return _deposit(r, a, 0);
     }
 
-    /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
+    /// @notice Before maturity mints `s` of PTs to `r` by spending underlying. Post or at maturity, reverts.
     /// @param r The receiver of the underlying tokens being withdrawn
-    /// @param s The amount of underlying tokens withdrawn
-    /// @param m Maximum amount of underlying that the user must receive
+    /// @param s The amount of underlying tokens being sold
+    /// @param m Maximum amount of underlying that the user will spend
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function mint(address r, uint256 s, uint256 m) external returns (uint256) {
         // Execute the mint
@@ -221,11 +218,8 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param s The amount of underlying tokens withdrawn
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function mint(address r, uint256 s) external override returns (uint256) {
-        // Calculate how much underlying will be needed to mint the desired shares
-        uint128 assets = Cast.u128(previewMint(s));
-
         // Execute the mint
-        return _mint(r, s, assets);
+        return _mint(r, s, type(uint256).max);
     }
 
     /// @notice At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
@@ -339,7 +333,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         // Receive the funds from the sender
         Safe.transferFrom(IERC20(underlying), msg.sender, address(this), a);
 
-        // consider the hardcoded slippage limit, 4626 compliance requires no minimum param.
+        // Sell the underlying assets for PTs
         uint128 returned = IMarketPlace(marketplace).sellUnderlying(
             underlying,
             maturity,
@@ -365,16 +359,19 @@ contract ERC5095 is ERC20Permit, IERC5095 {
             );
         }
 
+        // Determine how many underlying tokens are needed to mint the shares
+        uint256 required = previewMint(s);
+
         // Transfer the underlying to the token
         Safe.transferFrom(
             IERC20(underlying),
             msg.sender,
             address(this),
-            m
+            required
         );
 
         // Swap the underlying for principal tokens via the pool
-        uint128 returned = IMarketPlace(marketplace).sellUnderlying(
+        uint128 sold = IMarketPlace(marketplace).buyPrincipalToken(
             underlying,
             maturity,
             Cast.u128(s),
@@ -382,9 +379,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         );
 
         // Transfer the principal tokens to the desired receiver
-        _transfer(address(this), r, returned);
+        _transfer(address(this), r, s);
 
-        return returned;
+        return sold;
     }
 
     function _withdraw(uint256 a, address r, address o, uint256 m) internal returns (uint256) {
