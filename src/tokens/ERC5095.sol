@@ -187,7 +187,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Before maturity spends `assets` of underlying, and sends `shares` of PTs to `receiver`. Post or at maturity, reverts.
     /// @param r The receiver of the principal tokens
     /// @param a The amount of underlying tokens deposited
-    /// @param m Minimum number of shares that the user must receive
+    /// @param m Maximum number of shares that the user will deposit
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function deposit(address r, uint256 a, uint256 m) external returns (uint256) {
         // Revert if called at or after maturity
@@ -205,7 +205,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         uint128 shares = Cast.u128(previewDeposit(a));
 
         // Confirm that slippage has not been exceeded
-        if (shares < m ) {
+        if (shares > m) {
             revert Exception(16, m, shares, address(0), address(0));
         }
 
@@ -265,7 +265,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param s The amount of underlying tokens withdrawn
-    /// @param m Minimum amount of shares that the user must receive
+    /// @param m Maximum amount of underlying that the user must receive
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function mint(address r, uint256 s, uint256 m) external returns (uint256) {
         // Revert if called at or after maturity
@@ -283,7 +283,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         uint128 assets = Cast.u128(previewMint(s));
 
         // Confirm that slippage has not been exceeded
-        if (m > assets) {
+        if (m < assets) {
             revert Exception(16, m, assets, address(0), address(0));
         }
 
