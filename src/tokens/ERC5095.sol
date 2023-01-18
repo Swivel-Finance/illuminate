@@ -130,9 +130,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return _balanceOf[o];
     }
 
-    /// @notice Post or at maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `assets` in underlying on a YieldSpace AMM.
+    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `a` in underlying on a YieldSpace AMM.
     /// @param a The amount of underlying spent
-    /// @return uint256 The amount of PT purchased by spending `assets` of underlying
+    /// @return uint256 The amount of PT purchased by spending `a` of underlying
     function previewDeposit(uint256 a) public view returns (uint256) {
         if (block.timestamp < maturity) {
             return IYield(pool).sellBasePreview(Cast.u128(a));
@@ -140,9 +140,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return 0;
     }
 
-    /// @notice Post or at maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `shares` in PT on a YieldSpace AMM.
+    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `s` in PT on a YieldSpace AMM.
     /// @param s The amount of principal tokens bought in the simulation
-    /// @return uint256 The amount of underlying spent to purchase `shares` of PT
+    /// @return uint256 The amount of underlying required to purchase `s` of PT
     function previewMint(uint256 s) public view returns (uint256) {
         if (block.timestamp < maturity) {
             return IYield(pool).buyFYTokenPreview(Cast.u128(s));
@@ -150,9 +150,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return 0;
     }
 
-    /// @notice Post or at maturity, simulates the effects of redeemption at the current block. Prior to maturity, returns the amount of `assets from a sale of `shares` in PT from a sale of PT on a YieldSpace AMM.
+    /// @notice Post or at maturity, simulates the effects of redemption. Prior to maturity, returns the amount of `assets` from a sale of `s` PTs on a YieldSpace AMM.
     /// @param s The amount of principal tokens redeemed in the simulation
-    /// @return uint256 The amount of underlying returned by `shares` of PT redemption
+    /// @return uint256 The amount of underlying returned by `s` of PT redemption
     function previewRedeem(uint256 s) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
             // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
@@ -169,9 +169,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return IYield(pool).sellFYTokenPreview(Cast.u128(s));
     }
 
-    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `assets` in underlying from the sale of PTs on a YieldSpace AMM.
+    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `a` in underlying from the sale of PTs on a YieldSpace AMM.
     /// @param a The amount of underlying tokens withdrawn in the simulation
-    /// @return uint256 The amount of principal tokens required for the withdrawal of `assets`
+    /// @return uint256 The amount of principal tokens required for the withdrawal of `a`
     function previewWithdraw(uint256 a) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
             // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
