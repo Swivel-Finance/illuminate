@@ -187,6 +187,48 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Before maturity spends `assets` of underlying, and sends `shares` of PTs to `receiver`. Post or at maturity, reverts.
     /// @param r The receiver of the principal tokens
     /// @param a The amount of underlying tokens deposited
+    /// @param m Minimum number of shares that the user must receive
+    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    function deposit(address r, uint256 a, uint256 m) external returns (uint256) {
+        // Revert if called at or after maturity
+        if (block.timestamp >= maturity) {
+            revert Exception(
+                21,
+                block.timestamp,
+                maturity,
+                address(0),
+                address(0)
+            );
+        }
+
+        // Preview how many shares are needed to withdraw the desired amount of underlying
+        uint128 shares = Cast.u128(previewDeposit(a));
+
+        // Confirm that slippage has not been exceeded
+        if (shares < m ) {
+            revert Exception(16, m, shares, address(0), address(0));
+        }
+
+        // Receive the funds from the sender
+        Safe.transferFrom(IERC20(underlying), msg.sender, address(this), a);
+
+        // consider the hardcoded slippage limit, 4626 compliance requires no minimum param.
+        uint128 returned = IMarketPlace(marketplace).sellUnderlying(
+            underlying,
+            maturity,
+            Cast.u128(a),
+            shares
+        );
+
+        // Pass the received shares onto the intended receiver
+        _transfer(address(this), r, returned);
+
+        return returned;
+    }
+
+    /// @notice Before maturity spends `assets` of underlying, and sends `shares` of PTs to `receiver`. Post or at maturity, reverts.
+    /// @param r The receiver of the principal tokens
+    /// @param a The amount of underlying tokens deposited
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function deposit(address r, uint256 a) external override returns (uint256) {
         // Revert if called at or after maturity
@@ -215,6 +257,53 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         );
 
         // Pass the received shares onto the intended receiver
+        _transfer(address(this), r, returned);
+
+        return returned;
+    }
+
+    /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param s The amount of underlying tokens withdrawn
+    /// @param m Minimum amount of shares that the user must receive
+    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    function mint(address r, uint256 s, uint256 m) external returns (uint256) {
+        // Revert if called at or after maturity
+        if (block.timestamp >= maturity) {
+            revert Exception(
+                21,
+                block.timestamp,
+                maturity,
+                address(0),
+                address(0)
+            );
+        }
+
+        // Calculate how much underlying will be needed to mint the desired shares
+        uint128 assets = Cast.u128(previewMint(s));
+
+        // Confirm that slippage has not been exceeded
+        if (m > assets) {
+            revert Exception(16, m, assets, address(0), address(0));
+        }
+
+        // Transfer the underlying to the token
+        Safe.transferFrom(
+            IERC20(underlying),
+            msg.sender,
+            address(this),
+            assets
+        );
+
+        // Swap the underlying for principal tokens via the pool
+        uint128 returned = IMarketPlace(marketplace).sellUnderlying(
+            underlying,
+            maturity,
+            assets,
+            0
+        );
+
+        // Transfer the principal tokens to the desired receiver
         _transfer(address(this), r, returned);
 
         return returned;
@@ -252,7 +341,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
             underlying,
             maturity,
             assets,
-            Cast.u128(s - (s / 100))
+            0
         );
 
         // Transfer the principal tokens to the desired receiver
@@ -265,14 +354,21 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param a The amount of underlying tokens withdrawn
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param o The owner of the underlying tokens
+    /// @param m Minimum amount of shares to be received
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function withdraw(
         uint256 a,
         address r,
-        address o
-    ) external override returns (uint256) {
+        address o,
+        uint256 m
+    ) external returns (uint256) {
         // Refers to how many shares are needed to withdraw `a` underlying
         uint128 shares = Cast.u128(previewWithdraw(a));
+
+        // Confirm that slippage has not been exceeded
+        if (m > shares) {
+            revert Exception(16, m, shares, address(0), address(0));
+        }
 
         // Pre maturity
         if (block.timestamp < maturity) {
@@ -292,8 +388,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 Safe.transfer(IERC20(underlying), r, returned);
 
                 return returned;
-                // Else, sell PT with allowance check
-            } else {
+            } else { // Else, sell PT with allowance check
                 // Get the allowance of the user spending the tokens
                 uint256 allowance = _allowance[o][msg.sender];
 
@@ -364,6 +459,214 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                         o,
                         r,
                         shares
+                    );
+            }
+        }
+    }
+
+    /// @notice At or after maturity, burns `a` PTs from owner and sends underlying to `receiver`. Before maturity, sends `assets` by selling shares of PT on a YieldSpace AMM.
+    /// @param a The amount of underlying tokens withdrawn
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param o The owner of the underlying tokens
+    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    function withdraw(
+        uint256 a,
+        address r,
+        address o
+    ) external override returns (uint256) {
+        // Refers to how many shares are needed to withdraw `a` underlying
+        uint128 shares = Cast.u128(previewWithdraw(a));
+
+        // Pre maturity
+        if (block.timestamp < maturity) {
+            // Receive the shares from the caller
+            _transfer(o, address(this), shares);
+
+            // If owner is the sender, sell PT without allowance check
+            if (o == msg.sender) {
+                uint128 returned = IMarketPlace(marketplace).sellPrincipalToken(
+                    underlying,
+                    maturity,
+                    shares,
+                    Cast.u128(a - (a / 100))
+                );
+
+                // Transdfer the underlying to the desired receiver
+                Safe.transfer(IERC20(underlying), r, returned);
+
+                return returned;
+            } else { // Else, sell PT with allowance check
+                // Get the allowance of the user spending the tokens
+                uint256 allowance = _allowance[o][msg.sender];
+
+                // Check for sufficient allowance
+                if (allowance < shares) {
+                    revert Exception(
+                        20,
+                        allowance,
+                        shares,
+                        address(0),
+                        address(0)
+                    );
+                }
+
+                // Update the caller's allowance
+                _allowance[o][msg.sender] = allowance - shares;
+
+                // Sell the principal tokens for underlying
+                uint128 returned = IMarketPlace(marketplace).sellPrincipalToken(
+                    underlying,
+                    maturity,
+                    Cast.u128(shares),
+                    Cast.u128(a - (a / 100))
+                );
+
+                // Transfer the underlying to the desired receiver
+                Safe.transfer(IERC20(underlying), r, returned);
+
+                return returned;
+            }
+        }
+        // Post maturity
+        else {
+            // If owner is the sender, sell PT without allowance check
+            if (o == msg.sender) {
+                // Execute the redemption to the desired receiver
+                return
+                    IRedeemer(redeemer).authRedeem(
+                        underlying,
+                        maturity,
+                        msg.sender,
+                        r,
+                        shares
+                    );
+            } else {
+                // Get the allowance of the user spending the tokens
+                uint256 allowance = _allowance[o][msg.sender];
+
+                // Check for sufficient allowance
+                if (allowance < shares) {
+                    revert Exception(
+                        20,
+                        allowance,
+                        shares,
+                        address(0),
+                        address(0)
+                    );
+                }
+
+                // Update the callers's allowance
+                _allowance[o][msg.sender] = allowance - shares;
+
+                // Execute the redemption to the desired receiver
+                return
+                    IRedeemer(redeemer).authRedeem(
+                        underlying,
+                        maturity,
+                        o,
+                        r,
+                        shares
+                    );
+            }
+        }
+    }
+
+    /// @notice At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`. Before maturity, sends `assets` by selling `shares` of PT on a YieldSpace AMM.
+    /// @param s The number of shares to be burned in exchange for the underlying asset
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param o Address of the owner of the shares being burned
+    /// @param m Minimum amount of underlying that must be received
+    /// @return uint256 The amount of underlying tokens distributed by the redemption
+    function redeem(
+        uint256 s,
+        address r,
+        address o,
+        uint256 m
+    ) external returns (uint256) {
+        // Pre-maturity
+        if (block.timestamp < maturity) {
+            // Receive the funds from the user
+            _transfer(o, address(this), s);
+
+            // Determine how much underlying must be sold to receive desired principal token amount
+            uint128 assets = Cast.u128(previewRedeem(s));
+
+            // Confirm that slippage has not been exceeded
+            if (m > assets) {
+                revert Exception(16, m, assets, address(0), address(0));
+            }
+
+            // If owner is the sender, sell PT without allowance check
+            if (o == msg.sender) {
+                // Swap principal tokens for the underlying asset
+                uint128 returned = IMarketPlace(marketplace).sellPrincipalToken(
+                    underlying,
+                    maturity,
+                    Cast.u128(s),
+                    assets - (assets / 100)
+                );
+
+                // Transfer underlying to the desired receiver
+                Safe.transfer(IERC20(underlying), r, returned);
+                return returned;
+                // Else, sell PT with allowance check
+            } else {
+                // Get the allowance of the user spending the tokens
+                uint256 allowance = _allowance[o][msg.sender];
+
+                // Check for sufficient allowance
+                if (allowance < s) {
+                    revert Exception(20, allowance, s, address(0), address(0));
+                }
+
+                // Update the caller's allowance
+                _allowance[o][msg.sender] = allowance - s;
+
+                // Sell the principal tokens for the underlying
+                uint128 returned = IMarketPlace(marketplace).sellPrincipalToken(
+                    underlying,
+                    maturity,
+                    Cast.u128(s),
+                    assets - (assets / 100)
+                );
+
+                // Transfer the underlying to the desired receiver
+                Safe.transfer(IERC20(underlying), r, returned);
+                return returned;
+            }
+            // Post-maturity
+        } else {
+            // If owner is the sender, redeem PT without allowance check
+            if (o == msg.sender) {
+                // Execute the redemption to the desired receiver
+                return
+                    IRedeemer(redeemer).authRedeem(
+                        underlying,
+                        maturity,
+                        msg.sender,
+                        r,
+                        s
+                    );
+            } else {
+                // Get the allowance of the user spending the tokens
+                uint256 allowance = _allowance[o][msg.sender];
+
+                // Check for sufficient allowance
+                if (allowance < s) {
+                    revert Exception(20, allowance, s, address(0), address(0));
+                }
+
+                // Update the caller's allowance
+                _allowance[o][msg.sender] = allowance - s;
+
+                // Execute the redemption to the desired receiver
+                return
+                    IRedeemer(redeemer).authRedeem(
+                        underlying,
+                        maturity,
+                        o,
+                        r,
+                        s
                     );
             }
         }
