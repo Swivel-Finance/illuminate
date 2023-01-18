@@ -388,10 +388,10 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         // Pre maturity
         if (block.timestamp < maturity) {
             // Determine how many principal tokens are needed to purchase the underlying
-            uint256 sharesNeeded = previewWithdraw(a);
+            uint256 needed = previewWithdraw(a);
 
             // Receive the shares from the caller
-            _transfer(o, address(this), sharesNeeded);
+            _transfer(o, address(this), needed);
 
             // If owner is the sender, sell PT without allowance check
             if (o == msg.sender) {
@@ -411,7 +411,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 uint256 allowance = _allowance[o][msg.sender];
 
                 // Check for sufficient allowance
-                if (allowance < sharesNeeded) {
+                if (allowance < needed) {
                     revert Exception(
                         20,
                         allowance,
@@ -422,7 +422,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 }
 
                 // Update the caller's allowance
-                _allowance[o][msg.sender] = allowance - sharesNeeded;
+                _allowance[o][msg.sender] = allowance - needed;
 
                 // Sell the principal tokens for underlying
                 uint128 returned = IMarketPlace(marketplace).buyUnderlying(
