@@ -387,8 +387,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     function _withdraw(uint256 a, address r, address o, uint256 m) internal returns (uint256) {
         // Pre maturity
         if (block.timestamp < maturity) {
+            // Determine how many principal tokens are needed to purchase the underlying
+            uint256 shares = previewWithdraw(a);
+
             // Receive the shares from the caller
-            _transfer(o, address(this), a);
+            _transfer(o, address(this), shares);
 
             // If owner is the sender, sell PT without allowance check
             if (o == msg.sender) {
