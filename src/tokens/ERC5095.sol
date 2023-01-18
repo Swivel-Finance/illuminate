@@ -219,7 +219,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function mint(address r, uint256 s) external override returns (uint256) {
         // Execute the mint
-        return _mint(r, s, type(uint256).max);
+        return _mint(r, s, type(uint128).max);
     }
 
     /// @notice At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
@@ -249,7 +249,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         address o
     ) external override returns (uint256) {
         // Execute the withdrawal
-        return _withdraw(a, r, o, type(uint256).max);
+        return _withdraw(a, r, o, type(uint128).max);
     }
 
     /// @notice At or after maturity, burns exactly `s` of Principal Tokens from `o` and sends underlying tokens to `r`. Before maturity, sends underlying by selling `s` of PT on a YieldSpace AMM.
@@ -360,7 +360,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         }
 
         // Determine how many underlying tokens are needed to mint the shares
-        uint256 required = previewMint(s);
+        uint256 required = IYield(pool).buyFYTokenPreview(Cast.u128(s));
 
         // Transfer the underlying to the token
         Safe.transferFrom(
@@ -388,10 +388,10 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         // Pre maturity
         if (block.timestamp < maturity) {
             // Determine how many principal tokens are needed to purchase the underlying
-            uint256 shares = previewWithdraw(a);
+            uint256 sharesNeeded = previewWithdraw(a);
 
             // Receive the shares from the caller
-            _transfer(o, address(this), shares);
+            _transfer(o, address(this), sharesNeeded);
 
             // If owner is the sender, sell PT without allowance check
             if (o == msg.sender) {
@@ -403,7 +403,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 );
 
                 // Transdfer the underlying to the desired receiver
-                Safe.transfer(IERC20(underlying), r, returned);
+                Safe.transfer(IERC20(underlying), r, a);
 
                 return returned;
             } else { // Else, sell PT with allowance check
@@ -411,7 +411,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 uint256 allowance = _allowance[o][msg.sender];
 
                 // Check for sufficient allowance
-                if (allowance < a) {
+                if (allowance < sharesNeeded) {
                     revert Exception(
                         20,
                         allowance,
@@ -422,7 +422,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 }
 
                 // Update the caller's allowance
-                _allowance[o][msg.sender] = allowance - a;
+                _allowance[o][msg.sender] = allowance - sharesNeeded;
 
                 // Sell the principal tokens for underlying
                 uint128 returned = IMarketPlace(marketplace).buyUnderlying(
@@ -440,7 +440,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         }
         // Post maturity
         else {
-            // If owner is the sender, sell PT without allowance check
+            // If owner is the sender, redeem PT without allowance check
             if (o == msg.sender) {
                 // Execute the redemption to the desired receiver
                 return
