@@ -214,11 +214,6 @@ contract ERC5095 is ERC20Permit, IERC5095 {
             shares
         );
 
-        // Ensure the user received at least the amount desired
-        if (returned < a) {
-            revert Exception(16, returned, a, address(0), address(0));
-        }
-
         // Pass the received shares onto the intended receiver
         _transfer(address(this), r, returned);
 
