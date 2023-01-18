@@ -212,9 +212,8 @@ contract LenderTest is Test {
         assertEq(total - total / feenominator, sw.initiateCalledAmount(address(yt)));
         assertEq(components[1].v, sw.initiateCalledSignature(address(yt)));
         // mint
-        uint256 expectedPremium = total / 2;
+        uint256 expectedPremium = (total - (total / feenominator)) / 2 - (total / feenominator);
         expectedPremium = expectedPremium - expectedPremium / feenominator;
-        expectedPremium = expectedPremium - fee;
         
         uint256 expectedLentOnSwivel = total - total / feenominator;
         assertEq(
