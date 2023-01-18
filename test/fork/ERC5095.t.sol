@@ -8,6 +8,7 @@ import 'test/fork/Contracts.sol';
 import 'src/Lender.sol' as l;
 import 'src/MarketPlace.sol' as mp;
 import 'src/Redeemer.sol' as r;
+import 'src/Creator.sol' as c;
 
 import 'forge-std/Test.sol';
 using stdStorage for StdStorage;
@@ -16,20 +17,22 @@ contract ERC5095Test is Test {
     ERC5095 token;
 
     r.Redeemer redeemer;
-    address lender;
+    l.Lender lender;
     mp.MarketPlace marketplace;
+    c.Creator creator;
 
     uint256 maturity = 2664550000;
 
     function setUp() public {
-        lender = address(new l.Lender(address(0), address(0), address(0)));
+        creator = new c.Creator();
+        lender = new l.Lender(address(0), address(0), address(0));
         redeemer = new r.Redeemer(
-            address(0),
+            address(lender),
             address(0),
             address(0),
             address(0)
         );
-        marketplace = new mp.MarketPlace(address(redeemer), lender);
+        marketplace = new mp.MarketPlace(address(redeemer), address(lender), address(creator));
         stdstore
             .target(address(marketplace))
             .sig('pools(address,uint256)')
@@ -43,7 +46,7 @@ contract ERC5095Test is Test {
             Contracts.USDC,
             maturity,
             address(redeemer),
-            lender,
+            address(lender),
             address(marketplace),
             'Test 5095 Token',
             'T5095T',

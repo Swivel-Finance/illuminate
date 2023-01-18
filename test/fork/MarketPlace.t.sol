@@ -30,7 +30,7 @@ contract MarketPlaceTest is Test {
         fork = vm.createSelectFork(rpc, blockNumber);
 
         // Deploy a marketplace contract
-        mp = new MarketPlace(address(0), address(0));
+        mp = new MarketPlace(address(0), address(0), address(0));
 
         // Set an existing pool from mainnnet
         stdstore

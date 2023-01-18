@@ -183,7 +183,7 @@ contract LenderTest is Test {
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         mock_erc20.ERC20(underlying).transferReturns(true);
         ipt.mintReturns(true);
-        mp.tokenReturns(address(zct));
+        mp.marketsReturns(address(zct));
 
         // execute the lend
         l.lend(
@@ -199,9 +199,7 @@ contract LenderTest is Test {
         );
 
         // transfer
-        uint256 collected = l.fees(underlying) -
-            ((total - fee) / 2) /
-            l.feenominator();
+        uint256 collected = l.fees(underlying);
         (address transferFromTo, uint256 transferFromAmount) = mock_erc20
             .ERC20(underlying)
             .transferFromCalled(address(this));
@@ -213,13 +211,20 @@ contract LenderTest is Test {
         assertEq(total - fee, sw.initiateCalledAmount(address(yt)));
         assertEq(components[1].v, sw.initiateCalledSignature(address(yt)));
         // mint
-        assertEq(total - fee, ipt.mintCalled(address(this)));
+        uint256 expectedPremium = (amounts[0] / 2) +
+            ((amounts[1] - fee) / 2) -
+            fee;
+        uint256 expectedLentOnSwivel = total - fee;
+        assertEq(
+            expectedLentOnSwivel + expectedPremium,
+            ipt.mintCalled(address(this))
+        );
     }
 
     function testYieldLend() public {
         uint256 starting = 14040;
         uint256 baseSold = amount + 15;
-        mp.tokenReturns(address(yt));
+        mp.marketsReturns(address(yt));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         y.fyTokenReturns(address(yt));
         y.baseReturns(underlying);
@@ -232,7 +237,7 @@ contract LenderTest is Test {
         l.lend(2, underlying, maturity, amount, address(y), 0);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -267,7 +272,7 @@ contract LenderTest is Test {
         bytes32 id = bytes32('asdf');
         uint256 purchased = amount - expectedFee;
 
-        mp.tokenReturns(address(et));
+        mp.marketsReturns(address(et));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         et.balanceOfReturns(starting);
         ev.swapReturns(purchased);
@@ -284,7 +289,7 @@ contract LenderTest is Test {
             id
         );
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -326,7 +331,7 @@ contract LenderTest is Test {
         output[1] = purchased;
         uint256 minReturn = amount - 200;
         uint256 deadline = block.timestamp + 10;
-        mp.tokenReturns(address(pt));
+        mp.marketsReturns(address(pt));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         ipt.mintReturns(true);
         p.swapExactTokensForTokensFor(amount + 10);
@@ -334,7 +339,7 @@ contract LenderTest is Test {
         l.lend(4, underlying, maturity, amount, minReturn, deadline);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -366,7 +371,7 @@ contract LenderTest is Test {
         uint256 minReturn = 100;
         uint256 deadline = block.timestamp + 10;
         // mocks
-        mp.tokenReturns(address(tt));
+        mp.marketsReturns(address(tt));
         tt.poolReturns(address(tp));
         tp.controllerReturns(address(t));
         tamm.tempusPoolReturns(address(tp));
@@ -385,7 +390,7 @@ contract LenderTest is Test {
         );
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -424,7 +429,7 @@ contract LenderTest is Test {
         uint256 returned = (amount + 25) * 10**2;
         uint256 starting = 1124;
 
-        mp.tokenReturns(address(st));
+        mp.marketsReturns(address(st));
         st.balanceOfReturns(starting);
         st.decimalsReturns(8);
         ipt.decimalsReturns(6);
@@ -447,7 +452,7 @@ contract LenderTest is Test {
         );
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -480,7 +485,7 @@ contract LenderTest is Test {
         uint256 minReturn = amount / 2;
         uint256 deadline = block.timestamp + 10;
         uint256 returned = amount + 50;
-        mp.tokenReturns(address(apwt));
+        mp.marketsReturns(address(apwt));
         apwp.getPTAddressReturns(address(apwt));
         apwp.getUnderlyingOfIBTAddressReturns(underlying);
         mock_erc20.ERC20(underlying).transferFromReturns(true);
@@ -498,7 +503,7 @@ contract LenderTest is Test {
         );
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -537,7 +542,7 @@ contract LenderTest is Test {
         uint256 deposited = amount - expectedFee;
         uint256 received = (deposited * 105) / 100;
         uint256 minReceived = 5;
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.depositReturns(received);
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         ipt.mintReturns(true);
@@ -545,7 +550,7 @@ contract LenderTest is Test {
         l.lend(8, underlying, maturity, amount, minReceived);
 
         // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.tokenCalled(
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
             underlying
         );
         assertEq(maturity, calledMaturity);
@@ -572,7 +577,7 @@ contract LenderTest is Test {
     function testNotionalSlippageCheck() public {
         uint256 deposited = 4;
         uint256 minPTsExpected = 5;
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.depositReturns(deposited);
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         ipt.mintReturns(true);
@@ -592,7 +597,7 @@ contract LenderTest is Test {
     }
 
     function testMint() public {
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.getMaturityReturns(block.timestamp + 100);
         n.decimalsReturns(6);
         n.transferFromReturns(true);
@@ -622,7 +627,7 @@ contract LenderTest is Test {
     }
 
     function testMintDecimalMismatch() public {
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.getMaturityReturns(block.timestamp + 100);
         n.decimalsReturns(8);
         n.transferFromReturns(true);
@@ -708,16 +713,9 @@ contract LenderTest is Test {
         l.setMarketPlace(msg.sender);
     }
 
-    function testFailPausedMarket() public {
-        l.pause(msg.sender, maturity, 3, true);
-
-        vm.expectRevert(Exception.selector);
-        l.lend(3, msg.sender, maturity, 0, 0, 0, address(0), bytes32('0x0'));
-    }
-
     // rate limiting unit tests
     function testFailExceedRateLimit() public {
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.getMaturityReturns(block.timestamp + 100);
         n.decimalsReturns(6);
         n.transferFromReturns(true);
@@ -733,7 +731,7 @@ contract LenderTest is Test {
     }
 
     function testFailExceedRateLimit2() public {
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.getMaturityReturns(block.timestamp + 100);
         n.decimalsReturns(6);
         n.transferFromReturns(true);
@@ -757,7 +755,7 @@ contract LenderTest is Test {
     }
 
     function testFailExceedRateLimitAfterReset() public {
-        mp.tokenReturns(address(n));
+        mp.marketsReturns(address(n));
         n.getMaturityReturns(block.timestamp + 100);
         n.decimalsReturns(6);
         n.transferFromReturns(true);
@@ -781,6 +779,40 @@ contract LenderTest is Test {
         );
 
         vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_000_000_000
+        );
+    }
+
+    function testFailPausePrincipal() public {
+        mp.marketsReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(6);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+        l.pause(uint8(MarketPlace.Principals.Notional), true);
+
+        vm.expectRevert(Exception.selector);
+        l.mint(
+            uint8(MarketPlace.Principals.Notional),
+            underlying,
+            maturity,
+            1_000_000_000
+        );
+    }
+
+    function testPauseProtocol() public {
+        mp.marketsReturns(address(n));
+        n.getMaturityReturns(block.timestamp + 100);
+        n.decimalsReturns(6);
+        n.transferFromReturns(true);
+        mock_erc20.ERC20(underlying).decimalsReturns(6);
+        l.pauseIlluminate(true);
+
+        vm.expectRevert();
         l.mint(
             uint8(MarketPlace.Principals.Notional),
             underlying,

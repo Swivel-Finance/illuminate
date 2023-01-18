@@ -9,6 +9,7 @@ import 'test/fork/Contracts.sol';
 import 'src/Redeemer.sol';
 import 'src/Lender.sol';
 import 'src/Converter.sol';
+import 'src/Creator.sol';
 
 import 'test/lib/Hash.sol';
 
@@ -27,12 +28,14 @@ contract SwivelTest is Test {
     Lender l;
     MarketPlace mp;
     Converter c;
+    Creator creator;
 
     uint256 fork;
 
     uint256 startingBalance = 100000;
-    uint256 maturity = 1680274800 + 100000; // Set very low maturity to pass the checks
-    uint256 matured = 9664550000; // Teleport blockchain to a matured timestamp
+    uint256 maturity = 1680274800 + 100; // Set very low maturity to pass the checks
+
+    address constant swivelPt = 0x3476303e9038833AeC9ccCd12747BD0E0d026a8B;
 
     function setUp() public {
         // Fetch RPC URL and block number from environment
@@ -41,6 +44,8 @@ contract SwivelTest is Test {
         fork = vm.createSelectFork(rpc, Contracts.SWIVEL_BLOCK);
         // Deploy converter
         c = new Converter();
+        // Deploy creator
+        creator = new Creator();
         // Deploy lender
         l = new Lender(Contracts.SWIVEL, Contracts.PENDLE, Contracts.APWINE_ROUTER);
         // Deploy redeemer
@@ -51,9 +56,11 @@ contract SwivelTest is Test {
             Contracts.TEMPUS // tempus
         );
         // Deploy marketplace
-        mp = new MarketPlace(address(r), address(l));
+        mp = new MarketPlace(address(r), address(l), address(creator));
         // Set the redeemer's converter
         r.setConverter(address(c), new address[](0));
+        // Set the creator's marketplace
+        creator.setMarketPlace(address(mp));
     }
 
     /// @param u underlying asset (e.g. USDC)
@@ -64,7 +71,7 @@ contract SwivelTest is Test {
 
         // Create a market
         address[8] memory contracts;
-        contracts[0] = Contracts.SWIVEL_TOKEN; // Swivel
+        contracts[0] = swivelPt; // Swivel
 
         mp.createMarket(
             u,
@@ -164,8 +171,8 @@ contract SwivelTest is Test {
 
         // Make sure the principal tokens were transferred to the lender
         assertEq(
-            returned,
-            IERC20(Contracts.SWIVEL_TOKEN).balanceOf(address(l))
+            amounts[0] - amounts[0] / l.feenominator(),
+            IERC20(swivelPt).balanceOf(address(l))
         );
 
         // Make sure the same amount of iPTs were minted to the user
@@ -173,28 +180,30 @@ contract SwivelTest is Test {
         assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
     }
 
-    function testSwivelRedeem() public {
-        address principalToken = Contracts.SWIVEL_TOKEN;
-
+    // NOTE Test is skipped due to being unable to deal to EToken for the market
+    function testSwivelRedeemSkip() public {
         // deploy market
-        skip(matured);
-        deployMarket(Contracts.STETH);
+        vm.warp(maturity + 100);
+        deployMarket(Contracts.USDC);
 
         uint balanceAmount = 10e9;
 
         // give lender principal tokens
-        deal(principalToken, address(l), balanceAmount);
+        deal(swivelPt, address(l), balanceAmount);
 
-        vm.startPrank(msg.sender); 
+        // give the euler token to the swivel contract
+        // deal(0xbb0D4bb654a21054aF95456a3B29c63e8D1F4c0a, Contracts.SWIVEL, balanceAmount * 10);
+
+        vm.startPrank(msg.sender);
 
         // execute the redemption
-        bool result = r.redeem(1, Contracts.STETH, maturity, 6);
+        bool result = r.redeem(1, Contracts.USDC, maturity, 5);
         assertTrue(result);
 
         // verify that the underlying is now held by the redeemer contract
-        assertEq(IERC20(Contracts.STETH).balanceOf(address(r)), balanceAmount - 1);
+        assertEq(IERC20(Contracts.USDC).balanceOf(address(r)), balanceAmount - 1);
 
         // verify the lender no longer holds the principal token
-        assertEq(IERC20(Contracts.SWIVEL_TOKEN).balanceOf(address(l)), 0);
+        assertEq(IERC20(swivelPt).balanceOf(address(l)), 0);
     }
 }

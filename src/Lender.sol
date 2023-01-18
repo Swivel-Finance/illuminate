@@ -39,8 +39,10 @@ contract Lender {
     address public admin;
     /// @notice address of the MarketPlace contract, used to access the markets mapping
     address public marketPlace;
-    /// @notice mapping that determines if a principal token has been paused by the admin
-    mapping(address => mapping(uint256 => bool[9])) public paused;
+    /// @notice mapping that determines if a principal has been paused by the admin
+    mapping(uint8 => bool) public paused;
+    /// @notice flag that allows admin to stop all lending and minting across the entire protocol
+    bool public halted;
 
     /// @notice contract used to execute swaps on Swivel's exchange
     address public immutable swivelAddr;
@@ -107,14 +109,10 @@ contract Lender {
     event ScheduleFeeChange(uint256 when);
     /// @notice emitted upon blocking a scheduled fee change
     event BlockFeeChange();
-    /// @notice emitted upon pausing or unpausing of a principal token
-    event PauseMarket(
-        uint8 principal,
-        address indexed underlying,
-        uint256 indexed maturity,
-        address token,
-        bool indexed state
-    );
+    /// @notice emitted upon pausing or unpausing of a principal
+    event PausePrincipal(uint8 principal, bool indexed state);
+    /// @notice emitted upon pausing or unpausing minting, lending and redeeming
+    event PauseIlluminate(bool state);
 
     /// @notice ensures that only a certain address can call the function
     /// @param a address that msg.sender must be to be authorized
@@ -134,7 +132,7 @@ contract Lender {
         uint256 m,
         uint8 p
     ) {
-        if (paused[u][m][p]) {
+        if (paused[p] || halted) {
             revert Exception(1, p, 0, address(0), address(0));
         }
         _;
@@ -195,7 +193,7 @@ contract Lender {
         // approve the underlying for max per given principal
         for (uint8 i; i != 9; ) {
             // get the principal token's address
-            address token = IMarketPlace(marketPlace).token(u, m, i);
+            address token = IMarketPlace(marketPlace).markets(u, m, i);
             // check that the token is defined for this particular market
             if (token != address(0)) {
                 // max approve the token
@@ -337,7 +335,7 @@ contract Lender {
         uint256 a
     ) external nonReentrant unpaused(u, m, p) returns (bool) {
         // Fetch the desired principal token
-        address principal = IMarketPlace(marketPlace).token(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Disallow mints if market is not initialized
         if (principal == address(0)) {
@@ -347,7 +345,7 @@ contract Lender {
         // Get the maturity of the principal token
         uint256 maturity;
         if (p == uint8(MarketPlace.Principals.Illuminate)) {
-            maturity = Maturities.illuminate(principal);
+            revert Exception(32, 0, 0, address(0), address(0));
         } else if (p == uint8(MarketPlace.Principals.Swivel)) {
             maturity = Maturities.swivel(principal);
         } else if (p == uint8(MarketPlace.Principals.Yield)) {
@@ -378,14 +376,8 @@ contract Lender {
         // Transfer the users principal tokens to the lender contract
         Safe.transferFrom(IERC20(principal), msg.sender, address(this), a);
 
-        // Get the decimals of the principal token
-        uint256 ptDecimals = IERC20(principal).decimals();
-
-        // Get the decimals of the underlying token
-        uint256 uDecimals = IERC20(u).decimals();
-
         // Calculate how much should be minted based on the decimal difference
-        uint256 mintable = a / (10**(ptDecimals - uDecimals));
+        uint256 mintable = convertDecimals(u, principal, a);
 
         // Confirm that minted iPT amount will not exceed rate limit for the protocol
         rateLimit(p, u, mintable);
@@ -415,7 +407,7 @@ contract Lender {
         uint256 minimum
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Get principal token for this market
-        address principal = IMarketPlace(marketPlace).token(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Extract fee
         fees[u] = fees[u] + a / feenominator;
@@ -450,6 +442,9 @@ contract Lender {
             principal,
             minimum
         );
+
+        // Convert decimals from principal token to underlying
+        returned = convertDecimals(u, principal, returned);
 
         // Only mint iPTs to user if lending through Yield protocol
         if (p == uint8(MarketPlace.Principals.Yield)) {
@@ -487,90 +482,87 @@ contract Lender {
         bool e,
         uint256 premiumSlippage
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
+        // Ensure all the orders are for the underlying asset
+        swivelVerify(o, u);
+
+        // Lent represents the total amount of underlying to be lent
+        uint256 lent = swivelAmount(a);
+
+        // Get the underlying balance prior to calling initiate
+        uint256 starting = IERC20(u).balanceOf(address(this));
+
+        // Transfer underlying token from user to Illuminate
+        Safe.transferFrom(IERC20(u), msg.sender, address(this), lent);
+
+        // Calculate fee for the total amount to be lent
+        uint256 fee = lent / feenominator;
+
         {
-            // Ensure all the orders are for the underlying asset
-            swivelVerify(o, u);
+            // Get last order to be processed's index
+            uint256 lastIndex = a.length - 1;
 
-            // Lent represents the total amount of underlying to be lent
-            uint256 lent = swivelAmount(a);
+            // Add the accumulated fees to the total
+            a[lastIndex] = a[lastIndex] - fee; // Revert here if fee not paid
 
-            // Get the underlying balance prior to calling initiate
-            uint256 starting = IERC20(u).balanceOf(address(this));
+            // Extract fee
+            fees[u] += fee;
+        }
 
-            // Transfer underlying token from user to Illuminate
-            Safe.transferFrom(IERC20(u), msg.sender, address(this), lent);
+        uint256 received;
+        {
+            // Get the starting amount of principal tokens
+            uint256 startingZcTokens = IERC20(
+                IMarketPlace(marketPlace).markets(u, m, p)
+            ).balanceOf(address(this));
 
-            // Calculate fee for the total amount to be lent
-            uint256 fee = lent / feenominator;
+            // Fill the given orders on Swivel
+            ISwivel(swivelAddr).initiate(o, a, s);
 
-            {
-                // Get last order to be processed's index
-                uint256 lastIndex = a.length - 1;
+            // Compute how many principal tokens were received
+            received = (IERC20(IMarketPlace(marketPlace).markets(u, m, p))
+                .balanceOf(address(this)) - startingZcTokens);
 
-                // Add the accumulated fees to the total
-                a[lastIndex] = a[lastIndex] - fee; // Revert here if fee not paid
+            // Calculate the premium
+            uint256 premium = (IERC20(u).balanceOf(address(this)) - starting) -
+                fee;
 
-                // Extract fee
-                fees[u] += fee;
+            // Store how much the user received in exchange for swapping the premium for iPTs
+            uint256 swapped;
+
+            if (e) {
+                // Swap the premium for Illuminate principal tokens
+                swapped += yield(
+                    u,
+                    y,
+                    premium,
+                    msg.sender,
+                    IMarketPlace(marketPlace).markets(u, m, 0),
+                    premiumSlippage
+                );
+            } else {
+                // Send the premium to the redeemer to hold until redemption
+                premiums[u][m] = premiums[u][m] + premium;
+
+                // Account for the premium
+                received = received + premium;
             }
-
-            uint256 received;
-            {
-                // Get the starting amount of principal tokens
-                uint256 startingZcTokens = IERC20(
-                    IMarketPlace(marketPlace).token(u, m, p)
-                ).balanceOf(address(this));
-
-                // Fill the given orders on Swivel
-                ISwivel(swivelAddr).initiate(o, a, s);
-
-                // Compute how many principal tokens were received
-                received = (IERC20(IMarketPlace(marketPlace).token(u, m, p))
-                    .balanceOf(address(this)) - startingZcTokens);
-
-                // Calculate the premium
-                uint256 premium = IERC20(u).balanceOf(address(this)) - starting;
-
-                // Extract fee from premium
-                premium = premium - premium / feenominator;
-
-                // Extract fee
-                fees[u] += premium / feenominator;
-
-                if (e) {
-                    // Swap the premium for Illuminate principal tokens
-                    yield(
-                        u,
-                        y,
-                        premium,
-                        msg.sender,
-                        IMarketPlace(marketPlace).token(u, m, 0),
-                        premiumSlippage
-                    );
-                } else {
-                    // Send the premium to the redeemer to hold until redemption
-                    premiums[u][m] = premiums[u][m] + premium;
-                }
-            }
-
-            // Confirm that minted iPT amount will not exceed rate limit for the protocol
-            rateLimit(p, u, received);
 
             // Mint Illuminate principal tokens to the user
             IERC5095(principalToken(u, m)).authMint(msg.sender, received);
 
-            {
-                emit Lend(
-                    uint8(MarketPlace.Principals.Swivel),
-                    u,
-                    m,
-                    received,
-                    lent,
-                    msg.sender
-                );
-            }
-            return received;
+            emit Lend(
+                uint8(MarketPlace.Principals.Swivel),
+                u,
+                m,
+                received + swapped,
+                lent,
+                msg.sender
+            );
         }
+
+        // Confirm that minted iPT amount will not exceed rate limit for the protocol
+        rateLimit(p, u, received);
+        return received;
     }
 
     /// @notice lend method signature for Element
@@ -594,7 +586,7 @@ contract Lender {
         bytes32 i
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Get the principal token for this market for Element
-        address principal = IMarketPlace(marketPlace).token(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Transfer underlying token from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
@@ -626,6 +618,9 @@ contract Lender {
 
             // Conduct the swap on Element
             purchased = elementSwap(e, swap, fund, r, d);
+
+            // Convert decimals from principal token to underlying
+            purchased = convertDecimals(u, principal, purchased);
         }
 
         // Confirm that minted iPT amount will not exceed rate limit for the protocol
@@ -655,7 +650,7 @@ contract Lender {
         uint256 d
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Instantiate market and tokens
-        address principal = IMarketPlace(marketPlace).token(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Transfer funds from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
@@ -676,6 +671,9 @@ contract Lender {
 
             // Get the amount of PTs received
             returned = amounts[amounts.length - 1];
+
+            // Convert decimals from principal token to underlying
+            returned = convertDecimals(u, principal, returned);
         }
 
         // Confirm that minted iPT amount will not exceed rate limit for the protocol
@@ -706,7 +704,7 @@ contract Lender {
         uint256 d,
         address x
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        address principal = IMarketPlace(marketPlace).token(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Transfer funds from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
@@ -767,6 +765,9 @@ contract Lender {
         // Calculate the amount of Tempus principal tokens received after the deposit
         uint256 received = IERC20(principal).balanceOf(address(this)) - start;
 
+        // Convert decimals from principal token to underlying
+        received = convertDecimals(u, principal, received);
+
         // Verify that a minimum number of principal tokens were received
         if (p == uint8(MarketPlace.Principals.Tempus) && received < r) {
             revert Exception(11, received, r, address(0), address(0));
@@ -790,7 +791,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @param a amount of underlying tokens to lend
     /// @param r slippage limit, minimum amount to PTs to buy
-    /// @param x AMM that is used to conduct the swap
+    /// @param x periphery contract that is used to conduct the swap
     /// @param s Sense's maturity for the given market
     /// @param adapter Sense's adapter necessary to facilitate the swap
     /// @return uint256 the amount of principal tokens lent out
@@ -811,7 +812,7 @@ contract Lender {
         address userPrincipal = ISenseDivider(divider).pt(adapter, s);
 
         // Retrieve the principal token for this market
-        IERC20 token = IERC20(IMarketPlace(marketPlace).token(u, m, p));
+        IERC20 token = IERC20(IMarketPlace(marketPlace).markets(u, m, p));
 
         // Verify that the `x` parameter matches the market's Sense principal token
         if (address(token) != userPrincipal) {
@@ -851,23 +852,17 @@ contract Lender {
         // Get the Illuminate PT
         address ipt = principalToken(u, m);
 
-        // Get the decimals of the principal token
-        uint256 decimals = token.decimals();
-
-        // Divide received PT based on the difference in decimal count between Sense and Illuminate's PT
-        uint256 divisor = 10**(decimals - IERC20(ipt).decimals());
-
         // Calculate the mintable amount of tokens for Sense due to decimal mismatch
-        uint256 mintable = received / divisor;
+        uint256 mintable = convertDecimals(u, address(token), received);
 
         // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, received);
+        rateLimit(p, u, mintable);
 
         // Mint the Illuminate tokens based on the returned amount
         IERC5095(ipt).authMint(msg.sender, mintable);
 
-        emit Lend(p, u, m, received, a, msg.sender);
-        return received;
+        emit Lend(p, u, m, mintable, a, msg.sender);
+        return mintable;
     }
 
     /// @dev lend method signature for Notional
@@ -885,17 +880,22 @@ contract Lender {
         uint256 r
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Instantiate Notional princpal token
-        address token = IMarketPlace(marketPlace).token(u, m, p);
+        address token = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Transfer funds from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
 
-        // Add the accumulated fees to the total
+        // Determine the fee
         uint256 fee = a / feenominator;
+
+        // Add the accumulated fees to the total
         fees[u] = fees[u] + fee;
 
         // Swap on the Notional Token wrapper
         uint256 received = INotional(token).deposit(a - fee, address(this));
+
+        // Convert decimals from principal token to underlying
+        received = convertDecimals(u, token, received);
 
         // Verify that we received the principal tokens
         if (received < r) {
@@ -1016,21 +1016,23 @@ contract Lender {
     }
 
     /// @notice pauses a market and prevents execution of all lending for that principal
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param b bool representing whether to pause or unpause
     /// @return bool true if successful
-    function pause(
-        address u,
-        uint256 m,
-        uint8 p,
-        bool b
-    ) external authorized(admin) returns (bool) {
+    function pause(uint8 p, bool b) external authorized(admin) returns (bool) {
         // Set the paused state for the principal token in the market
-        paused[u][m][p] = b;
+        paused[p] = b;
 
-        emit PauseMarket(p, u, m, IMarketPlace(marketPlace).token(u, m, p), b);
+        emit PausePrincipal(p, b);
+        return true;
+    }
+
+    /// @notice pauses Illuminate's redeem, mint and lend methods from being used
+    /// @param b bool representing whether to pause or unpause Illuminate
+    /// @return bool true if successfully set
+    function pauseIlluminate(bool b) external authorized(admin) returns (bool) {
+        halted = b;
+        emit PauseIlluminate(b);
         return true;
     }
 
@@ -1204,7 +1206,31 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketPlace).token(u, m, 0);
+        return IMarketPlace(marketPlace).markets(u, m, 0);
+    }
+
+    /// @notice converts principal decimal amount to underlying's decimal amount
+    /// @param u address of an underlying asset
+    /// @param p address of a principal token
+    /// @param a amount denominated in principal token's decimals
+    /// @return uint256 in underlying decimals
+    function convertDecimals(
+        address u,
+        address p,
+        uint256 a
+    ) internal view returns (uint256) {
+        // Get the decimals of the underlying asset
+        uint8 underlyingDecimals = IERC20(u).decimals();
+
+        // Get the decimals of the principal token
+        uint8 principalDecimals = IERC20(p).decimals();
+
+        // Determine which asset has more decimals
+        if (underlyingDecimals > principalDecimals) {
+            // Shift decimals accordingly
+            return a * 10**(underlyingDecimals - principalDecimals);
+        }
+        return a / 10**(principalDecimals - underlyingDecimals);
     }
 
     /// @notice limits the amount of funds (in USD value) that can flow through a principal in a day
@@ -1220,36 +1246,39 @@ contract Lender {
         // Get amount in USD to be minted
         uint256 valueToMint = a;
 
-        // In case of WETH, we will calculate an approximate USD value
-        // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (wETH address)
-        // TODO: we will address this when we figure out the stETH situation
-        if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
+        // In case of stETH, we will calculate an approximate USD value
+        // 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84 (stETH address)
+        if (u == 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84) {
             valueToMint = etherPrice * valueToMint;
         }
 
-        // Calculate the value to be minted in USD
+        // Normalize the value to be minted to 27 decimals
         valueToMint = valueToMint * 10**(27 - IERC20(u).decimals());
 
+        // Cache max value
+        uint256 maxValue = MAX_VALUE;
+
         // Transactions of greater than ~2M USD are rate limited
-        if (valueToMint > MAX_VALUE) {
+        if (valueToMint > maxValue) {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
 
+        // Cache protocol flow value
+        uint256 flow = protocolFlow[p] + valueToMint;
+
         // Update the amount of USD value flowing through the protocol
-        protocolFlow[p] = protocolFlow[p] + valueToMint;
+        protocolFlow[p] = flow;
 
         // If more than one day has passed, do not rate limit
-        // TODO: periodStart should be on a protocol basis
         if (block.timestamp - periodStart[p] > 1 days) {
-            // Increase the flow amount
+            // Reset the flow amount
             protocolFlow[p] = valueToMint;
 
             // Reset the period
             periodStart[p] = block.timestamp;
-            return true;
         }
         // If more than 2M USD has flowed through the protocol, revert
-        else if (protocolFlow[p] > MAX_VALUE) {
+        else if (flow > maxValue) {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
 

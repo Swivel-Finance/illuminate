@@ -9,6 +9,7 @@ import 'test/fork/Contracts.sol';
 import 'src/Redeemer.sol';
 import 'src/Lender.sol';
 import 'src/Converter.sol';
+import 'src/Creator.sol';
 
 import 'src/interfaces/ISenseDivider.sol';
 
@@ -21,6 +22,7 @@ contract RedeemerTest is Test {
     Lender l;
     MarketPlace mp;
     Converter c;
+    Creator creator;
 
     uint256 fork;
 
@@ -34,6 +36,8 @@ contract RedeemerTest is Test {
         uint256 blockNumber = vm.envUint('BLOCK_NUMBER');
         // Create and select fork
         fork = vm.createSelectFork(rpc, blockNumber);
+        // Deploy creator
+        creator = new Creator();
         // Deploy converter
         c = new Converter();
         // Deploy lender
@@ -46,9 +50,11 @@ contract RedeemerTest is Test {
             Contracts.TEMPUS // tempus
         );
         // Deploy marketplace
-        mp = new MarketPlace(address(r), address(l));
+        mp = new MarketPlace(address(r), address(l), address(creator));
         // Set the redeemer's converter
         r.setConverter(address(c), new address[](0));
+        // Set the creator's marketplace
+        creator.setMarketPlace(address(mp));
     }
 
     /// @param u underlying asset (e.g. USDC)
@@ -362,5 +368,28 @@ contract RedeemerTest is Test {
 
         vm.expectRevert(Exception.selector);
         r.autoRedeem(Contracts.USDC, maturity, onBehalfOf);
+    }
+
+    function testFailPausedPrincipal() public {
+        deployMarket(Contracts.USDC, 0);
+
+        // give lender principal tokens
+        address principalToken = Contracts.PENDLE_TOKEN;
+        deal(principalToken, address(l), startingBalance);
+
+        // pause the principal
+        l.pause(uint8(MarketPlace.Principals.Pendle), true);
+
+        // execute the redemption
+        vm.expectRevert(Exception.selector);
+        r.redeem(4, Contracts.USDC, maturity);
+    }
+
+    function testFailIlluminatePaused() public {
+        // Pause the contract
+        l.pauseIlluminate(true);
+
+        vm.expectRevert(Exception.selector);
+        r.redeem(4, Contracts.USDC, maturity);
     }
 }

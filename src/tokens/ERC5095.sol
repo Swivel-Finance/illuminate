@@ -65,7 +65,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return true;
     }
 
-    /// @notice Post or at maturity converts an amount of principal tokens to an amount of underlying that would be returned.
+    /// @notice Post or at maturity, converts an amount of principal tokens to an amount of underlying that would be returned.
     /// @param s The amount of principal tokens to convert
     /// @return uint256 The amount of underlying tokens returned by the conversion
     function convertToUnderlying(uint256 s)
@@ -80,7 +80,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return s;
     }
 
-    /// @notice Post or at maturity converts a desired amount of underlying tokens returned to principal tokens needed.
+    /// @notice Post or at maturity, converts a desired amount of underlying tokens returned to principal tokens needed.
     /// @param a The amount of underlying tokens to convert
     /// @return uint256 The amount of principal tokens returned by the conversion
     function convertToShares(uint256 a)
@@ -102,7 +102,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return _balanceOf[o];
     }
 
-    /// @notice Post or at maturity returns user's PT balance. Pre maturity, returns a previewRedeem for owner's PT balance.
+    /// @notice Post or at maturity, returns user's PT balance. Prior to maturity, returns a previewRedeem for owner's PT balance.
     /// @param  o The address of the owner for which withdrawal is calculated
     /// @return uint256 maximum amount of underlying tokens that `owner` can withdraw.
     function maxWithdraw(address o) external view override returns (uint256) {
@@ -112,7 +112,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return _balanceOf[o];
     }
 
-    /// @notice Post or at maturity returns 0. Pre maturity returns the amount of `shares` when spending `assets` in underlying on a YieldSpace AMM.
+    /// @notice Post or at maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `assets` in underlying on a YieldSpace AMM.
     /// @param a The amount of underlying spent
     /// @return uint256 The amount of PT purchased by spending `assets` of underlying
     function previewDeposit(uint256 a) public view returns (uint256) {
@@ -122,8 +122,8 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return 0;
     }
 
-    /// @notice Post or at maturity returns 0. Pre maturity returns the amount of `assets` in underlying spent on a purchase of `shares` in PT on a YieldSpace AMM.
-    /// @param s the amount of principal tokens bought in the simulation
+    /// @notice Post or at maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `shares` in PT on a YieldSpace AMM.
+    /// @param s The amount of principal tokens bought in the simulation
     /// @return uint256 The amount of underlying spent to purchase `shares` of PT
     function previewMint(uint256 s) public view returns (uint256) {
         if (block.timestamp < maturity) {
@@ -132,8 +132,8 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return 0;
     }
 
-    /// @notice Post or at maturity simulates the effects of redeemption at the current block. Pre maturity returns the amount of `assets from a sale of `shares` in PT from a sale of PT on a YieldSpace AMM.
-    /// @param s the amount of principal tokens redeemed in the simulation
+    /// @notice Post or at maturity, simulates the effects of redeemption at the current block. Prior to maturity, returns the amount of `assets from a sale of `shares` in PT from a sale of PT on a YieldSpace AMM.
+    /// @param s The amount of principal tokens redeemed in the simulation
     /// @return uint256 The amount of underlying returned by `shares` of PT redemption
     function previewRedeem(uint256 s) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
@@ -151,8 +151,8 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return IYield(pool).sellFYTokenPreview(Cast.u128(s));
     }
 
-    /// @notice Post or at maturity simulates the effects of withdrawal at the current block. Pre maturity simulates the amount of `shares` in PT necessary to receive `assets` in underlying from a sale of PT on a YieldSpace AMM.
-    /// @param a the amount of underlying tokens withdrawn in the simulation
+    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `assets` in underlying from the sale of PTs on a YieldSpace AMM.
+    /// @param a The amount of underlying tokens withdrawn in the simulation
     /// @return uint256 The amount of principal tokens required for the withdrawal of `assets`
     function previewWithdraw(uint256 a) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
@@ -213,7 +213,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function mint(address r, uint256 s) external override returns (uint256) {
         // Revert if called at or after maturity
-        if (block.timestamp > maturity) {
+        if (block.timestamp >= maturity) {
             revert Exception(
                 21,
                 block.timestamp,
@@ -248,7 +248,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return returned;
     }
 
-    /// @notice At or after maturity, Burns `a` PTs from owner and sends underlying to `receiver`. Before maturity, sends `assets` by selling shares of PT on a YieldSpace AMM.
+    /// @notice At or after maturity, burns `a` PTs from owner and sends underlying to `receiver`. Before maturity, sends `assets` by selling shares of PT on a YieldSpace AMM.
     /// @param a The amount of underlying tokens withdrawn
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param o The owner of the underlying tokens
@@ -464,7 +464,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
 
     /// @param t Address recieving the minted amount
     /// @param a The amount to mint
-    /// @return bool true if successful
+    /// @return bool True if successful
     function authMint(address t, uint256 a)
         external
         authorized(lender)

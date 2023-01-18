@@ -81,6 +81,12 @@ contract Redeemer {
     event SetFee(uint256 indexed fee);
     /// @notice emitted upon scheduling a fee change
     event ScheduleFeeChange(uint256 when);
+    /// @notice emitted upon pausing of Illuminate PTs
+    event PauseRedemptions(
+        address indexed underlying,
+        uint256 maturity,
+        bool state
+    );
 
     /// @notice ensures that only a certain address can call the function
     /// @param a address that msg.sender must be to be authorized
@@ -95,7 +101,7 @@ contract Redeemer {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     modifier unpaused(address u, uint256 m) {
-        if (paused[u][m]) {
+        if (paused[u][m] || ILender(lender).halted()) {
             revert Exception(17, m, 0, u, address(0));
         }
         _;
@@ -243,6 +249,7 @@ contract Redeemer {
         bool b
     ) external authorized(admin) {
         paused[u][m] = b;
+        emit PauseRedemptions(u, m, b);
     }
 
     /// @notice approves the converter to spend the compounding asset
@@ -262,14 +269,14 @@ contract Redeemer {
         uint8 p,
         address u,
         uint256 m
-    ) external returns (bool) {
+    ) external unpaused(u, m) returns (bool) {
         // Get the principal token that is being redeemed by the user
-        address principal = IMarketPlace(marketPlace).token(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Get the maturity for the given principal token
         uint256 maturity;
         if (p == uint8(MarketPlace.Principals.Yield)) {
-            maturity = IYieldToken(principal).maturity();
+            maturity = Maturities.yield(principal);
         } else if (p == uint8(MarketPlace.Principals.Element)) {
             maturity = Maturities.element(principal);
         } else if (p == uint8(MarketPlace.Principals.Pendle)) {
@@ -369,14 +376,14 @@ contract Redeemer {
         address u,
         uint256 m,
         uint8 protocol
-    ) external returns (bool) {
+    ) external unpaused(u, m) returns (bool) {
         // Check the principal is Swivel
         if (p != uint8(MarketPlace.Principals.Swivel)) {
             revert Exception(6, p, 0, address(0), address(0));
         }
 
         // Get Swivel's principal token for this market
-        address token = IMarketPlace(marketPlace).token(u, m, p);
+        address token = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Get the maturity of the token
         uint256 maturity = ISwivelToken(token).maturity();
@@ -431,10 +438,10 @@ contract Redeemer {
         uint256 s,
         uint256 a,
         address periphery
-    ) external returns (bool) {
+    ) external unpaused(u, m) returns (bool) {
         // Get Sense's principal token for this market
         IERC20 token = IERC20(
-            IMarketPlace(marketPlace).token(
+            IMarketPlace(marketPlace).markets(
                 u,
                 m,
                 uint8(MarketPlace.Principals.Sense)
@@ -488,22 +495,6 @@ contract Redeemer {
         // Get the amount received
         uint256 redeemed = IERC20(u).balanceOf(address(this)) - starting;
 
-        // Get the number of decimals in Sense's PT
-        uint256 ptDecimals = token.decimals();
-
-        // Get the number of decimals in the underlying token
-        uint256 underlyingDecimals = IERC20(u).decimals();
-
-        // Get the amount expected after adjusting for decimal differences between Sense's PT and underlying
-        uint256 expected = senseBalance /
-            (10**(ptDecimals - underlyingDecimals));
-
-        // Verify that underlying are received 1:1 - cannot trust the adapter
-        // TODO: do we still need this?
-        if (redeemed < expected) {
-            revert Exception(13, 0, 0, address(0), address(0));
-        }
-
         // Update the holdings for this market
         holdings[u][m] = holdings[u][m] + redeemed;
 
@@ -517,7 +508,7 @@ contract Redeemer {
     function redeem(address u, uint256 m) external unpaused(u, m) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
-            IMarketPlace(marketPlace).token(
+            IMarketPlace(marketPlace).markets(
                 u,
                 m,
                 uint8(MarketPlace.Principals.Illuminate)
@@ -562,12 +553,12 @@ contract Redeemer {
         uint256 a
     )
         external
-        authorized(IMarketPlace(marketPlace).token(u, m, 0))
+        authorized(IMarketPlace(marketPlace).markets(u, m, 0))
         unpaused(u, m)
         returns (uint256)
     {
         // Get the principal token for the given market
-        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).token(u, m, 0));
+        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m, 0));
 
         // Make sure the market has matured
         uint256 maturity = pt.maturity();
@@ -603,7 +594,7 @@ contract Redeemer {
         address[] calldata f
     ) external unpaused(u, m) returns (uint256) {
         // Get the principal token for the given market
-        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).token(u, m, 0));
+        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m, 0));
 
         // Make sure the market has matured
         if (block.timestamp < pt.maturity()) {

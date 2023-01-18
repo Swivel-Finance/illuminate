@@ -33,4 +33,5 @@ The implicit Errors enum:
   'invalid periphery contract', 29
   'reentrancy not allowed', 30
   'rate limit exceeded for protocol', 31
+  'illuminate PTs may not be minted', 32
 ]

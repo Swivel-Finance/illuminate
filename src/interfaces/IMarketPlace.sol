@@ -3,7 +3,7 @@
 pragma solidity 0.8.16;
 
 interface IMarketPlace {
-    function token(
+    function markets(
         address,
         uint256,
         uint256

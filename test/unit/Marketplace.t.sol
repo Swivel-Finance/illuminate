@@ -8,7 +8,9 @@ import 'src/MarketPlace.sol';
 
 import 'src/mocks/Redeemer.sol' as mock_r;
 import 'src/mocks/Lender.sol' as mock_l;
+import 'src/mocks/Creator.sol' as mock_c;
 import 'src/mocks/ERC20.sol' as mock_erc20;
+import 'src/mocks/ERC5095.sol' as mock_erc5095;
 import 'src/mocks/Pool.sol' as mock_pool;
 import 'src/mocks/PendleToken.sol' as mock_pt;
 import 'src/mocks/APWineToken.sol' as mock_apwt;
@@ -22,6 +24,7 @@ contract MarketplaceTest is Test {
     // Mocks
     mock_r.Redeemer r;
     mock_l.Lender l;
+    mock_c.Creator c;
 
     // Helpers
     uint128 amount = 10000;
@@ -31,6 +34,10 @@ contract MarketplaceTest is Test {
     uint8 decimals = 6;
     uint128 preview = 12345;
 
+    // Illuminate PT
+    mock_erc5095.ERC5095 ipt;
+
+    // Principal tokens
     mock_erc20.ERC20 token0;
     mock_erc20.ERC20 token1;
     mock_erc20.ERC20 token2;
@@ -39,25 +46,27 @@ contract MarketplaceTest is Test {
     mock_erc20.ERC20 token5;
     mock_apwt.APWineToken token6;
     mock_erc20.ERC20 token7;
-    mock_erc20.ERC20 token8;
-    mock_erc20.ERC20 token9;
 
+    // Ancillary contracts
     mock_erc20.ERC20 elementVault;
     mock_erc20.ERC20 apwineRouter;
     mock_erc20.ERC20 sensePeriphery;
+    mock_apfv.APWineFutureVault apwfv;
 
+    // Yield Space Pool
     mock_pool.Pool pool;
 
-    mock_apfv.APWineFutureVault apwfv;
 
     function setUp() public {
         // deploy mocked redeemer
         r = new mock_r.Redeemer();
-        // depoy mocked lender
+        // deploy mocked lender
         l = new mock_l.Lender();
+        // deploy mocked creator
+        c = new mock_c.Creator();
 
         // deploy the real marketplace
-        mp = new MarketPlace(address(r), address(l));
+        mp = new MarketPlace(address(r), address(l), address(c));
 
         // deploy a bunch of erc20 principal tokens
         token0 = new mock_erc20.ERC20();
@@ -68,8 +77,8 @@ contract MarketplaceTest is Test {
         token5 = new mock_erc20.ERC20();
         token6 = new mock_apwt.APWineToken();
         token7 = new mock_apwt.ERC20();
-        token8 = new mock_erc20.ERC20();
-        token9 = new mock_erc20.ERC20();
+
+        ipt = new mock_erc5095.ERC5095();
 
         elementVault = new mock_erc20.ERC20();
         apwineRouter = new mock_erc20.ERC20();
@@ -104,12 +113,17 @@ contract MarketplaceTest is Test {
         mock_erc20.ERC20 compounding = new mock_erc20.ERC20();
         token6.futureVaultReturns(address(apwfv));
         apwfv.getIBTAddressReturns(address(compounding));
-
         token3.underlyingYieldTokenReturns(address(compounding));
+
+        c.createReturns(address(ipt));
+        ipt.poolReturns(address(pool));
+        ipt.setPoolReturns(true);
+
+        uint256 newMaturity = maturity + 20;
 
         mp.createMarket(
             address(underlying),
-            maturity,
+            newMaturity,
             contracts,
             'test-token',
             'tt',
@@ -119,22 +133,28 @@ contract MarketplaceTest is Test {
             address(sensePeriphery)
         );
 
-        // Reset the pool
-        stdstore
-            .target(address(mp))
-            .sig('pools(address,uint256)')
-            .with_key(underlying)
-            .with_key(maturity)
-            .depth(0)
-            .checked_write(address(0));
-
         // Test that the pool was set
-        mp.setPool(underlying, maturity, address(pool));
-        assertEq(mp.pools(underlying, maturity), address(pool));
+        mp.setPool(underlying, newMaturity, address(pool));
+        assertEq(mp.pools(underlying, newMaturity), address(pool));
 
         // verify pool is set
-        ERC5095 ipt = ERC5095(mp.markets(underlying, maturity, 0));
         assertEq(ipt.pool(), address(pool));
+
+        // verify token creation
+        (
+            uint256 maturityCalled, 
+            address redeemerCalled, 
+            address lenderCalled, 
+            address marketPlaceCalled, 
+            string memory nameCalled, 
+            string memory symbolCalled
+        ) = c.createCalled(underlying);
+        assertEq(newMaturity, maturityCalled);
+        assertEq(address(r), redeemerCalled);
+        assertEq(address(l), lenderCalled);
+        assertEq(address(mp), marketPlaceCalled);
+        assertEq(nameCalled, 'test-token');
+        assertEq(symbolCalled, 'tt');
 
         // verify approvals
         assertEq(r.approveCalled(), address(compounding));
@@ -186,10 +206,10 @@ contract MarketplaceTest is Test {
         assertEq(approvedPeriphery, address(sensePeriphery));
 
         mp.setPrincipal(4, underlying, maturity, address(token3), address(0), address(0));
-        assertEq(mp.token(underlying, maturity, 4), address(token3));
+        assertEq(mp.markets(underlying, maturity, 4), address(token3));
 
         mp.setPrincipal(7, underlying, maturity, address(token6), address(0), address(0));
-        assertEq(mp.token(underlying, maturity, 7), address(token6));
+        assertEq(mp.markets(underlying, maturity, 7), address(token6));
     }
 
     function testSetNotional() public {
@@ -217,7 +237,7 @@ contract MarketplaceTest is Test {
             address(0));
 
 
-        assertEq(address(0), mp.token(u,m,7));
+        assertEq(address(0), mp.markets(u, m, 7));
 
         (
             address approvedApwine,

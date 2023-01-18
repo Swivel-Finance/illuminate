@@ -10,12 +10,14 @@ using stdStorage for StdStorage;
 import 'src/Lender.sol';
 import 'src/Redeemer.sol';
 import 'src/Converter.sol';
+import 'src/Creator.sol';
 
 contract LenderTest is Test {
     Lender l;
     Redeemer r;
     MarketPlace mp;
     Converter c;
+    Creator creator;
 
     uint256 user1_sk =
         0x8882c68b373b93e91b80cef3ffced6b17a6fdabb210f09209bf5a76c9c8343cf;
@@ -39,6 +41,8 @@ contract LenderTest is Test {
         fork = vm.createSelectFork(rpc, blockNumber);
         // Deploy converter
         c = new Converter();
+        // Deploy creator
+        creator = new Creator();
         // Deploy lender
         l = new Lender(
             Contracts.SWIVEL,
@@ -52,11 +56,13 @@ contract LenderTest is Test {
             Contracts.PENDLE_ROUTER, // pendle
             Contracts.TEMPUS // tempus
         ); // Deploy marketplace
-        mp = new MarketPlace(address(r), address(l));
+        mp = new MarketPlace(address(r), address(l), address(creator));
         // Set the redeemer's converter
         r.setConverter(address(c), new address[](0));
         // Set the redeemer's marketplace
         r.setMarketPlace(address(mp));
+        // Set the creator's marketplace
+        creator.setMarketPlace(address(mp));
 
         // Given msg.sender some USDC to work with
         deal(Contracts.USDC, msg.sender, startingBalance);
@@ -211,8 +217,11 @@ contract LenderTest is Test {
         );
 
         // Make sure the principal tokens were transferred to the lender
+        uint256 expectedPTs = returned / 
+            (10**(IERC20(Contracts.DAI).decimals() - 
+              IERC20(Contracts.NOTIONAL_TOKEN).decimals()));
         assertEq(
-            returned,
+            expectedPTs,
             IERC20(Contracts.NOTIONAL_TOKEN).balanceOf(address(l))
         );
 
@@ -403,5 +412,31 @@ contract LenderTest is Test {
             startingBalance,
             IERC20(Contracts.ELEMENT_TOKEN).balanceOf(address(l))
         );
+    }
+
+    function testFailPrincipalPaused() public {
+        deployMarket(Contracts.USDC);
+
+        // Run cheats/approvals
+        runCheatcodes(Contracts.USDC);
+
+        // Pause the contract
+        l.pause(uint8(MarketPlace.Principals.Yield), true);
+
+        vm.expectRevert(Exception.selector);
+        l.lend(uint8(MarketPlace.Principals.Yield), Contracts.USDC, maturity, 10000, address(0), 0);
+    }
+
+    function testFailIlluminatePaused() public {
+        deployMarket(Contracts.USDC);
+
+        // Run cheats/approvals
+        runCheatcodes(Contracts.USDC);
+
+        // Pause the contract
+        l.pauseIlluminate(true);
+
+        vm.expectRevert(Exception.selector);
+        l.lend(uint8(MarketPlace.Principals.Yield), Contracts.USDC, maturity, 10000, address(0), 0);
     }
 }

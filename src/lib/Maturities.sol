@@ -18,46 +18,46 @@ library Maturities {
     /// @notice returns the maturity for an Illumiante principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function illuminate(address p) external view returns (uint256) {
+    function illuminate(address p) internal view returns (uint256) {
         return IERC5095(p).maturity();
     }
 
     /// @notice returns the maturity for a Swivel principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function swivel(address p) external view returns (uint256) {
+    function swivel(address p) internal view returns (uint256) {
         return ISwivelToken(p).maturity();
     }
 
-    function yield(address p) external view returns (uint256) {
+    function yield(address p) internal view returns (uint256) {
         return IYieldToken(p).maturity();
     }
 
     /// @notice returns the maturity for an Element principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function element(address p) external view returns (uint256) {
+    function element(address p) internal view returns (uint256) {
         return IElementToken(p).unlockTimestamp();
     }
 
     /// @notice returns the maturity for a Pendle principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function pendle(address p) external view returns (uint256) {
+    function pendle(address p) internal view returns (uint256) {
         return IPendleToken(p).expiry();
     }
 
     /// @notice returns the maturity for a Tempus principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function tempus(address p) external view returns (uint256) {
+    function tempus(address p) internal view returns (uint256) {
         return ITempusPool(ITempusToken(p).pool()).maturityTime();
     }
 
     /// @notice returns the maturity for a APWine principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function apwine(address p) external view returns (uint256) {
+    function apwine(address p) internal view returns (uint256) {
         address futureVault = IAPWineToken(p).futureVault();
 
         address controller = IAPWineFutureVault(futureVault)
@@ -71,7 +71,7 @@ library Maturities {
     /// @notice returns the maturity for a Notional principal token
     /// @param p address of the principal token contract
     /// @return uint256 maturity of the principal token
-    function notional(address p) external view returns (uint256) {
+    function notional(address p) internal view returns (uint256) {
         return INotional(p).getMaturity();
     }
 }

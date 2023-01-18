@@ -8,6 +8,7 @@ import 'src/lib/RevertMsgExtractor.sol';
 import 'src/errors/Exception.sol';
 
 import 'src/interfaces/ILender.sol';
+import 'src/interfaces/ICreator.sol';
 import 'src/interfaces/IPool.sol';
 import 'src/interfaces/IPendleToken.sol';
 import 'src/interfaces/IAPWineToken.sol';
@@ -45,6 +46,8 @@ contract MarketPlace {
     address public immutable redeemer;
     /// @notice address of the deployed lender contract
     address public immutable lender;
+    /// @notice address of the deployed creator contract
+    address public immutable creator;
 
     /// @notice emitted upon the creation of a new market
     event CreateMarket(
@@ -110,10 +113,16 @@ contract MarketPlace {
     /// @notice initializes the MarketPlace contract
     /// @param r address of the deployed redeemer contract
     /// @param l address of the deployed lender contract
-    constructor(address r, address l) {
+    /// @param c address of the deployed creator contract
+    constructor(
+        address r,
+        address l,
+        address c
+    ) {
         admin = msg.sender;
         redeemer = r;
         lender = l;
+        creator = c;
     }
 
     /// @notice creates a new market for the given underlying token and maturity
@@ -140,9 +149,7 @@ contract MarketPlace {
     ) external authorized(admin) returns (bool) {
         {
             // Get the Illuminate principal token for this market (if one exists)
-            address illuminate = markets[u][m][
-                (uint256(Principals.Illuminate))
-            ];
+            address illuminate = markets[u][m][0];
 
             // If illuminate PT already exists, a new market cannot be created
             if (illuminate != address(0)) {
@@ -151,17 +158,14 @@ contract MarketPlace {
         }
 
         // Create an Illuminate principal token for the new market
-        address illuminateToken = address(
-            new ERC5095(
-                u,
-                m,
-                redeemer,
-                lender,
-                address(this),
-                n,
-                s,
-                IERC20(u).decimals()
-            )
+        address illuminateToken = ICreator(creator).create(
+            u,
+            m,
+            redeemer,
+            lender,
+            address(this),
+            n,
+            s
         );
 
         {
@@ -225,14 +229,6 @@ contract MarketPlace {
         address h,
         address sensePeriphery
     ) external authorized(admin) returns (bool) {
-        // Get the current principal token for the principal token being set
-        address market = markets[u][m][p];
-
-        // Verify that it has not already been set
-        if (market != address(0)) {
-            revert Exception(9, 0, 0, market, address(0));
-        }
-
         // Set the principal token in the markets mapping
         markets[u][m][p] = a;
 
@@ -263,7 +259,7 @@ contract MarketPlace {
                 .getIBTAddress();
             IRedeemer(redeemer).approve(interestBearingToken);
 
-            // Approve APWine router if setting APWine's principal token
+            // Approve APWine's router if setting APWine's principal token
             ILender(lender).approve(u, h, address(0), address(0), address(0));
         } else if (p == uint8(Principals.Notional)) {
             // Principal token must be approved for Notional's lend
@@ -635,18 +631,6 @@ contract MarketPlace {
 
         emit Burn(u, m, tokensBurned, underlyingReceived, 0, msg.sender);
         return (tokensBurned, underlyingReceived);
-    }
-
-    /// @notice provides an interface to receive principal token addresses from markets
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    function token(
-        address u,
-        uint256 m,
-        uint256 p
-    ) external view returns (address) {
-        return markets[u][m][p];
     }
 
     /// @notice Allows batched call to self (this contract).
