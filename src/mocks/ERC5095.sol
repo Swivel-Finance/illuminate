@@ -33,9 +33,7 @@ contract ERC5095 is ERC20 {
         approveMarketPlaceReturn = p;
     }
 
-    function approveMarketPlace(address a) external returns (bool) {
-        approveMarketPlaceCalled = a;
-
+    function approveMarketPlace() external view returns (bool) {
         return approveMarketPlaceReturn;
     }
 }
