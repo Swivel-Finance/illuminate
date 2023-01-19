@@ -286,7 +286,7 @@ contract ERC5095Test is Test {
 
     function testFailSlippageChecks() public {
         vm.startPrank(address(marketplace));
-        token.approveMarketPlace(Contracts.YIELD_POOL_USDC);
+        token.approveMarketPlace();
         vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);

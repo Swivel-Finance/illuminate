@@ -203,7 +203,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param s The amount of shares being minted
     /// @param m Maximum amount of underlying that the user will spend
-    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    /// @return uint256 The amount of principal tokens purchased
     function mint(address r, uint256 s, uint256 m) external returns (uint256) {
         // Execute the mint
         return _mint(r, s, m);
@@ -212,7 +212,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param s The amount of shares being minted
-    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    /// @return uint256 The amount of principal tokens purchased
     function mint(address r, uint256 s) external override returns (uint256) {
         // Execute the mint
         return _mint(r, s, type(uint128).max);
