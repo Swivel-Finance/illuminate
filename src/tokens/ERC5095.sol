@@ -65,6 +65,20 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return true;
     }
 
+
+    /// @notice Allows the marketplace to spend underlying, principal tokens held by the token
+    /// @dev This is necessary when MarketPlace calls pool methods to swap tokens
+    /// @return True if successful
+    function approveMarketPlace() external authorized(marketplace) returns (bool) {
+        // Approve the marketplace to spend the token's underlying
+        Safe.approve(IERC20(underlying), marketplace, type(uint256).max);
+
+        // Approve the marketplace to spend illuminate PTs
+        Safe.approve(IERC20(address(this)), marketplace, type(uint256).max);
+
+        return true;
+    }
+
     /// @notice Post or at maturity, converts an amount of principal tokens to an amount of underlying that would be returned.
     /// @param s The amount of principal tokens to convert
     /// @return uint256 The amount of underlying tokens returned by the conversion

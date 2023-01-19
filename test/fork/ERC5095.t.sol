@@ -69,13 +69,6 @@ contract ERC5095Test is Test {
         // approve for pool interactions
         IERC20(Contracts.USDC).approve(address(token), type(uint256).max);
         IERC20(address(token)).approve(address(token), type(uint256).max);
-        vm.startPrank(address(token));
-        IERC20(Contracts.USDC).approve(address(marketplace), type(uint256).max);
-        IERC20(Contracts.YIELD_TOKEN).approve(
-            address(marketplace),
-            type(uint256).max
-        );
-        vm.stopPrank();
     }
 
     function testTokenBasics() public {
@@ -174,6 +167,9 @@ contract ERC5095Test is Test {
     }
 
     function testDeposit() public {
+        vm.startPrank(address(marketplace));
+        token.approveMarketPlace();
+        vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
         deal(address(token), address(token), amount * 2);
@@ -183,6 +179,9 @@ contract ERC5095Test is Test {
     }
 
     function testMint() public {
+        vm.startPrank(address(marketplace));
+        token.approveMarketPlace();
+        vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
         deal(address(token), address(token), amount * 2);
@@ -200,6 +199,9 @@ contract ERC5095Test is Test {
     }
 
     function testWithdrawPreMaturity() public {
+        vm.startPrank(address(token));
+        IERC20(Contracts.YIELD_TOKEN).approve(address(marketplace), type(uint256).max);
+        vm.stopPrank();
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
@@ -228,6 +230,9 @@ contract ERC5095Test is Test {
     }
 
     function testRedeemPreMaturity() public {
+        vm.startPrank(address(token));
+        IERC20(Contracts.YIELD_TOKEN).approve(address(marketplace), type(uint256).max);
+        vm.stopPrank();
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);

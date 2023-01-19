@@ -304,7 +304,10 @@ contract MarketPlace {
         ERC5095 pt = ERC5095(markets[u][m][uint8(Principals.Illuminate)]);
 
         // Set the pool for the principal token
-        pt.setPool(a);
+        pt.setPool(address(pt));
+
+        // Approve the marketplace to spend the principal and underlying tokens 
+        pt.approveMarketPlace();
 
         emit SetPool(u, m, a);
         return true;
