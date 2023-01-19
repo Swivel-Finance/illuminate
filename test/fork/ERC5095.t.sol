@@ -168,7 +168,7 @@ contract ERC5095Test is Test {
 
     function testDeposit() public {
         vm.startPrank(address(marketplace));
-        token.approveMarketPlace(Contracts.YIELD_POOL_USDC);
+        token.approveMarketPlace();
         vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
@@ -180,7 +180,7 @@ contract ERC5095Test is Test {
 
     function testMint() public {
         vm.startPrank(address(marketplace));
-        token.approveMarketPlace(Contracts.YIELD_POOL_USDC);
+        token.approveMarketPlace();
         vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
@@ -199,8 +199,8 @@ contract ERC5095Test is Test {
     }
 
     function testWithdrawPreMaturity() public {
-        vm.startPrank(address(marketplace));
-        token.approveMarketPlace(Contracts.YIELD_TOKEN);
+        vm.startPrank(address(token));
+        IERC20(Contracts.YIELD_TOKEN).approve(address(marketplace), type(uint256).max);
         vm.stopPrank();
         uint256 amount = 100000;
         uint256 shares = 120000;
@@ -230,8 +230,8 @@ contract ERC5095Test is Test {
     }
 
     function testRedeemPreMaturity() public {
-        vm.startPrank(address(marketplace));
-        token.approveMarketPlace(Contracts.YIELD_TOKEN);
+        vm.startPrank(address(token));
+        IERC20(Contracts.YIELD_TOKEN).approve(address(marketplace), type(uint256).max);
         vm.stopPrank();
         uint256 amount = 100000;
         uint256 shares = 120000;
