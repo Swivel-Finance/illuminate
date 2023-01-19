@@ -9,7 +9,6 @@ contract ERC5095 is ERC20 {
     bool private approveMarketPlaceReturn;
 
     address public setPoolCalled;
-    address public approveMarketPlaceCalled;
 
     function poolReturns(address p) external {
         poolReturn = p;
