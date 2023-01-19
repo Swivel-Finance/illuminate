@@ -381,11 +381,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     }
 
     function _withdraw(uint256 a, address r, address o, uint256 m) internal returns (uint256) {
+        // Determine how many principal tokens are needed to purchase the underlying
+        uint256 needed = previewWithdraw(a);
+
         // Pre maturity
         if (block.timestamp < maturity) {
-            // Determine how many principal tokens are needed to purchase the underlying
-            uint256 needed = previewWithdraw(a);
-
             // Receive the shares from the caller
             _transfer(o, address(this), needed);
 
@@ -445,25 +445,25 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                         maturity,
                         msg.sender,
                         r,
-                        a
+                        needed
                     );
             } else {
                 // Get the allowance of the user spending the tokens
                 uint256 allowance = _allowance[o][msg.sender];
 
                 // Check for sufficient allowance
-                if (allowance < a) {
+                if (allowance < needed) {
                     revert Exception(
                         20,
                         allowance,
-                        a,
+                        needed,
                         address(0),
                         address(0)
                     );
                 }
 
                 // Update the callers's allowance
-                _allowance[o][msg.sender] = allowance - a;
+                _allowance[o][msg.sender] = allowance - needed;
 
                 // Execute the redemption to the desired receiver
                 return
@@ -472,7 +472,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                         maturity,
                         o,
                         r,
-                        a
+                        needed
                     );
             }
         }
