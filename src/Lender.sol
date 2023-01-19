@@ -526,6 +526,15 @@ contract Lender {
             uint256 premium = (IERC20(u).balanceOf(address(this)) - starting) -
                 fee;
 
+            // Calculate the fee on the premium
+            uint256 premiumFee = premium / feenominator;
+
+            // Extract fee from premium
+            fees[u] += premiumFee;
+
+            // Remove the fee from the premium
+            premium = premium - premiumFee;
+
             // Store how much the user received in exchange for swapping the premium for iPTs
             uint256 swapped;
 

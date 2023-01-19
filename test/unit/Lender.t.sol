@@ -174,7 +174,8 @@ contract LenderTest is Test {
         amounts.push(50000);
         amounts.push(40000);
         uint256 total = amounts[0] + amounts[1];
-        uint256 fee = total / feenominator;
+        uint256 premium = total / 2 - (total / 2) / feenominator;
+        uint256 fee = total / feenominator + premium / feenominator;
 
         require(orders.length == amounts.length);
         require(orders.length == components.length);
@@ -208,13 +209,13 @@ contract LenderTest is Test {
         // fee
         assertEq(fee, collected);
         // initiate
-        assertEq(total - fee, sw.initiateCalledAmount(address(yt)));
+        assertEq(total - total / feenominator, sw.initiateCalledAmount(address(yt)));
         assertEq(components[1].v, sw.initiateCalledSignature(address(yt)));
         // mint
-        uint256 expectedPremium = (amounts[0] / 2) +
-            ((amounts[1] - fee) / 2) -
-            fee;
-        uint256 expectedLentOnSwivel = total - fee;
+        uint256 expectedPremium = (total - (total / feenominator)) / 2 - (total / feenominator);
+        expectedPremium = expectedPremium - expectedPremium / feenominator;
+        
+        uint256 expectedLentOnSwivel = total - total / feenominator;
         assertEq(
             expectedLentOnSwivel + expectedPremium,
             ipt.mintCalled(address(this))
