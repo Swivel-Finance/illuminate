@@ -151,7 +151,7 @@ contract ERC5095Test is Test {
         assertGt(token.previewRedeem(amount), 0);
 
         vm.warp(maturity + 1);
-        assertEq(token.previewRedeem(amount / 2), 40000);
+        assertEq(token.previewRedeem(amount / 2), 50000);
     }
 
     function testPreviewWithdraw() public {

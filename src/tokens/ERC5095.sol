@@ -138,13 +138,13 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     function previewRedeem(uint256 s) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
             // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
-            Cast.u128(
-                s *
-                    Cast.u128(
-                        IRedeemer(redeemer).holdings(underlying, maturity)
-                    )
-            ) / _totalSupply;
-            return s;
+            return
+                Cast.u128(
+                    s *
+                        Cast.u128(
+                            IRedeemer(redeemer).holdings(underlying, maturity)
+                        )
+                ) / _totalSupply;
         }
 
         // Prior to maturity, return a a preview of a swap on the pool
