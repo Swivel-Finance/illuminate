@@ -126,9 +126,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return _balanceOf[o];
     }
 
-    /// @notice Post or at maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `assets` in underlying on a YieldSpace AMM.
+    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `a` in underlying on a YieldSpace AMM.
     /// @param a The amount of underlying spent
-    /// @return uint256 The amount of PT purchased by spending `assets` of underlying
+    /// @return uint256 The amount of PT purchased by spending `a` of underlying
     function previewDeposit(uint256 a) public view returns (uint256) {
         if (block.timestamp < maturity) {
             return IYield(pool).sellBasePreview(Cast.u128(a));
@@ -136,9 +136,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return 0;
     }
 
-    /// @notice Post or at maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `shares` in PT on a YieldSpace AMM.
+    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `s` in PT on a YieldSpace AMM.
     /// @param s The amount of principal tokens bought in the simulation
-    /// @return uint256 The amount of underlying spent to purchase `shares` of PT
+    /// @return uint256 The amount of underlying required to purchase `s` of PT
     function previewMint(uint256 s) public view returns (uint256) {
         if (block.timestamp < maturity) {
             return IYield(pool).buyFYTokenPreview(Cast.u128(s));
@@ -146,9 +146,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return 0;
     }
 
-    /// @notice Post or at maturity, simulates the effects of redeemption at the current block. Prior to maturity, returns the amount of `assets from a sale of `shares` in PT from a sale of PT on a YieldSpace AMM.
+    /// @notice Post or at maturity, simulates the effects of redemption. Prior to maturity, returns the amount of `assets` from a sale of `s` PTs on a YieldSpace AMM.
     /// @param s The amount of principal tokens redeemed in the simulation
-    /// @return uint256 The amount of underlying returned by `shares` of PT redemption
+    /// @return uint256 The amount of underlying returned by `s` of PT redemption
     function previewRedeem(uint256 s) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
             // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
@@ -165,9 +165,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return IYield(pool).sellFYTokenPreview(Cast.u128(s));
     }
 
-    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `assets` in underlying from the sale of PTs on a YieldSpace AMM.
+    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `a` in underlying from the sale of PTs on a YieldSpace AMM.
     /// @param a The amount of underlying tokens withdrawn in the simulation
-    /// @return uint256 The amount of principal tokens required for the withdrawal of `assets`
+    /// @return uint256 The amount of principal tokens required for the withdrawal of `a`
     function previewWithdraw(uint256 a) public view override returns (uint256) {
         if (block.timestamp >= maturity) {
             // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
@@ -180,89 +180,61 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return IYield(pool).buyBasePreview(Cast.u128(a));
     }
 
+    /// @notice Before maturity spends `a` of underlying, and sends PTs to `r`. Post or at maturity, reverts.
+    /// @param r The receiver of the principal tokens
+    /// @param a The amount of underlying tokens deposited
+    /// @param m Minimum number of shares that the user will receive
+    /// @return uint256 The amount of principal tokens purchased
+    function deposit(address r, uint256 a, uint256 m) external returns (uint256) {
+        // Execute the deposit
+        return _deposit(r, a, m);
+    }
+
     /// @notice Before maturity spends `assets` of underlying, and sends `shares` of PTs to `receiver`. Post or at maturity, reverts.
     /// @param r The receiver of the principal tokens
     /// @param a The amount of underlying tokens deposited
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
     function deposit(address r, uint256 a) external override returns (uint256) {
-        // Revert if called at or after maturity
-        if (block.timestamp >= maturity) {
-            revert Exception(
-                21,
-                block.timestamp,
-                maturity,
-                address(0),
-                address(0)
-            );
-        }
+        // Execute the deposit
+        return _deposit(r, a, 0);
+    }
 
-        // Preview how many shares are needed to withdraw the desired amount of underlying
-        uint128 shares = Cast.u128(previewDeposit(a));
-
-        // Receive the funds from the sender
-        Safe.transferFrom(IERC20(underlying), msg.sender, address(this), a);
-
-        // consider the hardcoded slippage limit, 4626 compliance requires no minimum param.
-        uint128 returned = IMarketPlace(marketplace).sellUnderlying(
-            underlying,
-            maturity,
-            Cast.u128(a),
-            shares
-        );
-
-        // Ensure the user received at least the amount desired
-        if (returned < a) {
-            revert Exception(16, returned, a, address(0), address(0));
-        }
-
-        // Pass the received shares onto the intended receiver
-        _transfer(address(this), r, returned);
-
-        return returned;
+    /// @notice Before maturity mints `s` of PTs to `r` by spending underlying. Post or at maturity, reverts.
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param s The amount of shares being minted
+    /// @param m Maximum amount of underlying that the user will spend
+    /// @return uint256 The amount of principal tokens purchased
+    function mint(address r, uint256 s, uint256 m) external returns (uint256) {
+        // Execute the mint
+        return _mint(r, s, m);
     }
 
     /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
     /// @param r The receiver of the underlying tokens being withdrawn
-    /// @param s The amount of underlying tokens withdrawn
-    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    /// @param s The amount of shares being minted
+    /// @return uint256 The amount of principal tokens purchased
     function mint(address r, uint256 s) external override returns (uint256) {
-        // Revert if called at or after maturity
-        if (block.timestamp >= maturity) {
-            revert Exception(
-                21,
-                block.timestamp,
-                maturity,
-                address(0),
-                address(0)
-            );
-        }
-
-        // Calculate how much underlying will be needed to mint the desired shares
-        uint128 assets = Cast.u128(previewMint(s));
-
-        // Transfer the underlying to the token
-        Safe.transferFrom(
-            IERC20(underlying),
-            msg.sender,
-            address(this),
-            assets
-        );
-
-        // Swap the underlying for principal tokens via the pool
-        uint128 returned = IMarketPlace(marketplace).sellUnderlying(
-            underlying,
-            maturity,
-            assets,
-            Cast.u128(s - (s / 100))
-        );
-
-        // Transfer the principal tokens to the desired receiver
-        _transfer(address(this), r, returned);
-
-        return returned;
+        // Execute the mint
+        return _mint(r, s, type(uint128).max);
     }
 
-    /// @notice At or after maturity, burns `a` PTs from owner and sends underlying to `receiver`. Before maturity, sends `assets` by selling shares of PT on a YieldSpace AMM.
+    /// @notice At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
+    /// @param a The amount of underlying tokens withdrawn
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param o The owner of the underlying tokens
+    /// @param m Maximum amount of PTs to be sold
+    /// @return uint256 The amount of principal tokens burnt by the withdrawal
+    function withdraw(
+        uint256 a,
+        address r,
+        address o,
+        uint256 m
+    ) external returns (uint256) {
+        // Execute the withdrawal
+        return _withdraw(a, r, o, m);
+    }
+
+    /// @notice At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
     /// @param a The amount of underlying tokens withdrawn
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param o The owner of the underlying tokens
@@ -272,52 +244,188 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         address r,
         address o
     ) external override returns (uint256) {
-        // Refers to how many shares are needed to withdraw `a` underlying
-        uint128 shares = Cast.u128(previewWithdraw(a));
+        // Execute the withdrawal
+        return _withdraw(a, r, o, type(uint128).max);
+    }
+
+    /// @notice At or after maturity, burns exactly `s` of Principal Tokens from `o` and sends underlying tokens to `r`. Before maturity, sends underlying by selling `s` of PT on a YieldSpace AMM.
+    /// @param s The number of shares to be burned in exchange for the underlying asset
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param o Address of the owner of the shares being burned
+    /// @param m Minimum amount of underlying that must be received
+    /// @return uint256 The amount of underlying tokens distributed by the redemption
+    function redeem(
+        uint256 s,
+        address r,
+        address o,
+        uint256 m
+    ) external returns (uint256) {
+        // Execute the redemption
+        return _redeem(s, r, o, m);
+    }
+
+    /// @notice At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`. Before maturity, sells `s` of PT on a YieldSpace AMM.
+    /// @param s The number of shares to be burned in exchange for the underlying asset
+    /// @param r The receiver of the underlying tokens being withdrawn
+    /// @param o Address of the owner of the shares being burned
+    /// @return uint256 The amount of underlying tokens distributed by the redemption
+    function redeem(
+        uint256 s,
+        address r,
+        address o
+    ) external override returns (uint256) {
+        // Execute the redemption
+        return _redeem(s, r, o, 0);
+    }
+
+    /// @param f Address to burn from
+    /// @param a Amount to burn
+    /// @return bool true if successful
+    function authBurn(address f, uint256 a)
+        external
+        authorized(redeemer)
+        returns (bool)
+    {
+        _burn(f, a);
+        return true;
+    }
+
+    /// @param t Address recieving the minted amount
+    /// @param a The amount to mint
+    /// @return bool True if successful
+    function authMint(address t, uint256 a)
+        external
+        authorized(lender)
+        returns (bool)
+    {
+        _mint(t, a);
+        return true;
+    }
+
+    /// @param o Address of the owner of the tokens
+    /// @param s Address of the spender
+    /// @param a Amount to be approved
+    function authApprove(
+        address o,
+        address s,
+        uint256 a
+    ) external authorized(redeemer) returns (bool) {
+        _allowance[o][s] = a;
+        return true;
+    }
+
+    function _deposit(address r, uint256 a, uint256 m) internal returns (uint256) {
+        // Revert if called at or after maturity
+        if (block.timestamp >= maturity) {
+            revert Exception(
+                21,
+                block.timestamp,
+                maturity,
+                address(0),
+                address(0)
+            );
+        }
+
+        // Receive the funds from the sender
+        Safe.transferFrom(IERC20(underlying), msg.sender, address(this), a);
+
+        // Sell the underlying assets for PTs
+        uint128 returned = IMarketPlace(marketplace).sellUnderlying(
+            underlying,
+            maturity,
+            Cast.u128(a),
+            Cast.u128(m)
+        );
+
+        // Pass the received shares onto the intended receiver
+        _transfer(address(this), r, returned);
+
+        return returned;
+    }
+
+    function _mint(address r, uint256 s, uint256 m) internal returns (uint256) {
+        // Revert if called at or after maturity
+        if (block.timestamp >= maturity) {
+            revert Exception(
+                21,
+                block.timestamp,
+                maturity,
+                address(0),
+                address(0)
+            );
+        }
+
+        // Determine how many underlying tokens are needed to mint the shares
+        uint256 required = IYield(pool).buyFYTokenPreview(Cast.u128(s));
+
+        // Transfer the underlying to the token
+        Safe.transferFrom(
+            IERC20(underlying),
+            msg.sender,
+            address(this),
+            required
+        );
+
+        // Swap the underlying for principal tokens via the pool
+        uint128 sold = IMarketPlace(marketplace).buyPrincipalToken(
+            underlying,
+            maturity,
+            Cast.u128(s),
+            Cast.u128(m)
+        );
+
+        // Transfer the principal tokens to the desired receiver
+        _transfer(address(this), r, s);
+
+        return sold;
+    }
+
+    function _withdraw(uint256 a, address r, address o, uint256 m) internal returns (uint256) {
+        // Determine how many principal tokens are needed to purchase the underlying
+        uint256 needed = previewWithdraw(a);
 
         // Pre maturity
         if (block.timestamp < maturity) {
             // Receive the shares from the caller
-            _transfer(o, address(this), shares);
+            _transfer(o, address(this), needed);
 
             // If owner is the sender, sell PT without allowance check
             if (o == msg.sender) {
-                uint128 returned = IMarketPlace(marketplace).sellPrincipalToken(
+                uint128 returned = IMarketPlace(marketplace).buyUnderlying(
                     underlying,
                     maturity,
-                    shares,
-                    Cast.u128(a - (a / 100))
+                    Cast.u128(a),
+                    Cast.u128(m)
                 );
 
                 // Transdfer the underlying to the desired receiver
-                Safe.transfer(IERC20(underlying), r, returned);
+                Safe.transfer(IERC20(underlying), r, a);
 
                 return returned;
-                // Else, sell PT with allowance check
-            } else {
+            } else { // Else, sell PT with allowance check
                 // Get the allowance of the user spending the tokens
                 uint256 allowance = _allowance[o][msg.sender];
 
                 // Check for sufficient allowance
-                if (allowance < shares) {
+                if (allowance < needed) {
                     revert Exception(
                         20,
                         allowance,
-                        shares,
+                        a,
                         address(0),
                         address(0)
                     );
                 }
 
                 // Update the caller's allowance
-                _allowance[o][msg.sender] = allowance - shares;
+                _allowance[o][msg.sender] = allowance - needed;
 
                 // Sell the principal tokens for underlying
-                uint128 returned = IMarketPlace(marketplace).sellPrincipalToken(
+                uint128 returned = IMarketPlace(marketplace).buyUnderlying(
                     underlying,
                     maturity,
-                    Cast.u128(shares),
-                    Cast.u128(a - (a / 100))
+                    Cast.u128(a),
+                    Cast.u128(m)
                 );
 
                 // Transfer the underlying to the desired receiver
@@ -328,7 +436,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         }
         // Post maturity
         else {
-            // If owner is the sender, sell PT without allowance check
+            // If owner is the sender, redeem PT without allowance check
             if (o == msg.sender) {
                 // Execute the redemption to the desired receiver
                 return
@@ -337,25 +445,25 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                         maturity,
                         msg.sender,
                         r,
-                        shares
+                        needed
                     );
             } else {
                 // Get the allowance of the user spending the tokens
                 uint256 allowance = _allowance[o][msg.sender];
 
                 // Check for sufficient allowance
-                if (allowance < shares) {
+                if (allowance < needed) {
                     revert Exception(
                         20,
                         allowance,
-                        shares,
+                        needed,
                         address(0),
                         address(0)
                     );
                 }
 
                 // Update the callers's allowance
-                _allowance[o][msg.sender] = allowance - shares;
+                _allowance[o][msg.sender] = allowance - needed;
 
                 // Execute the redemption to the desired receiver
                 return
@@ -364,29 +472,17 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                         maturity,
                         o,
                         r,
-                        shares
+                        needed
                     );
             }
         }
     }
 
-    /// @notice At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`. Before maturity, sends `assets` by selling `shares` of PT on a YieldSpace AMM.
-    /// @param s The number of shares to be burned in exchange for the underlying asset
-    /// @param r The receiver of the underlying tokens being withdrawn
-    /// @param o Address of the owner of the shares being burned
-    /// @return uint256 The amount of underlying tokens distributed by the redemption
-    function redeem(
-        uint256 s,
-        address r,
-        address o
-    ) external override returns (uint256) {
+    function _redeem(uint256 s, address r, address o, uint256 m) internal returns (uint256) {
         // Pre-maturity
         if (block.timestamp < maturity) {
             // Receive the funds from the user
             _transfer(o, address(this), s);
-
-            // Determine how much underlying must be sold to receive desired principal token amount
-            uint128 assets = Cast.u128(previewRedeem(s));
 
             // If owner is the sender, sell PT without allowance check
             if (o == msg.sender) {
@@ -395,7 +491,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                     underlying,
                     maturity,
                     Cast.u128(s),
-                    assets - (assets / 100)
+                    Cast.u128(m)
                 );
 
                 // Transfer underlying to the desired receiver
@@ -419,7 +515,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                     underlying,
                     maturity,
                     Cast.u128(s),
-                    assets - (assets / 100)
+                    Cast.u128(m)
                 );
 
                 // Transfer the underlying to the desired receiver
@@ -462,41 +558,5 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                     );
             }
         }
-    }
-
-    /// @param f Address to burn from
-    /// @param a Amount to burn
-    /// @return bool true if successful
-    function authBurn(address f, uint256 a)
-        external
-        authorized(redeemer)
-        returns (bool)
-    {
-        _burn(f, a);
-        return true;
-    }
-
-    /// @param t Address recieving the minted amount
-    /// @param a The amount to mint
-    /// @return bool True if successful
-    function authMint(address t, uint256 a)
-        external
-        authorized(lender)
-        returns (bool)
-    {
-        _mint(t, a);
-        return true;
-    }
-
-    /// @param o Address of the owner of the tokens
-    /// @param s Address of the spender
-    /// @param a Amount to be approved
-    function authApprove(
-        address o,
-        address s,
-        uint256 a
-    ) external authorized(redeemer) returns (bool) {
-        _allowance[o][s] = a;
-        return true;
     }
 }

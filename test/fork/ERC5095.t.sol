@@ -283,4 +283,25 @@ contract ERC5095Test is Test {
         vm.stopPrank();
         assertEq(IERC20(address(token)).balanceOf(msg.sender), 0);
     }
+
+    function testFailSlippageChecks() public {
+        vm.startPrank(address(marketplace));
+        token.approveMarketPlace();
+        vm.stopPrank();
+        uint256 amount = 100000;
+        deal(Contracts.USDC, address(this), amount);
+        deal(address(token), address(token), amount * 2);
+
+        vm.expectRevert(Exception.selector);
+        token.mint(address(this), amount, 0);
+
+        vm.expectRevert(Exception.selector);
+        token.deposit(address(this), amount, 0);
+
+        vm.expectRevert(Exception.selector);
+        token.withdraw(amount, address(this), address(this), type(uint256).max);
+
+        vm.expectRevert(Exception.selector);
+        token.redeem(amount, address(this), address(this), type(uint256).max);
+    }
 }
