@@ -173,7 +173,7 @@ contract ERC5095Test is Test {
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
         deal(address(token), address(token), amount * 2);
-        token.deposit(address(this), amount);
+        token.deposit(amount, address(this));
         assertEq(IERC20(Contracts.USDC).balanceOf(address(this)), 0);
         assertGt(IERC20(address(token)).balanceOf(address(this)), 0);
     }
@@ -185,17 +185,17 @@ contract ERC5095Test is Test {
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
         deal(address(token), address(token), amount * 2);
-        token.mint(address(this), amount);
+        token.mint(amount, address(this));
         assertGt(IERC20(address(token)).balanceOf(address(this)), 0);
     }
 
     function testFailTooLate() public {
         vm.warp(maturity + 1);
         vm.expectRevert(Exception.selector);
-        token.deposit(address(this), 100000);
+        token.deposit(100000, address(this));
 
         vm.expectRevert(Exception.selector);
-        token.mint(address(this), 100000);
+        token.mint(100000, address(this));
     }
 
     function testWithdrawPreMaturity() public {
@@ -293,10 +293,10 @@ contract ERC5095Test is Test {
         deal(address(token), address(token), amount * 2);
 
         vm.expectRevert(Exception.selector);
-        token.mint(address(this), amount, 0);
+        token.mint(amount, address(this), 0);
 
         vm.expectRevert(Exception.selector);
-        token.deposit(address(this), amount, 0);
+        token.deposit(amount, address(this), 0);
 
         vm.expectRevert(Exception.selector);
         token.withdraw(amount, address(this), address(this), type(uint256).max);

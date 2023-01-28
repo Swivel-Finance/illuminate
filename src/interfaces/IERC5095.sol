@@ -35,9 +35,9 @@ interface IERC5095 is IERC2612 {
         address
     ) external returns (uint256);
 
-    function deposit(address, uint256) external returns (uint256);
+    function deposit(uint256, address) external returns (uint256);
 
-    function mint(address, uint256) external returns (uint256);
+    function mint(uint256, address) external returns (uint256);
 
     function authMint(address, uint256) external returns (bool);
 
