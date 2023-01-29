@@ -10,7 +10,7 @@ import 'src/errors/Exception.sol';
 
 import 'src/lib/Cast.sol';
 import 'src/lib/Safe.sol';
-
+ 
 contract ERC5095 is ERC20Permit, IERC5095 {
     /// @dev unix timestamp when the ERC5095 token can be redeemed
     uint256 public immutable override maturity;
@@ -181,39 +181,39 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     }
 
     /// @notice Before maturity spends `a` of underlying, and sends PTs to `r`. Post or at maturity, reverts.
-    /// @param r The receiver of the principal tokens
     /// @param a The amount of underlying tokens deposited
+    /// @param r The receiver of the principal tokens
     /// @param m Minimum number of shares that the user will receive
     /// @return uint256 The amount of principal tokens purchased
-    function deposit(address r, uint256 a, uint256 m) external returns (uint256) {
+    function deposit(uint256 a, address r, uint256 m) external returns (uint256) {
         // Execute the deposit
         return _deposit(r, a, m);
     }
 
     /// @notice Before maturity spends `assets` of underlying, and sends `shares` of PTs to `receiver`. Post or at maturity, reverts.
-    /// @param r The receiver of the principal tokens
     /// @param a The amount of underlying tokens deposited
+    /// @param r The receiver of the principal tokens
     /// @return uint256 The amount of principal tokens burnt by the withdrawal
-    function deposit(address r, uint256 a) external override returns (uint256) {
+    function deposit(uint256 a, address r) external override returns (uint256) {
         // Execute the deposit
         return _deposit(r, a, 0);
     }
 
     /// @notice Before maturity mints `s` of PTs to `r` by spending underlying. Post or at maturity, reverts.
-    /// @param r The receiver of the underlying tokens being withdrawn
     /// @param s The amount of shares being minted
+    /// @param r The receiver of the underlying tokens being withdrawn
     /// @param m Maximum amount of underlying that the user will spend
     /// @return uint256 The amount of principal tokens purchased
-    function mint(address r, uint256 s, uint256 m) external returns (uint256) {
+    function mint(uint256 s, address r, uint256 m) external returns (uint256) {
         // Execute the mint
         return _mint(r, s, m);
     }
 
     /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
-    /// @param r The receiver of the underlying tokens being withdrawn
     /// @param s The amount of shares being minted
+    /// @param r The receiver of the underlying tokens being withdrawn
     /// @return uint256 The amount of principal tokens purchased
-    function mint(address r, uint256 s) external override returns (uint256) {
+    function mint(uint256 s, address r) external override returns (uint256) {
         // Execute the mint
         return _mint(r, s, type(uint128).max);
     }
