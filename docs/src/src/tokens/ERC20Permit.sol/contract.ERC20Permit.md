@@ -1,5 +1,5 @@
 # ERC20Permit
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/756f41d3de7041d0b83523598284cee2b14c535e/src/tokens/ERC20Permit.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/tokens/ERC20Permit.sol)
 
 **Inherits:**
 [ERC20](/src/mocks/ERC20.sol/contract.ERC20.md), [IERC2612](/src/interfaces/IERC2612.sol/contract.IERC2612.md)

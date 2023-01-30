@@ -1,5 +1,5 @@
 # IERC5095
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/756f41d3de7041d0b83523598284cee2b14c535e/src/interfaces/IERC5095.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/interfaces/IERC5095.sol)
 
 **Inherits:**
 [IERC2612](/src/interfaces/IERC2612.sol/contract.IERC2612.md)
@@ -87,14 +87,14 @@ function redeem(uint256, address, address) external returns (uint256);
 
 
 ```solidity
-function deposit(address, uint256) external returns (uint256);
+function deposit(uint256, address) external returns (uint256);
 ```
 
 ### mint
 
 
 ```solidity
-function mint(address, uint256) external returns (uint256);
+function mint(uint256, address) external returns (uint256);
 ```
 
 ### authMint

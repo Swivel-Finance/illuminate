@@ -1,5 +1,5 @@
 # ERC5095
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/756f41d3de7041d0b83523598284cee2b14c535e/src/mocks/ERC5095.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/mocks/ERC5095.sol)
 
 **Inherits:**
 [ERC20](/src/mocks/ERC20.sol/contract.ERC20.md)
@@ -17,6 +17,13 @@ address private poolReturn;
 
 ```solidity
 bool private setPoolReturn;
+```
+
+
+### approveMarketPlaceReturn
+
+```solidity
+bool private approveMarketPlaceReturn;
 ```
 
 
@@ -54,5 +61,19 @@ function setPoolReturns(bool p) external;
 
 ```solidity
 function setPool(address p) external returns (bool);
+```
+
+### approveMarketPlaceReturns
+
+
+```solidity
+function approveMarketPlaceReturns(bool p) external;
+```
+
+### approveMarketPlace
+
+
+```solidity
+function approveMarketPlace() external view returns (bool);
 ```
 

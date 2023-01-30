@@ -1,5 +1,5 @@
 # IERC20Metadata
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/756f41d3de7041d0b83523598284cee2b14c535e/src/interfaces/IERC20Metadata.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/interfaces/IERC20Metadata.sol)
 
 **Inherits:**
 [IERC20](/src/interfaces/IERC20.sol/contract.IERC20.md)

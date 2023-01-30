@@ -1,5 +1,5 @@
 # ERC5095
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/756f41d3de7041d0b83523598284cee2b14c535e/src/tokens/ERC5095.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/tokens/ERC5095.sol)
 
 **Inherits:**
 [ERC20Permit](/src/tokens/ERC20Permit.sol/contract.ERC20Permit.md), [IERC5095](/src/interfaces/IERC5095.sol/contract.IERC5095.md)
@@ -113,6 +113,23 @@ function setPool(address p) external authorized(marketplace) returns (bool);
 |`<none>`|`bool`|bool True if successful|
 
 
+### approveMarketPlace
+
+Allows the marketplace to spend underlying, principal tokens held by the token
+
+*This is necessary when MarketPlace calls pool methods to swap tokens*
+
+
+```solidity
+function approveMarketPlace() external authorized(marketplace) returns (bool);
+```
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|True if successful|
+
+
 ### convertToUnderlying
 
 Post or at maturity, converts an amount of principal tokens to an amount of underlying that would be returned.
@@ -199,7 +216,7 @@ function maxWithdraw(address o) external view override returns (uint256);
 
 ### previewDeposit
 
-Post or at maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `assets` in underlying on a YieldSpace AMM.
+After maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `a` in underlying on a YieldSpace AMM.
 
 
 ```solidity
@@ -215,12 +232,12 @@ function previewDeposit(uint256 a) public view returns (uint256);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|uint256 The amount of PT purchased by spending `assets` of underlying|
+|`<none>`|`uint256`|uint256 The amount of PT purchased by spending `a` of underlying|
 
 
 ### previewMint
 
-Post or at maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `shares` in PT on a YieldSpace AMM.
+After maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `s` in PT on a YieldSpace AMM.
 
 
 ```solidity
@@ -236,12 +253,12 @@ function previewMint(uint256 s) public view returns (uint256);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|uint256 The amount of underlying spent to purchase `shares` of PT|
+|`<none>`|`uint256`|uint256 The amount of underlying required to purchase `s` of PT|
 
 
 ### previewRedeem
 
-Post or at maturity, simulates the effects of redeemption at the current block. Prior to maturity, returns the amount of `assets from a sale of `shares` in PT from a sale of PT on a YieldSpace AMM.
+Post or at maturity, simulates the effects of redemption. Prior to maturity, returns the amount of `assets` from a sale of `s` PTs on a YieldSpace AMM.
 
 
 ```solidity
@@ -257,12 +274,12 @@ function previewRedeem(uint256 s) public view override returns (uint256);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|uint256 The amount of underlying returned by `shares` of PT redemption|
+|`<none>`|`uint256`|uint256 The amount of underlying returned by `s` of PT redemption|
 
 
 ### previewWithdraw
 
-Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `assets` in underlying from the sale of PTs on a YieldSpace AMM.
+Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `a` in underlying from the sale of PTs on a YieldSpace AMM.
 
 
 ```solidity
@@ -278,7 +295,30 @@ function previewWithdraw(uint256 a) public view override returns (uint256);
 
 |Name|Type|Description|
 |----|----|-----------|
-|`<none>`|`uint256`|uint256 The amount of principal tokens required for the withdrawal of `assets`|
+|`<none>`|`uint256`|uint256 The amount of principal tokens required for the withdrawal of `a`|
+
+
+### deposit
+
+Before maturity spends `a` of underlying, and sends PTs to `r`. Post or at maturity, reverts.
+
+
+```solidity
+function deposit(uint256 a, address r, uint256 m) external returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`a`|`uint256`|The amount of underlying tokens deposited|
+|`r`|`address`|The receiver of the principal tokens|
+|`m`|`uint256`|Minimum number of shares that the user will receive|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|uint256 The amount of principal tokens purchased|
 
 
 ### deposit
@@ -287,14 +327,14 @@ Before maturity spends `assets` of underlying, and sends `shares` of PTs to `rec
 
 
 ```solidity
-function deposit(address r, uint256 a) external override returns (uint256);
+function deposit(uint256 a, address r) external override returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
-|`r`|`address`|The receiver of the principal tokens|
 |`a`|`uint256`|The amount of underlying tokens deposited|
+|`r`|`address`|The receiver of the principal tokens|
 
 **Returns**
 
@@ -305,18 +345,65 @@ function deposit(address r, uint256 a) external override returns (uint256);
 
 ### mint
 
-Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
+Before maturity mints `s` of PTs to `r` by spending underlying. Post or at maturity, reverts.
 
 
 ```solidity
-function mint(address r, uint256 s) external override returns (uint256);
+function mint(uint256 s, address r, uint256 m) external returns (uint256);
 ```
 **Parameters**
 
 |Name|Type|Description|
 |----|----|-----------|
+|`s`|`uint256`|The amount of shares being minted|
 |`r`|`address`|The receiver of the underlying tokens being withdrawn|
-|`s`|`uint256`|The amount of underlying tokens withdrawn|
+|`m`|`uint256`|Maximum amount of underlying that the user will spend|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|uint256 The amount of principal tokens purchased|
+
+
+### mint
+
+Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
+
+
+```solidity
+function mint(uint256 s, address r) external override returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`s`|`uint256`|The amount of shares being minted|
+|`r`|`address`|The receiver of the underlying tokens being withdrawn|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|uint256 The amount of principal tokens purchased|
+
+
+### withdraw
+
+At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
+
+
+```solidity
+function withdraw(uint256 a, address r, address o, uint256 m) external returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`a`|`uint256`|The amount of underlying tokens withdrawn|
+|`r`|`address`|The receiver of the underlying tokens being withdrawn|
+|`o`|`address`|The owner of the underlying tokens|
+|`m`|`uint256`|Maximum amount of PTs to be sold|
 
 **Returns**
 
@@ -327,7 +414,7 @@ function mint(address r, uint256 s) external override returns (uint256);
 
 ### withdraw
 
-At or after maturity, burns `a` PTs from owner and sends underlying to `receiver`. Before maturity, sends `assets` by selling shares of PT on a YieldSpace AMM.
+At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
 
 
 ```solidity
@@ -350,7 +437,31 @@ function withdraw(uint256 a, address r, address o) external override returns (ui
 
 ### redeem
 
-At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`. Before maturity, sends `assets` by selling `shares` of PT on a YieldSpace AMM.
+At or after maturity, burns exactly `s` of Principal Tokens from `o` and sends underlying tokens to `r`. Before maturity, sends underlying by selling `s` of PT on a YieldSpace AMM.
+
+
+```solidity
+function redeem(uint256 s, address r, address o, uint256 m) external returns (uint256);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`s`|`uint256`|The number of shares to be burned in exchange for the underlying asset|
+|`r`|`address`|The receiver of the underlying tokens being withdrawn|
+|`o`|`address`|Address of the owner of the shares being burned|
+|`m`|`uint256`|Minimum amount of underlying that must be received|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`uint256`|uint256 The amount of underlying tokens distributed by the redemption|
+
+
+### redeem
+
+At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`. Before maturity, sells `s` of PT on a YieldSpace AMM.
 
 
 ```solidity
@@ -425,4 +536,32 @@ function authApprove(address o, address s, uint256 a) external authorized(redeem
 |`s`|`address`|Address of the spender|
 |`a`|`uint256`|Amount to be approved|
 
+
+### _deposit
+
+
+```solidity
+function _deposit(address r, uint256 a, uint256 m) internal returns (uint256);
+```
+
+### _mint
+
+
+```solidity
+function _mint(address r, uint256 s, uint256 m) internal returns (uint256);
+```
+
+### _withdraw
+
+
+```solidity
+function _withdraw(uint256 a, address r, address o, uint256 m) internal returns (uint256);
+```
+
+### _redeem
+
+
+```solidity
+function _redeem(uint256 s, address r, address o, uint256 m) internal returns (uint256);
+```
 
