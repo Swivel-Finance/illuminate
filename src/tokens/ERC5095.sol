@@ -398,7 +398,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                     Cast.u128(m)
                 );
 
-                // Transdfer the underlying to the desired receiver
+                // Transfer the underlying to the desired receiver
                 Safe.transfer(IERC20(underlying), r, a);
 
                 return returned;
