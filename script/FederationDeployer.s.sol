@@ -43,6 +43,7 @@ contract IlluminateFederationDeployer is Script {
         lender.setMarketPlace(address(marketplace));
         redeemer.setMarketPlace(address(marketplace));
         redeemer.setConverter(address(converter), new address[](0));
+        creator.setMarketPlace(address(marketplace));
 
         // Set the admin
         lender.setAdmin(admin);

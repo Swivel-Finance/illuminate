@@ -526,6 +526,15 @@ contract Lender {
             uint256 premium = (IERC20(u).balanceOf(address(this)) - starting) -
                 fee;
 
+            // Calculate the fee on the premium
+            uint256 premiumFee = premium / feenominator;
+
+            // Extract fee from premium
+            fees[u] += premiumFee;
+
+            // Remove the fee from the premium
+            premium = premium - premiumFee;
+
             // Store how much the user received in exchange for swapping the premium for iPTs
             uint256 swapped;
 
@@ -879,6 +888,11 @@ contract Lender {
         uint256 a,
         uint256 r
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
+        // Confirm that we are using Notional's PT to avoid conflicts with other ERC4626 tokens
+        if (p != uint8(MarketPlace.Principals.Notional)) {
+            revert Exception(6, p, 0,address(0), address(0));
+        }
+
         // Instantiate Notional princpal token
         address token = IMarketPlace(marketPlace).markets(u, m, p);
 
