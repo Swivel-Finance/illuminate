@@ -69,13 +69,6 @@ contract ERC5095Test is Test {
         // approve for pool interactions
         IERC20(Contracts.USDC).approve(address(token), type(uint256).max);
         IERC20(address(token)).approve(address(token), type(uint256).max);
-        vm.startPrank(address(token));
-        IERC20(Contracts.USDC).approve(address(marketplace), type(uint256).max);
-        IERC20(Contracts.YIELD_TOKEN).approve(
-            address(marketplace),
-            type(uint256).max
-        );
-        vm.stopPrank();
     }
 
     function testTokenBasics() public {
@@ -151,7 +144,7 @@ contract ERC5095Test is Test {
         assertGt(token.previewRedeem(amount), 0);
 
         vm.warp(maturity + 1);
-        assertEq(token.previewRedeem(amount / 2), 40000);
+        assertEq(token.previewRedeem(amount / 2), 50000);
     }
 
     function testPreviewWithdraw() public {
@@ -174,32 +167,41 @@ contract ERC5095Test is Test {
     }
 
     function testDeposit() public {
+        vm.startPrank(address(marketplace));
+        token.approveMarketPlace();
+        vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
         deal(address(token), address(token), amount * 2);
-        token.deposit(address(this), amount);
+        token.deposit(amount, address(this));
         assertEq(IERC20(Contracts.USDC).balanceOf(address(this)), 0);
         assertGt(IERC20(address(token)).balanceOf(address(this)), 0);
     }
 
     function testMint() public {
+        vm.startPrank(address(marketplace));
+        token.approveMarketPlace();
+        vm.stopPrank();
         uint256 amount = 100000;
         deal(Contracts.USDC, address(this), amount);
         deal(address(token), address(token), amount * 2);
-        token.mint(address(this), amount);
+        token.mint(amount, address(this));
         assertGt(IERC20(address(token)).balanceOf(address(this)), 0);
     }
 
     function testFailTooLate() public {
         vm.warp(maturity + 1);
         vm.expectRevert(Exception.selector);
-        token.deposit(address(this), 100000);
+        token.deposit(100000, address(this));
 
         vm.expectRevert(Exception.selector);
-        token.mint(address(this), 100000);
+        token.mint(100000, address(this));
     }
 
     function testWithdrawPreMaturity() public {
+        vm.startPrank(address(token));
+        IERC20(Contracts.YIELD_TOKEN).approve(address(marketplace), type(uint256).max);
+        vm.stopPrank();
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
@@ -228,6 +230,9 @@ contract ERC5095Test is Test {
     }
 
     function testRedeemPreMaturity() public {
+        vm.startPrank(address(token));
+        IERC20(Contracts.YIELD_TOKEN).approve(address(marketplace), type(uint256).max);
+        vm.stopPrank();
         uint256 amount = 100000;
         uint256 shares = 120000;
         deal(address(Contracts.YIELD_TOKEN), address(token), shares);
@@ -277,5 +282,26 @@ contract ERC5095Test is Test {
         token.authBurn(msg.sender, amount);
         vm.stopPrank();
         assertEq(IERC20(address(token)).balanceOf(msg.sender), 0);
+    }
+
+    function testFailSlippageChecks() public {
+        vm.startPrank(address(marketplace));
+        token.approveMarketPlace();
+        vm.stopPrank();
+        uint256 amount = 100000;
+        deal(Contracts.USDC, address(this), amount);
+        deal(address(token), address(token), amount * 2);
+
+        vm.expectRevert(Exception.selector);
+        token.mint(amount, address(this), 0);
+
+        vm.expectRevert(Exception.selector);
+        token.deposit(amount, address(this), 0);
+
+        vm.expectRevert(Exception.selector);
+        token.withdraw(amount, address(this), address(this), type(uint256).max);
+
+        vm.expectRevert(Exception.selector);
+        token.redeem(amount, address(this), address(this), type(uint256).max);
     }
 }

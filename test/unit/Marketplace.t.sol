@@ -118,6 +118,7 @@ contract MarketplaceTest is Test {
         c.createReturns(address(ipt));
         ipt.poolReturns(address(pool));
         ipt.setPoolReturns(true);
+        ipt.approveMarketPlaceReturns(true);
 
         uint256 newMaturity = maturity + 20;
 

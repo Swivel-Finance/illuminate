@@ -306,6 +306,9 @@ contract MarketPlace {
         // Set the pool for the principal token
         pt.setPool(a);
 
+        // Approve the marketplace to spend the principal and underlying tokens 
+        pt.approveMarketPlace();
+
         emit SetPool(u, m, a);
         return true;
     }
