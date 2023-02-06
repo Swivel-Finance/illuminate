@@ -3112,6 +3112,19 @@ contract Redeemer {
         return incentiveFee;
     }
 
+    /// @notice Allows for external depsoit of underlying for a market
+    /// @notice This is to be used in emergency situations where the redeem method is not functioning for a market
+    /// @param u address of the underlying asset
+    /// @param m maturity of the market
+    /// @param a amount of underlying to be deposited
+    function depositHoldings(address u, uint256 m, uint256 a) external {
+        // Receive the underlying asset from the admin
+        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
+
+        // Update the holdings
+        holdings[u][m] += a;
+    }
+
     /// @notice Execute the business logic for conducting an APWine redemption
     function apwineWithdraw(
         address p,

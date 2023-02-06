@@ -502,4 +502,17 @@ contract RedeemerTest is Test {
         vm.expectRevert();
         r.redeem(address(0), 0);
     }
+
+    function testDepositHoldings() public {
+        mock_erc20.ERC20(underlying).transferFromReturns(true);
+
+        vm.startPrank(r.admin());
+        r.depositHoldings(underlying, maturity, 100);
+        vm.stopPrank();
+        assertEq(r.holdings(underlying, maturity), 100);
+
+        (address to, uint256 received) = mock_erc20.ERC20(underlying).transferFromCalled(r.admin());
+        assertEq(to, address(r));
+        assertEq(received, 100);
+    }
 }
