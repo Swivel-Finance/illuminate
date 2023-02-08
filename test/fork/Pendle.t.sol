@@ -80,6 +80,13 @@ contract PendleTest is Test {
 
         // Approve the redeemer from the lender
         l.approve(u, maturity, address(r));
+
+        // Approve the Pendle router
+        address[] memory underlyings = new address[](1);
+        underlyings[0] = Contracts.USDC;
+        address[] memory approvedContracts = new address[](1);
+        approvedContracts[0] = Contracts.PENDLE;
+        l.approve(underlyings, approvedContracts);
     }
 
 
@@ -103,18 +110,18 @@ contract PendleTest is Test {
         deal(Contracts.USDC, msg.sender, startingBalance / 4, true);
         IERC20(Contracts.USDC).approve(address(l), startingBalance);
 
+        uint256 returned = l.lend(4, Contracts.USDC, maturity, 1000e6, 0, Contracts.PENDLE_MARKET);
 
-        // uint256 returned = l.lend();
+        // Make sure the principal tokens were transferred to the lender
+        uint256 expectedPts = 1002_438685_497373_117130;
+        assertEq(
+            expectedPts,
+            IERC20(Contracts.PENDLE_TOKEN).balanceOf(address(l))
+        );
 
-        // // Make sure the principal tokens were transferred to the lender
-        // assertEq(
-        //     amounts[0] - amounts[0] / l.feenominator(),
-        //     IERC20(swivelPt).balanceOf(address(l))
-        // );
-
-        // // Make sure the same amount of iPTs were minted to the user
-        // address ipt = mp.markets(Contracts.USDC, maturity, 0);
-        // assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
+        // Make sure the same amount of iPTs were minted to the user
+        address ipt = mp.markets(Contracts.USDC, maturity, 0);
+        assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
     }
 
     function testPendleRedeem() public {
