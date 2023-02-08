@@ -27,6 +27,7 @@ import 'src/interfaces/IAPWineAMMPool.sol';
 import 'src/interfaces/IAPWineRouter.sol';
 import 'src/interfaces/INotional.sol';
 import 'src/interfaces/IPendle.sol';
+import 'src/interfaces/IPendleMarket.sol';
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -649,6 +650,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @param a amount of underlying tokens to lend
     /// @param r slippage limit, minimum amount to PTs to buy
+    /// @param g guess parameters for the swap
     /// @param market contract that corresponds to the market for the PT
     /// @return uint256 the amount of principal tokens lent out
     function lend(
@@ -657,10 +659,17 @@ contract Lender {
         uint256 m,
         uint256 a,
         uint256 r,
+        Pendle.ApproxParams calldata g,
         address market
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Instantiate market and tokens
         address principal = IMarketPlace(marketPlace).markets(u, m, p);
+
+        // Confirm the market corresponds to this Illuminate market
+        (, address marketPrincipal ,) = IPendleMarket(market).readTokens();
+        if (marketPrincipal != principal) {
+            revert Exception(27, 0, 0, market, principal);
+        }
 
         // Transfer funds from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
@@ -671,14 +680,14 @@ contract Lender {
             uint256 fee = a / feenominator;
             fees[u] = fees[u] + fee;
 
-            // Set up the guess
-            Pendle.ApproxParams memory guess = Pendle.ApproxParams(
-                1, 
-                type(uint256).max, 
-                0, 
-                256, 
-                10**15
-            );
+            // // Set up the guess
+            // Pendle.ApproxParams memory guess = Pendle.ApproxParams(
+            //     1, 
+            //     type(uint256).max, 
+            //     0, 
+            //     256, 
+            //     10**15
+            // );
 
             // Setup the token input
             Pendle.TokenInput memory input = Pendle.TokenInput(
@@ -692,7 +701,7 @@ contract Lender {
 
             // Swap on the Pendle Router using the provided market and params
             (returned,) = IPendle(pendleAddr)
-                .swapExactTokenForPt(address(this), market, r, guess, input);
+                .swapExactTokenForPt(address(this), market, r, g, input);
 
             // Convert decimals from principal token to underlying
             returned = convertDecimals(u, principal, returned);

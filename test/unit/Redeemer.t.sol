@@ -265,10 +265,8 @@ contract RedeemerTest is Test {
         (address transferFromTo, uint256 transferFromAmount) = mock_erc20
             .ERC20(pt)
             .transferFromCalled(address(l));
-        assertEq(address(r), transferFromTo);
+        assertEq(address(pyt), transferFromTo);
         assertEq(amount, transferFromAmount);
-        // transfer check
-        assertEq(amount, pt.transferCalled(address(pyt)));
         // redeemPY check
         assertEq(pyt.redeemPYCalled(), address(r));
         // redeem check

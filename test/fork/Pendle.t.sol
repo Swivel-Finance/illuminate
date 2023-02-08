@@ -110,7 +110,23 @@ contract PendleTest is Test {
         deal(Contracts.USDC, msg.sender, startingBalance / 4, true);
         IERC20(Contracts.USDC).approve(address(l), startingBalance);
 
-        uint256 returned = l.lend(4, Contracts.USDC, maturity, 1000e6, 0, Contracts.PENDLE_MARKET);
+        Pendle.ApproxParams memory guess = Pendle.ApproxParams(
+            1, 
+            type(uint256).max, 
+            0, 
+            256, 
+            10**15
+        );
+
+        uint256 returned = l.lend(
+            4, 
+            Contracts.USDC, 
+            maturity, 
+            1000e6, 
+            0, 
+            guess, 
+            Contracts.PENDLE_MARKET
+        );
 
         // Make sure the principal tokens were transferred to the lender
         uint256 expectedPts = 1001_796919_373475_488437;

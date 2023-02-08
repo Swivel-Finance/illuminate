@@ -16,6 +16,7 @@ import 'src/mocks/ElementVault.sol' as mock_ev;
 import 'src/mocks/ElementToken.sol' as mock_et;
 import 'src/mocks/Pendle.sol' as mock_p;
 import 'src/mocks/PendleToken.sol' as mock_pt;
+import 'src/mocks/PendleMarket.sol' as mock_pm;
 import 'src/mocks/Tempus.sol' as mock_t;
 import 'src/mocks/TempusPool.sol' as mock_tp;
 import 'src/mocks/TempusAMM.sol' as mock_tamm;
@@ -65,6 +66,7 @@ contract LenderTest is Test {
     mock_et.ElementToken et; // Element's principal token
     mock_p.Pendle p; // Pendle's contract
     mock_pt.PendleToken pt; // Pendle's principal token
+    mock_pm.PendleMarket pm; // Pendle's market for its principal token
     mock_t.Tempus t; // Tempus router
     mock_tp.TempusPool tp; // Tempus pool
     mock_tamm.TempusAMM tamm; // Tempus AMM
@@ -112,6 +114,7 @@ contract LenderTest is Test {
         // pendle setup
         pt = new mock_pt.PendleToken();
         p = new mock_p.Pendle(address(pt));
+        pm = new mock_pm.PendleMarket();
         // tempus setup
         tp = new mock_tp.TempusPool();
         tt = new mock_tt.TempusToken();
@@ -329,12 +332,20 @@ contract LenderTest is Test {
 
     function testPendleLend() public {
         uint256 minReturn = 100;
-        address market = address(new mock_erc20.ERC20());
         // mocks
         mp.marketsReturns(address(pt));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
         p.swapExactTokensForTokensFor(amount - expectedFee);
         ipt.mintReturns(true);
+        pm.readTokensReturns(address(pt));
+
+        Pendle.ApproxParams memory guess = Pendle.ApproxParams(
+            1, 
+            type(uint256).max, 
+            0, 
+            256, 
+            10**15
+        );
 
         // execute
         l.lend(
@@ -343,7 +354,8 @@ contract LenderTest is Test {
             maturity,
             amount,
             minReturn,
-            market
+            guess,
+            address(pm)
         );
 
 
@@ -374,7 +386,7 @@ contract LenderTest is Test {
             plib.Pendle.TokenInput memory tokenInputCalled
         ) = p.swapExactTokenForPtCalled(address(l));
         assertEq(receiverCalled, address(l));
-        assertEq(marketCalled, market);
+        assertEq(marketCalled, address(pm));
         assertEq(minReturnCalled, minReturn);
         assertEq(guessCalled.guessMin, 1);
         assertEq(guessCalled.guessMax, type(uint256).max);

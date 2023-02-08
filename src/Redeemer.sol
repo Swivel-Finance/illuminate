@@ -297,11 +297,17 @@ contract Redeemer {
         // Get the amount of principal tokens held by the lender
         uint256 amount = IERC20(principal).balanceOf(cachedLender);
 
+        // For Pendle, we can transfer directly to the YT
+        address destination = address(this);
+        if (p == uint8(MarketPlace.Principals.Pendle)) {
+            destination = IPendleToken(principal).YT();
+        }
+
         // Receive the principal token from the lender contract
         Safe.transferFrom(
             IERC20(principal),
             cachedLender,
-            address(this),
+            destination,
             amount
         );
 
@@ -318,20 +324,14 @@ contract Redeemer {
             // Retrieve the YT for the PT
             address yt = IPendleToken(principal).YT();
 
-            // Transfer the PTs to the YT contract
-            Safe.transfer(IERC20(principal), yt, amount);
-
             // Redeem the PTs to the SY token
-            IPendleYieldToken(yt).redeemPY(address(this));
+            uint256 syRedeemed = IPendleYieldToken(yt).redeemPY(address(this));
 
             // Retreive the SY token from the PT
             address sy = IPendleToken(principal).SY();
 
-            // Get the shares held by this contract
-            uint256 syHeld = IERC20(sy).balanceOf(address(this));
-
             // Redeem the underlying by unwrapping the SY token
-            IPendleSYToken(sy).redeem(address(this), syHeld, u, 0, false);
+            IPendleSYToken(sy).redeem(address(this), syRedeemed, u, 0, false);
         } else if (p == uint8(MarketPlace.Principals.Tempus)) {
             // Retrieve the pool for the principal token
             address pool = ITempusToken(principal).pool();
