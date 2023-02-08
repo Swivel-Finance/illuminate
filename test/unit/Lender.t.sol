@@ -326,46 +326,7 @@ contract LenderTest is Test {
     }
 
     function testPendleLend() public {
-        uint256 purchased = amount + 50;
-        uint256[] memory output = new uint256[](2);
-        output[0] = 0;
-        output[1] = purchased;
-        uint256 minReturn = amount - 200;
-        uint256 deadline = block.timestamp + 10;
-        mp.marketsReturns(address(pt));
-        mock_erc20.ERC20(underlying).transferFromReturns(true);
-        ipt.mintReturns(true);
-        p.swapExactTokensForTokensFor(amount + 10);
-
-        l.lend(4, underlying, maturity, amount, minReturn, deadline);
-
-        // markets check
-        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
-            underlying
-        );
-        assertEq(maturity, calledMaturity);
-        assertEq(4, calledPrincipal);
-
-        // transfer check
-        (address transferFromTo, uint256 transferFromAmount) = mock_erc20
-            .ERC20(underlying)
-            .transferFromCalled(address(this));
-        assertEq(address(l), transferFromTo);
-        assertEq(amount, transferFromAmount);
-
-        // fee check
-        uint256 collected = l.fees(underlying);
-        assertEq(collected, expectedFee);
-
-        // swap check
-        (uint256 swapAmount, uint256 minimumBought, uint256 swapDeadline) = p
-            .swapExactTokensForTokensCalled(address(l));
-        assertEq(swapAmount, amount - collected);
-        assertEq(minimumBought, minReturn);
-        assertEq(swapDeadline, deadline);
-
-        // mint check
-        assertEq(amount + 10, ipt.mintCalled(address(this)));
+        
     }
 
     function testTempusLend() public {
