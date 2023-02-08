@@ -29,7 +29,6 @@ contract ERC5095Test is Test {
         redeemer = new r.Redeemer(
             address(lender),
             address(0),
-            address(0),
             address(0)
         );
         marketplace = new mp.MarketPlace(address(redeemer), address(lender), address(creator));

@@ -46,7 +46,6 @@ contract RedeemerTest is Test {
         r = new Redeemer(
             address(l),
             Contracts.SWIVEL, // swivel
-            Contracts.PENDLE_ROUTER, // pendle
             Contracts.TEMPUS // tempus
         );
         // Deploy marketplace

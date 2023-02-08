@@ -47,8 +47,6 @@ contract Redeemer {
 
     /// @notice third party contract needed to redeem Swivel PTs
     address public immutable swivelAddr;
-    /// @notice third party contract needed to redeem Pendle PTs
-    address public immutable pendleAddr;
     /// @notice third party contract needed to redeem Tempus PTs
     address public immutable tempusAddr;
 
@@ -110,18 +108,15 @@ contract Redeemer {
     /// @notice Initializes the Redeemer contract
     /// @param l the lender contract
     /// @param s the Swivel contract
-    /// @param p the Pendle contract
     /// @param t the Tempus contract
     constructor(
         address l,
         address s,
-        address p,
         address t
     ) {
         admin = msg.sender;
         lender = l;
         swivelAddr = s;
-        pendleAddr = p;
         tempusAddr = t;
         feenominator = 4000;
     }

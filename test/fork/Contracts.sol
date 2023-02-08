@@ -8,7 +8,7 @@ library Contracts {
     uint256 constant SWIVEL_BLOCK = 15947632;
     // Sushiswap router (https://docs.sushi.com/docs/Developers/Deployment%20Addresses)
     // note used on lender
-    //address constant PENDLE = ;
+    address constant PENDLE = 0x41FAD93F225b5C1C95f2445A5d7fcB85bA46713f;
     uint256 constant PENDLE_BLOCK = 16584081;
     // https://docs.tempus.finance/docs/deployed-contracts (controller)
     address constant TEMPUS = 0xdB5fD0678eED82246b599da6BC36B56157E4beD8;

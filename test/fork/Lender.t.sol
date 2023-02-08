@@ -53,7 +53,6 @@ contract LenderTest is Test {
         r = new Redeemer(
             address(l),
             Contracts.SWIVEL, // swivel
-            Contracts.PENDLE_ROUTER, // pendle
             Contracts.TEMPUS // tempus
         ); // Deploy marketplace
         mp = new MarketPlace(address(r), address(l), address(creator));

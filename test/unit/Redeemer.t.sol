@@ -73,7 +73,6 @@ contract RedeemerTest is Test {
         r = new Redeemer(
             address(0), // lender
             address(sw), // swivel
-            address(p), // pendle
             address(t) // tempus
         );
         // Deploy marketplace
