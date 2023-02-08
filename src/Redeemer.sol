@@ -642,7 +642,7 @@ contract Redeemer {
         return incentiveFee;
     }
 
-    /// @notice Allows for external depsoit of underlying for a market
+    /// @notice Allows for external deposit of underlying for a market
     /// @notice This is to be used in emergency situations where the redeem method is not functioning for a market
     /// @param u address of the underlying asset
     /// @param m maturity of the market

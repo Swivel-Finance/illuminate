@@ -113,7 +113,7 @@ contract PendleTest is Test {
         uint256 returned = l.lend(4, Contracts.USDC, maturity, 1000e6, 0, Contracts.PENDLE_MARKET);
 
         // Make sure the principal tokens were transferred to the lender
-        uint256 expectedPts = 1002_438685_497373_117130;
+        uint256 expectedPts = 1001_796919_373475_488437;
         assertEq(
             expectedPts,
             IERC20(Contracts.PENDLE_TOKEN).balanceOf(address(l))

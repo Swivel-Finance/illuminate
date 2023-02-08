@@ -16,6 +16,8 @@ import 'src/mocks/SwivelToken.sol' as mock_swt;
 import 'src/mocks/YieldToken.sol' as mock_yt;
 import 'src/mocks/ElementToken.sol' as mock_et;
 import 'src/mocks/PendleToken.sol' as mock_pt;
+import 'src/mocks/PendleYieldToken.sol' as mock_pyt;
+import 'src/mocks/PendleStandardYieldToken.sol' as mock_psyt;
 import 'src/mocks/Pendle.sol' as mock_p;
 import 'src/mocks/Tempus.sol' as mock_t;
 import 'src/mocks/TempusToken.sol' as mock_tt;
@@ -50,7 +52,8 @@ contract RedeemerTest is Test {
     mock_yt.YieldToken yt;
     mock_et.ElementToken et;
     mock_pt.PendleToken pt;
-    mock_p.Pendle p;
+    mock_pyt.PendleYieldToken pyt;
+    mock_psyt.PendleStandardYieldToken psyt;
     mock_t.Tempus t;
     mock_tt.TempusToken tt;
     mock_tp.TempusPool tp;
@@ -95,7 +98,8 @@ contract RedeemerTest is Test {
         yt = new mock_yt.YieldToken();
         et = new mock_et.ElementToken();
         pt = new mock_pt.PendleToken();
-        p = new mock_p.Pendle(address(pt));
+        pyt = new mock_pyt.PendleYieldToken();
+        psyt = new mock_psyt.PendleStandardYieldToken();
         tt = new mock_tt.TempusToken();
         tp = new mock_tp.TempusPool();
         t = new mock_t.Tempus(address(tt));
@@ -238,45 +242,48 @@ contract RedeemerTest is Test {
     }
 
     function testPendleRedeem() public {
-        // bytes32 forgeId = bytes32('fixed rate');
-        // address compoundingToken = address(yt); // just use another token address
-        // mp.marketsReturns(address(pt));
-        // pt.expiryReturns(maturity);
-        // pt.forgeReturns(address(pf));
-        // pt.balanceOfReturns(amount);
-        // pt.transferFromReturns(true);
-        // pf.forgeIdReturns(bytes32(forgeId));
-        // pt.underlyingYieldTokenReturns(compoundingToken);
-        // yt.balanceOfReturns(amount);
+        mp.marketsReturns(address(pt));
+        pt.expiryReturns(maturity);
+        pt.balanceOfReturns(amount);
+        pt.transferFromReturns(true);
+        pt.transferReturns(true);
+        pt.YTReturns(address(pyt));
+        pt.SYReturns(address(psyt));
+        pyt.redeemPYReturns(amount);
+        psyt.redeemReturns(amount);
+        psyt.balanceOfReturns(amount);
 
-        // r.redeem(4, underlying, maturity);
+        r.redeem(4, underlying, maturity);
 
-        // // markets check
-        // (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
-        //     underlying
-        // );
-        // assertEq(maturity, calledMaturity);
-        // assertEq(4, calledPrincipal);
-        // // transferFrom check
-        // (address transferFromTo, uint256 transferFromAmount) = mock_erc20
-        //     .ERC20(pt)
-        //     .transferFromCalled(address(l));
-        // assertEq(address(r), transferFromTo);
-        // assertEq(amount, transferFromAmount);
-        // // redeemZcToken check
-        // (bytes32 forgeIdCalled, uint256 maturityCalled) = p
-        //     .redeemAfterExpiryCalled(underlying);
-        // assertEq(forgeId, forgeIdCalled);
-        // assertEq(maturity, maturityCalled);
-        // assertEq(
-        //     keccak256(abi.encodePacked(forgeId)),
-        //     keccak256(abi.encodePacked(forgeIdCalled))
-        // );
-        // (address underlyingCalled, uint256 amountCalled) = c.convertCalled(
-        //     compoundingToken
-        // );
-        // assertEq(underlying, underlyingCalled);
-        // assertEq(amount, amountCalled);
+        // markets check
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
+            underlying
+        );
+        assertEq(maturity, calledMaturity);
+        assertEq(4, calledPrincipal);
+        // transferFrom check
+        (address transferFromTo, uint256 transferFromAmount) = mock_erc20
+            .ERC20(pt)
+            .transferFromCalled(address(l));
+        assertEq(address(r), transferFromTo);
+        assertEq(amount, transferFromAmount);
+        // transfer check
+        assertEq(amount, pt.transferCalled(address(pyt)));
+        // redeemPY check
+        assertEq(pyt.redeemPYCalled(), address(r));
+        // redeem check
+        (
+            address receiverCalled, 
+            uint256 amountCalled, 
+            address assetCalled, 
+            uint256 minimumOutCalled,
+            bool flagCalled
+        ) = psyt.redeemCalled(address(r));
+        assertEq(receiverCalled, address(r));
+        assertEq(amountCalled, amount);
+        assertEq(assetCalled, underlying);
+        assertEq(minimumOutCalled, 0);
+        assertEq(flagCalled, false);
     }
 
     function testTempusRedeem() public {
