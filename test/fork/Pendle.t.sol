@@ -28,14 +28,14 @@ contract PendleTest is Test {
 
     uint256 fork;
 
-    uint256 startingBalance = 100000;
+    uint256 startingBalance = 100e18;
     uint256 maturity = 1680134400 + 100; 
 
     function setUp() public {
         // Fetch RPC URL and block number from environment
         string memory rpc = vm.envString('RPC_URL');
         // Create and select fork
-        fork = vm.createSelectFork(rpc, Contracts.SWIVEL_BLOCK);
+        fork = vm.createSelectFork(rpc, Contracts.PENDLE_BLOCK);
         // Deploy converter
         c = new Converter();
         // Deploy creator
@@ -122,7 +122,7 @@ contract PendleTest is Test {
         vm.warp(maturity + 100);
         deployMarket(Contracts.USDC);
 
-        uint balanceAmount = 10e9;
+        uint balanceAmount = 100e18;
 
         // give lender principal tokens
         deal(Contracts.PENDLE_TOKEN, address(l), balanceAmount);
@@ -130,11 +130,12 @@ contract PendleTest is Test {
         vm.startPrank(msg.sender);
 
         // execute the redemption
-        bool result = r.redeem(1, Contracts.USDC, maturity, 5);
+        bool result = r.redeem(4, Contracts.USDC, maturity);
         assertTrue(result);
 
         // verify that the underlying is now held by the redeemer contract
-        assertEq(IERC20(Contracts.USDC).balanceOf(address(r)), balanceAmount - 1);
+        uint256 expected = 99_968702; // we get back slightly less than 100 usdc
+        assertEq(IERC20(Contracts.USDC).balanceOf(address(r)), expected);
 
         // verify the lender no longer holds the principal token
         assertEq(IERC20(Contracts.PENDLE_TOKEN).balanceOf(address(l)), 0);
