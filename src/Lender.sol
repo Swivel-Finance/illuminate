@@ -680,15 +680,6 @@ contract Lender {
             uint256 fee = a / feenominator;
             fees[u] = fees[u] + fee;
 
-            // // Set up the guess
-            // Pendle.ApproxParams memory guess = Pendle.ApproxParams(
-            //     1, 
-            //     type(uint256).max, 
-            //     0, 
-            //     256, 
-            //     10**15
-            // );
-
             // Setup the token input
             Pendle.TokenInput memory input = Pendle.TokenInput(
                 u,
