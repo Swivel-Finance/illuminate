@@ -2,25 +2,21 @@
 pragma solidity ^0.8.16;
 
 import 'src/mocks/ERC20.sol';
+import 'src/lib/Pendle.sol' as plib;
 
 contract Pendle {
-    struct SwapExactTokensForTokensArgs {
-        uint256 amount;
-        uint256 minimumBought;
-        address[] path;
-        uint256 deadline;
-    }
-
-    struct RedeemAfterExpiryArgs {
-        bytes32 forgeId;
-        uint256 maturity;
+    struct SwapExactTokenForPtArgs {
+        address receiver;
+        address market;
+        uint256 minimum;
+        plib.Pendle.ApproxParams guess;
+        plib.Pendle.TokenInput input;
     }
 
     address pt;
     uint256 swapFor;
-    mapping(address => SwapExactTokensForTokensArgs)
-        public swapExactTokensForTokensCalled;
-    mapping(address => RedeemAfterExpiryArgs) public redeemAfterExpiryCalled;
+    mapping(address => SwapExactTokenForPtArgs)
+        public swapExactTokenForPtCalled;
 
     constructor(address p) {
         pt = p;
@@ -30,33 +26,23 @@ contract Pendle {
         swapFor = a;
     }
 
-    function swapExactTokensForTokens(
-        uint256 a,
-        uint256 m,
-        address[] calldata p,
-        address t,
-        uint256 d
-    ) external returns (uint256[] memory) {
-        swapExactTokensForTokensCalled[t] = SwapExactTokensForTokensArgs(
-            a,
+    function swapExactTokenForPt(
+        address r,
+        address m,
+        uint256 minimum,
+        plib.Pendle.ApproxParams calldata g,
+        plib.Pendle.TokenInput calldata t
+    ) external returns (uint256, uint256) {
+        swapExactTokenForPtCalled[r] = SwapExactTokenForPtArgs(
+            r,
             m,
-            p,
-            d
+            minimum,
+            g,
+            t
         );
         uint256 starting = ERC20(pt).balanceOf(address(0));
         ERC20(pt).balanceOfReturns(starting + swapFor);
 
-        uint256[] memory amounts = new uint256[](3);
-        amounts[2] = swapFor;
-
-        return amounts;
-    }
-
-    function redeemAfterExpiry(
-        bytes32 i,
-        address u,
-        uint256 m
-    ) external {
-        redeemAfterExpiryCalled[u] = RedeemAfterExpiryArgs(i, m);
+        return (swapFor, 0);
     }
 }
