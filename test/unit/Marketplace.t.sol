@@ -113,7 +113,6 @@ contract MarketplaceTest is Test {
         mock_erc20.ERC20 compounding = new mock_erc20.ERC20();
         token6.futureVaultReturns(address(apwfv));
         apwfv.getIBTAddressReturns(address(compounding));
-        token3.underlyingYieldTokenReturns(address(compounding));
 
         c.createReturns(address(ipt));
         ipt.poolReturns(address(pool));
@@ -178,7 +177,6 @@ contract MarketplaceTest is Test {
         mock_erc20.ERC20 compounding = new mock_erc20.ERC20();
         token6.futureVaultReturns(address(apwfv));
         apwfv.getIBTAddressReturns(address(compounding));
-        token3.underlyingYieldTokenReturns(address(compounding));
 
         mp.createMarket(
             underlying,

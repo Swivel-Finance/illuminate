@@ -16,7 +16,6 @@ import 'src/mocks/SwivelToken.sol' as mock_swt;
 import 'src/mocks/YieldToken.sol' as mock_yt;
 import 'src/mocks/ElementToken.sol' as mock_et;
 import 'src/mocks/PendleToken.sol' as mock_pt;
-import 'src/mocks/PendleForge.sol' as mock_pf;
 import 'src/mocks/Pendle.sol' as mock_p;
 import 'src/mocks/Tempus.sol' as mock_t;
 import 'src/mocks/TempusToken.sol' as mock_tt;
@@ -51,7 +50,6 @@ contract RedeemerTest is Test {
     mock_yt.YieldToken yt;
     mock_et.ElementToken et;
     mock_pt.PendleToken pt;
-    mock_pf.PendleForge pf;
     mock_p.Pendle p;
     mock_t.Tempus t;
     mock_tt.TempusToken tt;
@@ -97,7 +95,6 @@ contract RedeemerTest is Test {
         yt = new mock_yt.YieldToken();
         et = new mock_et.ElementToken();
         pt = new mock_pt.PendleToken();
-        pf = new mock_pf.PendleForge();
         p = new mock_p.Pendle(address(pt));
         tt = new mock_tt.TempusToken();
         tp = new mock_tp.TempusPool();

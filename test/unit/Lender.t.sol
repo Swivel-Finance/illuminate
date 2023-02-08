@@ -34,6 +34,8 @@ import 'src/interfaces/IERC20Metadata.sol';
 
 import 'src/errors/Exception.sol';
 
+import 'src/lib/Pendle.sol' as plib;
+
 contract LenderTest is Test {
     Lender l;
 
@@ -61,7 +63,7 @@ contract LenderTest is Test {
     mock_yt.YieldToken yt; // Yield's principal token
     mock_ev.ElementVault ev; // Element's vault
     mock_et.ElementToken et; // Element's principal token
-    mock_p.Pendle p; // Pendle's contract (Sushiswap router)
+    mock_p.Pendle p; // Pendle's contract
     mock_pt.PendleToken pt; // Pendle's principal token
     mock_t.Tempus t; // Tempus router
     mock_tp.TempusPool tp; // Tempus pool
@@ -326,7 +328,67 @@ contract LenderTest is Test {
     }
 
     function testPendleLend() public {
-        
+        uint256 minReturn = 100;
+        address market = address(new mock_erc20.ERC20());
+        // mocks
+        mp.marketsReturns(address(pt));
+        mock_erc20.ERC20(underlying).transferFromReturns(true);
+        p.swapExactTokensForTokensFor(amount - expectedFee);
+        ipt.mintReturns(true);
+
+        // execute
+        l.lend(
+            4,
+            underlying,
+            maturity,
+            amount,
+            minReturn,
+            market
+        );
+
+
+        // markets check
+        (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
+            underlying
+        );
+        assertEq(maturity, calledMaturity);
+        assertEq(4, calledPrincipal);
+
+        // transfer check
+        (address transferFromTo, uint256 transferFromAmount) = mock_erc20
+            .ERC20(underlying)
+            .transferFromCalled(address(this));
+        assertEq(address(l), transferFromTo);
+        assertEq(amount, transferFromAmount);
+
+        // fee check
+        uint256 collected = l.fees(underlying);
+        assertEq(collected, expectedFee);
+
+        // swap check
+        (
+            address receiverCalled, 
+            address marketCalled, 
+            uint256 minReturnCalled,
+            plib.Pendle.ApproxParams memory guessCalled,
+            plib.Pendle.TokenInput memory tokenInputCalled
+        ) = p.swapExactTokenForPtCalled(address(l));
+        assertEq(receiverCalled, address(l));
+        assertEq(marketCalled, market);
+        assertEq(minReturnCalled, minReturn);
+        assertEq(guessCalled.guessMin, 1);
+        assertEq(guessCalled.guessMax, type(uint256).max);
+        assertEq(guessCalled.guessOffchain, 0);
+        assertEq(guessCalled.eps, 10**15);
+        assertEq(tokenInputCalled.tokenIn, underlying);
+        assertEq(tokenInputCalled.netTokenIn, amount - collected);
+        assertEq(tokenInputCalled.tokenMintSy, underlying);
+        assertEq(tokenInputCalled.bulk, address(0));
+        assertEq(tokenInputCalled.kyberRouter, address(0));
+        assertEq(tokenInputCalled.kybercall, '0x00000000000000000000000000000000000000000000000000000000000000');
+
+        // mint check
+        assertEq(amount - collected, ipt.mintCalled(address(this)));
     }
 
     function testTempusLend() public {

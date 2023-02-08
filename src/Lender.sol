@@ -683,7 +683,7 @@ contract Lender {
             // Setup the token input
             Pendle.TokenInput memory input = Pendle.TokenInput(
                 u,
-                a,
+                a - fee,
                 u,
                 address(0),
                 address(0),
