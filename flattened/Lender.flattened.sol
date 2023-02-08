@@ -1569,13 +1569,11 @@ interface IPool {
 }
 
 interface IPendleToken {
-    function underlyingAsset() external returns (address);
+    function SY() external view returns (address);
 
-    function underlyingYieldToken() external returns (address);
+    function YT() external view returns (address);
 
     function expiry() external view returns (uint256);
-
-    function forge() external returns (address);
 }
 
 interface IAPWineToken {
@@ -1770,13 +1768,6 @@ contract MarketPlace {
             // Have the lender contract approve the several contracts
             ILender(lender).approve(u, a, e, t[7], sensePeriphery);
 
-            // Have the redeemer contract approve the Pendle principal token
-            if (t[3] != address(0)) {
-                address underlyingYieldToken = IPendleToken(t[3])
-                    .underlyingYieldToken();
-                IRedeemer(redeemer).approve(underlyingYieldToken);
-            }
-
             // Allow converter to spend interest bearing asset
             if (t[5] != address(0)) {
                 IRedeemer(redeemer).approve(h);
@@ -1817,11 +1808,6 @@ contract MarketPlace {
         if (p == uint8(Principals.Element)) {
             // Approve Element vault if setting Element's principal token
             ILender(lender).approve(u, address(0), h, address(0), address(0));
-        } else if (p == uint8(Principals.Pendle)) {
-            // Principal token must be approved for Pendle's redeem
-            address underlyingYieldToken = IPendleToken(a)
-                .underlyingYieldToken();
-            IRedeemer(redeemer).approve(underlyingYieldToken);
         } else if (p == uint8(Principals.Sense)) {
             // Approve converter to transfer yield token for Sense's redeem
             IRedeemer(redeemer).approve(h);
@@ -2258,6 +2244,27 @@ library Swivel {
     }
 }
 
+library Pendle {
+    struct ApproxParams {
+        uint256 guessMin;
+        uint256 guessMax;
+        uint256 guessOffchain;
+        uint256 maxIteration;
+        uint256 eps;
+    }
+
+    struct TokenInput {
+        // Token/Sy data
+        address tokenIn;
+        uint256 netTokenIn;
+        address tokenMintSy;
+        address bulk;
+        // Kyber data
+        address kyberRouter;
+        bytes kybercall;
+    }
+}
+
 interface IAny {}
 
 library Element {
@@ -2511,19 +2518,17 @@ interface IAPWineRouter {
 }
 
 interface IPendle {
-    function swapExactTokensForTokens(
-        uint256,
-        uint256,
-        address[] calldata,
+    function swapExactTokenForPt(
         address,
-        uint256
-    ) external returns (uint256[] memory);
+        address,
+        uint256,
+        Pendle.ApproxParams calldata,
+        Pendle.TokenInput calldata
+    ) external returns (uint256, uint256);
+}
 
-    function redeemAfterExpiry(
-        bytes32,
-        address,
-        uint256
-    ) external;
+interface IPendleMarket {
+    function readTokens() external view returns (address, address, address);
 }
 
 /// @title Lender
@@ -3147,7 +3152,8 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @param a amount of underlying tokens to lend
     /// @param r slippage limit, minimum amount to PTs to buy
-    /// @param d deadline is a timestamp by which the swap must be executed
+    /// @param g guess parameters for the swap
+    /// @param market contract that corresponds to the market for the PT
     /// @return uint256 the amount of principal tokens lent out
     function lend(
         uint8 p,
@@ -3155,10 +3161,17 @@ contract Lender {
         uint256 m,
         uint256 a,
         uint256 r,
-        uint256 d
+        Pendle.ApproxParams calldata g,
+        address market
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Instantiate market and tokens
         address principal = IMarketPlace(marketPlace).markets(u, m, p);
+
+        // Confirm the market corresponds to this Illuminate market
+        (, address marketPrincipal ,) = IPendleMarket(market).readTokens();
+        if (marketPrincipal != principal) {
+            revert Exception(27, 0, 0, market, principal);
+        }
 
         // Transfer funds from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
@@ -3169,16 +3182,19 @@ contract Lender {
             uint256 fee = a / feenominator;
             fees[u] = fees[u] + fee;
 
-            address[] memory path = new address[](2);
-            path[0] = u;
-            path[1] = principal;
+            // Setup the token input
+            Pendle.TokenInput memory input = Pendle.TokenInput(
+                u,
+                a - fee,
+                u,
+                address(0),
+                address(0),
+                '0x00000000000000000000000000000000000000000000000000000000000000'
+            );
 
             // Swap on the Pendle Router using the provided market and params
-            uint256[] memory amounts = IPendle(pendleAddr)
-                .swapExactTokensForTokens(a - fee, r, path, address(this), d);
-
-            // Get the amount of PTs received
-            returned = amounts[amounts.length - 1];
+            (returned,) = IPendle(pendleAddr)
+                .swapExactTokenForPt(address(this), market, r, g, input);
 
             // Convert decimals from principal token to underlying
             returned = convertDecimals(u, principal, returned);

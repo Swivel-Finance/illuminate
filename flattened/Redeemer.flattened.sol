@@ -1569,13 +1569,11 @@ interface IPool {
 }
 
 interface IPendleToken {
-    function underlyingAsset() external returns (address);
+    function SY() external view returns (address);
 
-    function underlyingYieldToken() external returns (address);
+    function YT() external view returns (address);
 
     function expiry() external view returns (uint256);
-
-    function forge() external returns (address);
 }
 
 interface IAPWineToken {
@@ -1770,13 +1768,6 @@ contract MarketPlace {
             // Have the lender contract approve the several contracts
             ILender(lender).approve(u, a, e, t[7], sensePeriphery);
 
-            // Have the redeemer contract approve the Pendle principal token
-            if (t[3] != address(0)) {
-                address underlyingYieldToken = IPendleToken(t[3])
-                    .underlyingYieldToken();
-                IRedeemer(redeemer).approve(underlyingYieldToken);
-            }
-
             // Allow converter to spend interest bearing asset
             if (t[5] != address(0)) {
                 IRedeemer(redeemer).approve(h);
@@ -1817,11 +1808,6 @@ contract MarketPlace {
         if (p == uint8(Principals.Element)) {
             // Approve Element vault if setting Element's principal token
             ILender(lender).approve(u, address(0), h, address(0), address(0));
-        } else if (p == uint8(Principals.Pendle)) {
-            // Principal token must be approved for Pendle's redeem
-            address underlyingYieldToken = IPendleToken(a)
-                .underlyingYieldToken();
-            IRedeemer(redeemer).approve(underlyingYieldToken);
         } else if (p == uint8(Principals.Sense)) {
             // Approve converter to transfer yield token for Sense's redeem
             IRedeemer(redeemer).approve(h);
@@ -2425,24 +2411,18 @@ interface ISwivel {
     ) external returns (bool);
 }
 
-interface IPendle {
-    function swapExactTokensForTokens(
-        uint256,
-        uint256,
-        address[] calldata,
-        address,
-        uint256
-    ) external returns (uint256[] memory);
-
-    function redeemAfterExpiry(
-        bytes32,
-        address,
-        uint256
-    ) external;
+interface IPendleYieldToken {
+    function redeemPY(address) external returns (uint256);
 }
 
-interface IPendleForge {
-    function forgeId() external returns (bytes32);
+interface IPendleSYToken {
+    function redeem(
+        address,
+        uint256,
+        address,
+        uint256,
+        bool
+    ) external returns (uint256);
 }
 
 interface ISensePeriphery {
@@ -2510,8 +2490,6 @@ contract Redeemer {
 
     /// @notice third party contract needed to redeem Swivel PTs
     address public immutable swivelAddr;
-    /// @notice third party contract needed to redeem Pendle PTs
-    address public immutable pendleAddr;
     /// @notice third party contract needed to redeem Tempus PTs
     address public immutable tempusAddr;
 
@@ -2573,18 +2551,15 @@ contract Redeemer {
     /// @notice Initializes the Redeemer contract
     /// @param l the lender contract
     /// @param s the Swivel contract
-    /// @param p the Pendle contract
     /// @param t the Tempus contract
     constructor(
         address l,
         address s,
-        address p,
         address t
     ) {
         admin = msg.sender;
         lender = l;
         swivelAddr = s;
-        pendleAddr = p;
         tempusAddr = t;
         feenominator = 4000;
     }
@@ -2765,11 +2740,17 @@ contract Redeemer {
         // Get the amount of principal tokens held by the lender
         uint256 amount = IERC20(principal).balanceOf(cachedLender);
 
+        // For Pendle, we can transfer directly to the YT
+        address destination = address(this);
+        if (p == uint8(MarketPlace.Principals.Pendle)) {
+            destination = IPendleToken(principal).YT();
+        }
+
         // Receive the principal token from the lender contract
         Safe.transferFrom(
             IERC20(principal),
             cachedLender,
-            address(this),
+            destination,
             amount
         );
 
@@ -2783,25 +2764,17 @@ contract Redeemer {
             // Redeems principal tokens from Element
             IElementToken(principal).withdrawPrincipal(amount, address(this));
         } else if (p == uint8(MarketPlace.Principals.Pendle)) {
-            // Get the forge contract for the principal token
-            address forge = IPendleToken(principal).forge();
+            // Retrieve the YT for the PT
+            address yt = IPendleToken(principal).YT();
 
-            // Get the forge ID of the principal token
-            bytes32 forgeId = IPendleForge(forge).forgeId();
+            // Redeem the PTs to the SY token
+            uint256 syRedeemed = IPendleYieldToken(yt).redeemPY(address(this));
 
-            // Redeem the tokens from the Pendle contract
-            IPendle(pendleAddr).redeemAfterExpiry(forgeId, u, maturity);
+            // Retreive the SY token from the PT
+            address sy = IPendleToken(principal).SY();
 
-            // Get the compounding asset for this market
-            address compounding = IPendleToken(principal)
-                .underlyingYieldToken();
-
-            // Redeem the compounding to token to the underlying
-            IConverter(converter).convert(
-                compounding,
-                u,
-                IERC20(compounding).balanceOf(address(this))
-            );
+            // Redeem the underlying by unwrapping the SY token
+            IPendleSYToken(sy).redeem(address(this), syRedeemed, u, 0, false);
         } else if (p == uint8(MarketPlace.Principals.Tempus)) {
             // Retrieve the pool for the principal token
             address pool = ITempusToken(principal).pool();
@@ -3112,7 +3085,7 @@ contract Redeemer {
         return incentiveFee;
     }
 
-    /// @notice Allows for external depsoit of underlying for a market
+    /// @notice Allows for external deposit of underlying for a market
     /// @notice This is to be used in emergency situations where the redeem method is not functioning for a market
     /// @param u address of the underlying asset
     /// @param m maturity of the market

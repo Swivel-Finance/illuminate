@@ -579,50 +579,6 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
-        "name": "a",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "r",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "d",
-        "type": "uint256"
-      }
-    ],
-    "name": "lend",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "p",
-        "type": "uint8"
-      },
-      {
-        "internalType": "address",
-        "name": "u",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "m",
-        "type": "uint256"
-      },
-      {
         "internalType": "uint256[]",
         "name": "a",
         "type": "uint256[]"
@@ -905,6 +861,82 @@
       {
         "internalType": "address",
         "name": "x",
+        "type": "address"
+      }
+    ],
+    "name": "lend",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "p",
+        "type": "uint8"
+      },
+      {
+        "internalType": "address",
+        "name": "u",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "m",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "a",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "r",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "guessMin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "guessMax",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "guessOffchain",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxIteration",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "eps",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Pendle.ApproxParams",
+        "name": "g",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "market",
         "type": "address"
       }
     ],
