@@ -20,9 +20,9 @@ import 'src/interfaces/ISwivelToken.sol';
 import 'src/interfaces/IElementToken.sol';
 import 'src/interfaces/IYieldToken.sol';
 import 'src/interfaces/INotional.sol';
-import 'src/interfaces/IPendle.sol';
-import 'src/interfaces/IPendleForge.sol';
 import 'src/interfaces/IPendleToken.sol';
+import 'src/interfaces/IPendleYieldToken.sol';
+import 'src/interfaces/IPendleSYToken.sol';
 import 'src/interfaces/ISensePeriphery.sol';
 import 'src/interfaces/ISenseDivider.sol';
 import 'src/interfaces/ISenseAdapter.sol';
@@ -320,25 +320,23 @@ contract Redeemer {
             // Redeems principal tokens from Element
             IElementToken(principal).withdrawPrincipal(amount, address(this));
         } else if (p == uint8(MarketPlace.Principals.Pendle)) {
-            // Get the forge contract for the principal token
-            address forge = IPendleToken(principal).forge();
+            // Retrieve the YT for the PT
+            address yt = IPendleToken(principal).YT();
 
-            // Get the forge ID of the principal token
-            bytes32 forgeId = IPendleForge(forge).forgeId();
+            // Transfer the PTs to the YT contract
+            Safe.transfer(IERC20(principal), yt, amount);
 
-            // Redeem the tokens from the Pendle contract
-            IPendle(pendleAddr).redeemAfterExpiry(forgeId, u, maturity);
+            // Redeem the PTs to the SY token
+            IPendleYieldToken(yt).redeemPY(address(this));
 
-            // Get the compounding asset for this market
-            address compounding = IPendleToken(principal)
-                .underlyingYieldToken();
+            // Retreive the SY token from the PT
+            address sy = IPendleToken(principal).SY();
 
-            // Redeem the compounding to token to the underlying
-            IConverter(converter).convert(
-                compounding,
-                u,
-                IERC20(compounding).balanceOf(address(this))
-            );
+            // Get the shares held by this contract
+            uint256 syHeld = IERC20(sy).balanceOf(address(this));
+
+            // Redeem the underlying by unwrapping the SY token
+            IPendleSYToken(sy).redeem(address(this), syHeld, u, 0, false);
         } else if (p == uint8(MarketPlace.Principals.Tempus)) {
             // Retrieve the pool for the principal token
             address pool = ITempusToken(principal).pool();
