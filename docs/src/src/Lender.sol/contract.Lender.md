@@ -1,5 +1,5 @@
 # Lender
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/Lender.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/Lender.sol)
 
 **Author:**
 Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -550,7 +550,7 @@ lend method signature for Pendle
 
 
 ```solidity
-function lend(uint8 p, address u, uint256 m, uint256 a, uint256 r, uint256 d)
+function lend(uint8 p, address u, uint256 m, uint256 a, uint256 r, Pendle.ApproxParams calldata g, address market)
     external
     nonReentrant
     unpaused(u, m, p)
@@ -566,7 +566,8 @@ function lend(uint8 p, address u, uint256 m, uint256 a, uint256 r, uint256 d)
 |`m`|`uint256`|maturity (timestamp) of the market|
 |`a`|`uint256`|amount of underlying tokens to lend|
 |`r`|`uint256`|slippage limit, minimum amount to PTs to buy|
-|`d`|`uint256`|deadline is a timestamp by which the swap must be executed|
+|`g`|`ApproxParams.Pendle`|guess parameters for the swap|
+|`market`|`address`|contract that corresponds to the market for the PT|
 
 **Returns**
 

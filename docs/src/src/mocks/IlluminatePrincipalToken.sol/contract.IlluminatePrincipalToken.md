@@ -1,5 +1,5 @@
 # IlluminatePrincipalToken
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/mocks/IlluminatePrincipalToken.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/mocks/IlluminatePrincipalToken.sol)
 
 **Inherits:**
 [ERC20](/src/mocks/ERC20.sol/contract.ERC20.md)

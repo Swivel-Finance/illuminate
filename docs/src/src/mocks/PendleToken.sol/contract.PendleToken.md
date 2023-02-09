@@ -1,18 +1,11 @@
 # PendleToken
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/mocks/PendleToken.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/mocks/PendleToken.sol)
 
 **Inherits:**
 [ERC20](/src/mocks/ERC20.sol/contract.ERC20.md)
 
 
 ## State Variables
-### underlyingAssetReturn
-
-```solidity
-address private underlyingAssetReturn;
-```
-
-
 ### expiryReturn
 
 ```solidity
@@ -20,35 +13,21 @@ uint256 private expiryReturn;
 ```
 
 
-### forgeReturn
+### SYReturn
 
 ```solidity
-address private forgeReturn;
+address private SYReturn;
 ```
 
 
-### underlyingYieldTokenReturn
+### YTReturn
 
 ```solidity
-address private underlyingYieldTokenReturn;
+address private YTReturn;
 ```
 
 
 ## Functions
-### underlyingAssetReturns
-
-
-```solidity
-function underlyingAssetReturns(address a) external;
-```
-
-### underlyingAsset
-
-
-```solidity
-function underlyingAsset() external view returns (address);
-```
-
 ### expiryReturns
 
 
@@ -63,31 +42,31 @@ function expiryReturns(uint256 m) external;
 function expiry() external view returns (uint256);
 ```
 
-### forgeReturns
+### SYReturns
 
 
 ```solidity
-function forgeReturns(address f) external;
+function SYReturns(address s) external;
 ```
 
-### forge
+### SY
 
 
 ```solidity
-function forge() external view returns (address);
+function SY() external view returns (address);
 ```
 
-### underlyingYieldTokenReturns
+### YTReturns
 
 
 ```solidity
-function underlyingYieldTokenReturns(address u) external;
+function YTReturns(address y) external;
 ```
 
-### underlyingYieldToken
+### YT
 
 
 ```solidity
-function underlyingYieldToken() external view returns (address);
+function YT() external view returns (address);
 ```
 

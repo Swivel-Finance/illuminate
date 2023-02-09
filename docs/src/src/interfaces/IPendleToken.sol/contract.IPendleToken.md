@@ -1,20 +1,20 @@
 # IPendleToken
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/ddf95dfbaf2df4d82b6652aff5c2effb5fee45f4/src/interfaces/IPendleToken.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/interfaces/IPendleToken.sol)
 
 
 ## Functions
-### underlyingAsset
+### SY
 
 
 ```solidity
-function underlyingAsset() external returns (address);
+function SY() external view returns (address);
 ```
 
-### underlyingYieldToken
+### YT
 
 
 ```solidity
-function underlyingYieldToken() external returns (address);
+function YT() external view returns (address);
 ```
 
 ### expiry
@@ -22,12 +22,5 @@ function underlyingYieldToken() external returns (address);
 
 ```solidity
 function expiry() external view returns (uint256);
-```
-
-### forge
-
-
-```solidity
-function forge() external returns (address);
 ```
 

@@ -13,11 +13,6 @@
       },
       {
         "internalType": "address",
-        "name": "p",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "t",
         "type": "address"
       }
@@ -450,19 +445,6 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "pendleAddr",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
