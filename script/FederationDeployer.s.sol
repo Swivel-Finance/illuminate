@@ -29,7 +29,6 @@ contract IlluminateFederationDeployer is Script {
         Redeemer redeemer = new Redeemer(
             address(lender),
             swivel,
-            pendle,
             tempus
         );
         MarketPlace marketplace = new MarketPlace(
