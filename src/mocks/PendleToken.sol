@@ -4,18 +4,9 @@ pragma solidity ^0.8.16;
 import 'src/mocks/ERC20.sol';
 
 contract PendleToken is ERC20 {
-    address private underlyingAssetReturn;
     uint256 private expiryReturn;
-    address private forgeReturn;
-    address private underlyingYieldTokenReturn;
-
-    function underlyingAssetReturns(address a) external {
-        underlyingAssetReturn = a;
-    }
-
-    function underlyingAsset() external view returns (address) {
-        return underlyingAssetReturn;
-    }
+    address private SYReturn;
+    address private YTReturn;
 
     function expiryReturns(uint256 m) external {
         expiryReturn = m;
@@ -25,19 +16,19 @@ contract PendleToken is ERC20 {
         return expiryReturn;
     }
 
-    function forgeReturns(address f) external {
-        forgeReturn = f;
+    function SYReturns(address s) external {
+        SYReturn = s;
     }
 
-    function forge() external view returns (address) {
-        return forgeReturn;
+    function SY() external view returns (address) {
+        return SYReturn;
     }
 
-    function underlyingYieldTokenReturns(address u) external {
-        underlyingYieldTokenReturn = u;
+    function YTReturns(address y) external {
+        YTReturn = y;
     }
 
-    function underlyingYieldToken() external view returns (address) {
-        return underlyingYieldTokenReturn;
+    function YT() external view returns (address) {
+        return YTReturn;
     }
 }

@@ -8,9 +8,8 @@ library Contracts {
     uint256 constant SWIVEL_BLOCK = 15947632;
     // Sushiswap router (https://docs.sushi.com/docs/Developers/Deployment%20Addresses)
     // note used on lender
-    address constant PENDLE = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
-    // note used on redeemer
-    address constant PENDLE_ROUTER = 0x1b6d3E5Da9004668E14Ca39d1553E9a46Fe842B3;
+    address constant PENDLE = 0x41FAD93F225b5C1C95f2445A5d7fcB85bA46713f;
+    uint256 constant PENDLE_BLOCK = 16584081;
     // https://docs.tempus.finance/docs/deployed-contracts (controller)
     address constant TEMPUS = 0xdB5fD0678eED82246b599da6BC36B56157E4beD8;
 
@@ -22,7 +21,7 @@ library Contracts {
     // Via the marketplace's markets call with USDC underlying and a maturity of 1664550000 (v2)
     address constant SWIVEL_TOKEN = 0x70e6DBaA67421878681E37FF5C6F1D1C333cC938;
     // Via sushi swap market (Dec 2022 - https://app.pendle.finance/market)
-    address constant PENDLE_TOKEN = 0x8fcb1783bF4b71A51F702aF0c266729C4592204a;
+    address constant PENDLE_TOKEN = 0x5fe30Ac5cb1aBB0e44CdffB2916c254AEb368650;
     // via contracts.json (https://etherscan.io/address/0x53C2a1bA37FF3cDaCcb3EA030DB3De39358e5593#readContract)
     address constant YIELD_TOKEN = 0x53C2a1bA37FF3cDaCcb3EA030DB3De39358e5593;
     // (principal share) https://etherscan.io/address/0xb3ec7facb30b163b1375285ea7ebfeefc41920b9#readContract
@@ -51,6 +50,13 @@ library Contracts {
     address constant TEMPUS_AMM = 0x811f4F0241A9A4583C052c08BDA7F6339DBb13f7;
     // (pool) https://etherscan.io/address/0x443297de16c074fdee19d2c9ecf40fde2f5f62c2#readContract
     address constant TEMPUS_POOL = 0x443297DE16C074fDeE19d2C9eCF40fdE2f5F62C2;
+
+    // Yield Token for Pendle
+    address constant PENDLE_YIELD_TOKEN = 0xC5Cd692e9b4622ab8Cdb57C83A0f99f874A169Cd;
+    // SY Token for Pendle
+    address constant PENDLE_SY_TOKEN = 0xD393D1dDd6B8811A86D925F5E14014282581bC04;
+    // Market
+    address constant PENDLE_MARKET = 0x7b246B8dBC2a640BF2D8221890cEe8327fC23917;
 
     // (pool) https://etherscan.io/address/0xf5ba2E5DdED276fc0f7a7637A61157a4be79C626#writeProxyContract
     address constant APWINE_ROUTER = 0xf5ba2E5DdED276fc0f7a7637A61157a4be79C626;

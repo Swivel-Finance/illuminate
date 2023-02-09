@@ -3,11 +3,9 @@
 pragma solidity 0.8.16;
 
 interface IPendleToken {
-    function underlyingAsset() external returns (address);
+    function SY() external view returns (address);
 
-    function underlyingYieldToken() external returns (address);
+    function YT() external view returns (address);
 
     function expiry() external view returns (uint256);
-
-    function forge() external returns (address);
 }

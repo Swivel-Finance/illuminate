@@ -4,6 +4,7 @@ pragma solidity 0.8.16;
 
 import 'src/MarketPlace.sol';
 import 'src/lib/Swivel.sol';
+import 'src/lib/Pendle.sol';
 import 'src/lib/Element.sol';
 import 'src/lib/Safe.sol';
 import 'src/lib/Cast.sol';
@@ -26,6 +27,7 @@ import 'src/interfaces/IAPWineAMMPool.sol';
 import 'src/interfaces/IAPWineRouter.sol';
 import 'src/interfaces/INotional.sol';
 import 'src/interfaces/IPendle.sol';
+import 'src/interfaces/IPendleMarket.sol';
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -648,7 +650,8 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @param a amount of underlying tokens to lend
     /// @param r slippage limit, minimum amount to PTs to buy
-    /// @param d deadline is a timestamp by which the swap must be executed
+    /// @param g guess parameters for the swap
+    /// @param market contract that corresponds to the market for the PT
     /// @return uint256 the amount of principal tokens lent out
     function lend(
         uint8 p,
@@ -656,10 +659,17 @@ contract Lender {
         uint256 m,
         uint256 a,
         uint256 r,
-        uint256 d
+        Pendle.ApproxParams calldata g,
+        address market
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Instantiate market and tokens
         address principal = IMarketPlace(marketPlace).markets(u, m, p);
+
+        // Confirm the market corresponds to this Illuminate market
+        (, address marketPrincipal ,) = IPendleMarket(market).readTokens();
+        if (marketPrincipal != principal) {
+            revert Exception(27, 0, 0, market, principal);
+        }
 
         // Transfer funds from user to Illuminate
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
@@ -670,16 +680,19 @@ contract Lender {
             uint256 fee = a / feenominator;
             fees[u] = fees[u] + fee;
 
-            address[] memory path = new address[](2);
-            path[0] = u;
-            path[1] = principal;
+            // Setup the token input
+            Pendle.TokenInput memory input = Pendle.TokenInput(
+                u,
+                a - fee,
+                u,
+                address(0),
+                address(0),
+                '0x00000000000000000000000000000000000000000000000000000000000000'
+            );
 
             // Swap on the Pendle Router using the provided market and params
-            uint256[] memory amounts = IPendle(pendleAddr)
-                .swapExactTokensForTokens(a - fee, r, path, address(this), d);
-
-            // Get the amount of PTs received
-            returned = amounts[amounts.length - 1];
+            (returned,) = IPendle(pendleAddr)
+                .swapExactTokenForPt(address(this), market, r, g, input);
 
             // Convert decimals from principal token to underlying
             returned = convertDecimals(u, principal, returned);

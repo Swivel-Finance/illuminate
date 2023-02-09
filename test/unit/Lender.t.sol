@@ -16,6 +16,7 @@ import 'src/mocks/ElementVault.sol' as mock_ev;
 import 'src/mocks/ElementToken.sol' as mock_et;
 import 'src/mocks/Pendle.sol' as mock_p;
 import 'src/mocks/PendleToken.sol' as mock_pt;
+import 'src/mocks/PendleMarket.sol' as mock_pm;
 import 'src/mocks/Tempus.sol' as mock_t;
 import 'src/mocks/TempusPool.sol' as mock_tp;
 import 'src/mocks/TempusAMM.sol' as mock_tamm;
@@ -33,6 +34,8 @@ import 'src/mocks/Notional.sol' as mock_n;
 import 'src/interfaces/IERC20Metadata.sol';
 
 import 'src/errors/Exception.sol';
+
+import 'src/lib/Pendle.sol' as plib;
 
 contract LenderTest is Test {
     Lender l;
@@ -61,8 +64,9 @@ contract LenderTest is Test {
     mock_yt.YieldToken yt; // Yield's principal token
     mock_ev.ElementVault ev; // Element's vault
     mock_et.ElementToken et; // Element's principal token
-    mock_p.Pendle p; // Pendle's contract (Sushiswap router)
+    mock_p.Pendle p; // Pendle's contract
     mock_pt.PendleToken pt; // Pendle's principal token
+    mock_pm.PendleMarket pm; // Pendle's market for its principal token
     mock_t.Tempus t; // Tempus router
     mock_tp.TempusPool tp; // Tempus pool
     mock_tamm.TempusAMM tamm; // Tempus AMM
@@ -110,6 +114,7 @@ contract LenderTest is Test {
         // pendle setup
         pt = new mock_pt.PendleToken();
         p = new mock_p.Pendle(address(pt));
+        pm = new mock_pm.PendleMarket();
         // tempus setup
         tp = new mock_tp.TempusPool();
         tt = new mock_tt.TempusToken();
@@ -326,18 +331,33 @@ contract LenderTest is Test {
     }
 
     function testPendleLend() public {
-        uint256 purchased = amount + 50;
-        uint256[] memory output = new uint256[](2);
-        output[0] = 0;
-        output[1] = purchased;
-        uint256 minReturn = amount - 200;
-        uint256 deadline = block.timestamp + 10;
+        uint256 minReturn = 100;
+        // mocks
         mp.marketsReturns(address(pt));
         mock_erc20.ERC20(underlying).transferFromReturns(true);
+        p.swapExactTokensForTokensFor(amount - expectedFee);
         ipt.mintReturns(true);
-        p.swapExactTokensForTokensFor(amount + 10);
+        pm.readTokensReturns(address(pt));
 
-        l.lend(4, underlying, maturity, amount, minReturn, deadline);
+        Pendle.ApproxParams memory guess = Pendle.ApproxParams(
+            1, 
+            type(uint256).max, 
+            0, 
+            256, 
+            10**15
+        );
+
+        // execute
+        l.lend(
+            4,
+            underlying,
+            maturity,
+            amount,
+            minReturn,
+            guess,
+            address(pm)
+        );
+
 
         // markets check
         (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
@@ -358,14 +378,29 @@ contract LenderTest is Test {
         assertEq(collected, expectedFee);
 
         // swap check
-        (uint256 swapAmount, uint256 minimumBought, uint256 swapDeadline) = p
-            .swapExactTokensForTokensCalled(address(l));
-        assertEq(swapAmount, amount - collected);
-        assertEq(minimumBought, minReturn);
-        assertEq(swapDeadline, deadline);
+        (
+            address receiverCalled, 
+            address marketCalled, 
+            uint256 minReturnCalled,
+            plib.Pendle.ApproxParams memory guessCalled,
+            plib.Pendle.TokenInput memory tokenInputCalled
+        ) = p.swapExactTokenForPtCalled(address(l));
+        assertEq(receiverCalled, address(l));
+        assertEq(marketCalled, address(pm));
+        assertEq(minReturnCalled, minReturn);
+        assertEq(guessCalled.guessMin, 1);
+        assertEq(guessCalled.guessMax, type(uint256).max);
+        assertEq(guessCalled.guessOffchain, 0);
+        assertEq(guessCalled.eps, 10**15);
+        assertEq(tokenInputCalled.tokenIn, underlying);
+        assertEq(tokenInputCalled.netTokenIn, amount - collected);
+        assertEq(tokenInputCalled.tokenMintSy, underlying);
+        assertEq(tokenInputCalled.bulk, address(0));
+        assertEq(tokenInputCalled.kyberRouter, address(0));
+        assertEq(tokenInputCalled.kybercall, '0x00000000000000000000000000000000000000000000000000000000000000');
 
         // mint check
-        assertEq(amount + 10, ipt.mintCalled(address(this)));
+        assertEq(amount - collected, ipt.mintCalled(address(this)));
     }
 
     function testTempusLend() public {

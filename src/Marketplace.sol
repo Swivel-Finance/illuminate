@@ -188,13 +188,6 @@ contract MarketPlace {
             // Have the lender contract approve the several contracts
             ILender(lender).approve(u, a, e, t[7], sensePeriphery);
 
-            // Have the redeemer contract approve the Pendle principal token
-            if (t[3] != address(0)) {
-                address underlyingYieldToken = IPendleToken(t[3])
-                    .underlyingYieldToken();
-                IRedeemer(redeemer).approve(underlyingYieldToken);
-            }
-
             // Allow converter to spend interest bearing asset
             if (t[5] != address(0)) {
                 IRedeemer(redeemer).approve(h);
@@ -235,11 +228,6 @@ contract MarketPlace {
         if (p == uint8(Principals.Element)) {
             // Approve Element vault if setting Element's principal token
             ILender(lender).approve(u, address(0), h, address(0), address(0));
-        } else if (p == uint8(Principals.Pendle)) {
-            // Principal token must be approved for Pendle's redeem
-            address underlyingYieldToken = IPendleToken(a)
-                .underlyingYieldToken();
-            IRedeemer(redeemer).approve(underlyingYieldToken);
         } else if (p == uint8(Principals.Sense)) {
             // Approve converter to transfer yield token for Sense's redeem
             IRedeemer(redeemer).approve(h);

@@ -46,7 +46,6 @@ contract RedeemerTest is Test {
         r = new Redeemer(
             address(l),
             Contracts.SWIVEL, // swivel
-            Contracts.PENDLE_ROUTER, // pendle
             Contracts.TEMPUS // tempus
         );
         // Deploy marketplace
@@ -296,59 +295,6 @@ contract RedeemerTest is Test {
         assertGt(IERC20(Contracts.STETH).balanceOf(address(r)), 0);
         // verify the lender no longer holds the principal token
         assertEq(IERC20(principalToken).balanceOf(address(l)), 0);
-    }
-
-    function testPendleRedeem() public {
-        deployMarket(Contracts.USDC, 0);
-
-        // give lender principal tokens
-        address principalToken = Contracts.PENDLE_TOKEN;
-        deal(principalToken, address(l), startingBalance);
-
-        // execute the redemption
-        r.redeem(4, Contracts.USDC, maturity);
-
-        // verify that the underlying is now held by the redeemer contract
-        // note in the case of pendle, the compounding token is redeemed,
-        // not the underlying asset for the given market
-        assertGt(IERC20(Contracts.USDC).balanceOf(address(r)), 0);
-        // verify the lender no longer holds the principal token
-        assertEq(IERC20(principalToken).balanceOf(address(l)), 0);
-    }
-
-    function testAutoRedeem() public {
-        deployMarket(Contracts.USDC, 0);
-
-        address user = 0x7111F9Aeb2C1b9344EC274780dc9e3806bdc60Ef;
-
-        address principalToken = mp.markets(Contracts.USDC, maturity, 0);
-
-        // starting balances
-        deal(principalToken, user, startingBalance, true);
-        deal(Contracts.USDC, address(r), startingBalance);
-        // update holdings
-        stdstore
-            .target(address(r))
-            .sig('holdings(address,uint256)')
-            .with_key(Contracts.USDC).with_key(maturity)
-            .depth(0)
-            .checked_write(startingBalance);
-
-        vm.startPrank(user);
-        IERC20(principalToken).approve(address(r), startingBalance);
-        vm.stopPrank();
-
-        // call autoRedeem
-        address[] memory onBehalfOf = new address[](1);
-        onBehalfOf[0] = user;
-
-        uint256 fee = r.autoRedeem(Contracts.USDC, maturity, onBehalfOf);
-
-        // check balances
-        assertEq(IERC20(Contracts.USDC).balanceOf(address(r)), 0);
-        assertEq(IERC20(Contracts.USDC).balanceOf(user), startingBalance - fee);
-        assertEq(IERC20(principalToken).balanceOf(user), 0);
-        assertEq(IERC20(Contracts.USDC).balanceOf(address(this)), fee);
     }
 
     function testFailAutoRedeemInsufficientAllowance() public {

@@ -53,7 +53,6 @@ contract LenderTest is Test {
         r = new Redeemer(
             address(l),
             Contracts.SWIVEL, // swivel
-            Contracts.PENDLE_ROUTER, // pendle
             Contracts.TEMPUS // tempus
         ); // Deploy marketplace
         mp = new MarketPlace(address(r), address(l), address(creator));
@@ -173,33 +172,6 @@ contract LenderTest is Test {
         // Make sure the same amount of iPTs were minted to the user
         address ipt = mp.markets(Contracts.USDC, maturity, 0);
         assertEq(expected, IERC20(ipt).balanceOf(msg.sender));
-    }
-
-    function testPendleLend() public {
-        // Set up the market
-        deployMarket(Contracts.USDC);
-
-        // Approve the sender's activities and call lend from the sender
-        runCheatcodes(Contracts.USDC);
-
-        uint256 returned = l.lend(
-            uint8(4),
-            Contracts.USDC,
-            maturity,
-            amount,
-            minReturn,
-            deadline
-        );
-
-        // Make sure the principal tokens were transferred to the lender
-        assertEq(
-            returned,
-            IERC20(Contracts.PENDLE_TOKEN).balanceOf(address(l))
-        );
-
-        // Make sure the same amount of iPTs were minted to the user
-        address ipt = mp.markets(Contracts.USDC, maturity, 0);
-        assertEq(returned, IERC20(ipt).balanceOf(msg.sender));
     }
 
     function testNotionalLend() public {
