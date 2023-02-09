@@ -1,5 +1,5 @@
 # YieldToken
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/29a4038ae0d0795d36640f068da3ac5c1dd43806/src/mocks/YieldToken.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/mocks/YieldToken.sol)
 
 **Inherits:**
 [IYieldToken](/src/interfaces/IYieldToken.sol/contract.IYieldToken.md), [ERC20](/src/mocks/ERC20.sol/contract.ERC20.md)
