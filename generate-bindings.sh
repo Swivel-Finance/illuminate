@@ -36,3 +36,10 @@ forge flatten src/Creator.sol --output flattened/Creator.flattened.sol
 forge inspect flattened/Creator.flattened.sol:Creator abi > abi/Creator.abi
 
 abigen --abi ./abi/Creator.abi -pkg illuminate -type Creator -out ./bindings/creator.go
+
+# ERC5095
+forge flatten src/tokens/ERC5095.sol --output flattened/ERC5095.flattened.sol
+
+forge inspect flattened/ERC5095.flattened.sol:ERC5095 abi > abi/ERC5095.abi
+
+abigen --abi ./abi/ERC5095.abi -pkg illuminate -type ERC5095 -out ./bindings/erc5095.go
