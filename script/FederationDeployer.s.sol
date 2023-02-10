@@ -39,14 +39,17 @@ contract IlluminateFederationDeployer is Script {
         Converter converter = new Converter();
 
         // Call basic setters
+        creator.setMarketPlace(address(marketplace));
         lender.setMarketPlace(address(marketplace));
         redeemer.setMarketPlace(address(marketplace));
         redeemer.setConverter(address(converter), new address[](0));
 
         // Set the admin
-        lender.setAdmin(admin);
-        redeemer.setAdmin(admin);
-        marketplace.setAdmin(admin);
+        if (admin != address(0)) {
+            lender.setAdmin(admin);
+            redeemer.setAdmin(admin);
+            marketplace.setAdmin(admin);
+        }
 
         vm.stopBroadcast();
     }
