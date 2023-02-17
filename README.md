@@ -52,6 +52,10 @@ Illuminate's smart contracts are located here, stored by version. Their associat
 
 To build the project, run `forge build --via-ir`.
 
+### Documentation
+
+To serve the docs locally, run `forge doc --serve`.
+
 ### Testing 
 
 To run tests, install Foundry and use `forge test`. To operate the tests in `test/fork`, you will have to provide an RPC url and block number via an environment variable. The following is an example command to call the tests:
