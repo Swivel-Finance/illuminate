@@ -214,12 +214,17 @@ contract LenderTest is Test {
         // fee
         assertEq(fee, collected);
         // initiate
-        assertEq(total - total / feenominator, sw.initiateCalledAmount(address(yt)));
+        assertEq(
+            total - total / feenominator,
+            sw.initiateCalledAmount(address(yt))
+        );
         assertEq(components[1].v, sw.initiateCalledSignature(address(yt)));
         // mint
-        uint256 expectedPremium = (total - (total / feenominator)) / 2 - (total / feenominator);
+        uint256 expectedPremium = (total - (total / feenominator)) /
+            2 -
+            (total / feenominator);
         expectedPremium = expectedPremium - expectedPremium / feenominator;
-        
+
         uint256 expectedLentOnSwivel = total - total / feenominator;
         assertEq(
             expectedLentOnSwivel + expectedPremium,
@@ -340,24 +345,15 @@ contract LenderTest is Test {
         pm.readTokensReturns(address(pt));
 
         Pendle.ApproxParams memory guess = Pendle.ApproxParams(
-            1, 
-            type(uint256).max, 
-            0, 
-            256, 
+            1,
+            type(uint256).max,
+            0,
+            256,
             10**15
         );
 
         // execute
-        l.lend(
-            4,
-            underlying,
-            maturity,
-            amount,
-            minReturn,
-            guess,
-            address(pm)
-        );
-
+        l.lend(4, underlying, maturity, amount, minReturn, guess, address(pm));
 
         // markets check
         (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
@@ -379,8 +375,8 @@ contract LenderTest is Test {
 
         // swap check
         (
-            address receiverCalled, 
-            address marketCalled, 
+            address receiverCalled,
+            address marketCalled,
             uint256 minReturnCalled,
             plib.Pendle.ApproxParams memory guessCalled,
             plib.Pendle.TokenInput memory tokenInputCalled
@@ -397,7 +393,10 @@ contract LenderTest is Test {
         assertEq(tokenInputCalled.tokenMintSy, underlying);
         assertEq(tokenInputCalled.bulk, address(0));
         assertEq(tokenInputCalled.kyberRouter, address(0));
-        assertEq(tokenInputCalled.kybercall, '0x00000000000000000000000000000000000000000000000000000000000000');
+        assertEq(
+            tokenInputCalled.kybercall,
+            '0x00000000000000000000000000000000000000000000000000000000000000'
+        );
 
         // mint check
         assertEq(amount - collected, ipt.mintCalled(address(this)));

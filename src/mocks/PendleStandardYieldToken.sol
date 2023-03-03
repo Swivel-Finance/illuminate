@@ -20,7 +20,13 @@ contract PendleStandardYieldToken is ERC20 {
         redeemReturn = r;
     }
 
-    function redeem(address r, uint256 a, address u, uint256 m, bool f) external returns (uint256) {
+    function redeem(
+        address r,
+        uint256 a,
+        address u,
+        uint256 m,
+        bool f
+    ) external returns (uint256) {
         redeemCalled[r] = RedeemCalledArgs(r, a, u, m, f);
 
         return redeemReturn;

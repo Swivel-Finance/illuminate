@@ -666,7 +666,7 @@ contract Lender {
         address principal = IMarketPlace(marketPlace).markets(u, m, p);
 
         // Confirm the market corresponds to this Illuminate market
-        (, address marketPrincipal ,) = IPendleMarket(market).readTokens();
+        (, address marketPrincipal, ) = IPendleMarket(market).readTokens();
         if (marketPrincipal != principal) {
             revert Exception(27, 0, 0, market, principal);
         }
@@ -691,8 +691,13 @@ contract Lender {
             );
 
             // Swap on the Pendle Router using the provided market and params
-            (returned,) = IPendle(pendleAddr)
-                .swapExactTokenForPt(address(this), market, r, g, input);
+            (returned, ) = IPendle(pendleAddr).swapExactTokenForPt(
+                address(this),
+                market,
+                r,
+                g,
+                input
+            );
 
             // Convert decimals from principal token to underlying
             returned = convertDecimals(u, principal, returned);
@@ -903,7 +908,7 @@ contract Lender {
     ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
         // Confirm that we are using Notional's PT to avoid conflicts with other ERC4626 tokens
         if (p != uint8(MarketPlace.Principals.Notional)) {
-            revert Exception(6, p, 0,address(0), address(0));
+            revert Exception(6, p, 0, address(0), address(0));
         }
 
         // Instantiate Notional princpal token

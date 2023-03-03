@@ -304,12 +304,7 @@ contract Redeemer {
         }
 
         // Receive the principal token from the lender contract
-        Safe.transferFrom(
-            IERC20(principal),
-            cachedLender,
-            destination,
-            amount
-        );
+        Safe.transferFrom(IERC20(principal), cachedLender, destination, amount);
 
         // Get the starting balance of the underlying held by the redeemer
         uint256 starting = IERC20(u).balanceOf(address(this));
@@ -647,7 +642,11 @@ contract Redeemer {
     /// @param u address of the underlying asset
     /// @param m maturity of the market
     /// @param a amount of underlying to be deposited
-    function depositHoldings(address u, uint256 m, uint256 a) external {
+    function depositHoldings(
+        address u,
+        uint256 m,
+        uint256 a
+    ) external {
         // Receive the underlying asset from the admin
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
 
