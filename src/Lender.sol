@@ -1279,7 +1279,7 @@ contract Lender {
         // Cache max value
         uint256 maxValue = maximumValue;
 
-        // Transactions of greater than ~2M USD are rate limited
+        // Transactions of greater than the max value of USD are rate limited
         if (valueToMint > maxValue) {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
@@ -1298,7 +1298,7 @@ contract Lender {
             // Reset the period
             periodStart[p] = block.timestamp;
         }
-        // If more than 2M USD has flowed through the protocol, revert
+        // If more than the max USD has flowed through the protocol, revert
         else if (flow > maxValue) {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }

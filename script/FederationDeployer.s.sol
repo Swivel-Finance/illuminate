@@ -19,7 +19,7 @@ contract IlluminateFederationDeployer is Script {
 
     function run() external {
         // setup deployer contract
-        uint256 deployerPrivateKey = vm.envUint('');
+        uint256 deployerPrivateKey = vm.envUint('MAINNET_PRIVATE_KEY');
 
         vm.startBroadcast(deployerPrivateKey);
 
