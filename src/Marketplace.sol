@@ -114,11 +114,7 @@ contract MarketPlace {
     /// @param r address of the deployed redeemer contract
     /// @param l address of the deployed lender contract
     /// @param c address of the deployed creator contract
-    constructor(
-        address r,
-        address l,
-        address c
-    ) {
+    constructor(address r, address l, address c) {
         admin = msg.sender;
         redeemer = r;
         lender = l;
@@ -294,7 +290,7 @@ contract MarketPlace {
         // Set the pool for the principal token
         pt.setPool(a);
 
-        // Approve the marketplace to spend the principal and underlying tokens 
+        // Approve the marketplace to spend the principal and underlying tokens
         pt.approveMarketPlace();
 
         emit SetPool(u, m, a);
@@ -333,7 +329,7 @@ contract MarketPlace {
         );
 
         // Execute the swap
-        uint128 received = pool.sellFYToken(msg.sender, Cast.u128(expected));
+        uint128 received = pool.sellFYToken(msg.sender, s);
         emit Swap(u, m, address(pool.fyToken()), u, received, a, msg.sender);
 
         return received;
@@ -372,7 +368,7 @@ contract MarketPlace {
         );
 
         // Execute the swap to purchase `a` base tokens
-        uint128 spent = pool.buyFYToken(msg.sender, a, expected);
+        uint128 spent = pool.buyFYToken(msg.sender, a, s);
 
         emit Swap(u, m, u, address(pool.fyToken()), a, spent, msg.sender);
         return spent;
@@ -405,7 +401,7 @@ contract MarketPlace {
         Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
 
         // Execute the swap
-        uint128 received = pool.sellBase(msg.sender, expected);
+        uint128 received = pool.sellBase(msg.sender, s);
 
         emit Swap(u, m, u, address(pool.fyToken()), received, a, msg.sender);
         return received;
@@ -444,7 +440,7 @@ contract MarketPlace {
         );
 
         // Execute the swap to purchase `a` underlying tokens
-        uint128 spent = pool.buyBase(msg.sender, a, Cast.u128(expected));
+        uint128 spent = pool.buyBase(msg.sender, a, s);
 
         emit Swap(u, m, address(pool.fyToken()), u, a, spent, msg.sender);
         return spent;
@@ -469,14 +465,7 @@ contract MarketPlace {
         uint256 p,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -518,14 +507,7 @@ contract MarketPlace {
         uint256 p,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -560,14 +542,7 @@ contract MarketPlace {
         uint256 a,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -626,11 +601,9 @@ contract MarketPlace {
 
     /// @notice Allows batched call to self (this contract).
     /// @param c An array of inputs for each call.
-    function batch(bytes[] calldata c)
-        external
-        payable
-        returns (bytes[] memory results)
-    {
+    function batch(
+        bytes[] calldata c
+    ) external payable returns (bytes[] memory results) {
         results = new bytes[](c.length);
         for (uint256 i; i < c.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(
