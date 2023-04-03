@@ -1718,11 +1718,7 @@ contract MarketPlace {
     /// @param r address of the deployed redeemer contract
     /// @param l address of the deployed lender contract
     /// @param c address of the deployed creator contract
-    constructor(
-        address r,
-        address l,
-        address c
-    ) {
+    constructor(address r, address l, address c) {
         admin = msg.sender;
         redeemer = r;
         lender = l;
@@ -1881,14 +1877,6 @@ contract MarketPlace {
         uint256 m,
         address a
     ) external authorized(admin) returns (bool) {
-        // Verify that the pool has not already been set
-        address pool = pools[u][m];
-
-        // Revert if the pool already exists
-        if (pool != address(0)) {
-            revert Exception(10, 0, 0, pool, address(0));
-        }
-
         // Set the pool
         pools[u][m] = a;
 
@@ -2073,14 +2061,7 @@ contract MarketPlace {
         uint256 p,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -2122,14 +2103,7 @@ contract MarketPlace {
         uint256 p,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -2164,14 +2138,7 @@ contract MarketPlace {
         uint256 a,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -2230,11 +2197,9 @@ contract MarketPlace {
 
     /// @notice Allows batched call to self (this contract).
     /// @param c An array of inputs for each call.
-    function batch(bytes[] calldata c)
-        external
-        payable
-        returns (bytes[] memory results)
-    {
+    function batch(
+        bytes[] calldata c
+    ) external payable returns (bytes[] memory results) {
         results = new bytes[](c.length);
         for (uint256 i; i < c.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(
@@ -2608,7 +2573,7 @@ contract Lender {
 
     // Rate limiting protection
     /// @notice maximum amount of value that can flow through a protocol in a day (in USD)
-    uint256 public constant MAX_VALUE = 2_000_000e27;
+    uint256 public maximumValue = 250_000e27;
     /// @notice maps protocols to how much value, in USD, has flowed through each protocol
     mapping(uint8 => uint256) public protocolFlow;
     /// @notice timestamp from which values flowing through protocol has begun
@@ -2703,11 +2668,7 @@ contract Lender {
     /// @param s the Swivel contract
     /// @param p the Pendle contract
     /// @param a the APWine contract
-    constructor(
-        address s,
-        address p,
-        address a
-    ) {
+    constructor(address s, address p, address a) {
         admin = msg.sender;
         swivelAddr = s;
         pendleAddr = p;
@@ -2748,11 +2709,10 @@ contract Lender {
     /// @param u array of ERC20 token addresses that will be approved on
     /// @param a array of addresses that will be approved
     /// @return true if successful
-    function approve(address[] calldata u, address[] calldata a)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function approve(
+        address[] calldata u,
+        address[] calldata a
+    ) external authorized(admin) returns (bool) {
         for (uint256 i; i != u.length; ) {
             IERC20 uToken = IERC20(u[i]);
             if (address(0) != (address(uToken))) {
@@ -2833,11 +2793,9 @@ contract Lender {
     /// @notice sets the address of the marketplace contract which contains the addresses of all the fixed rate markets
     /// @param m the address of the marketplace contract
     /// @return bool true if the address was set
-    function setMarketPlace(address m)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function setMarketPlace(
+        address m
+    ) external authorized(admin) returns (bool) {
         if (marketPlace != address(0)) {
             revert Exception(5, 0, 0, marketPlace, address(0));
         }
@@ -2848,12 +2806,18 @@ contract Lender {
     /// @notice sets the ethereum price which is used in rate limiting
     /// @param p the new price
     /// @return bool true if the price was set
-    function setEtherPrice(uint256 p)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function setEtherPrice(
+        uint256 p
+    ) external authorized(admin) returns (bool) {
         etherPrice = p;
+        return true;
+    }
+
+    /// @notice sets the maximum value that can flow through a protocol
+    /// @param m the maximum value by protocol
+    /// @return bool true if the price was set
+    function setMaxValue(uint256 m) external authorized(admin) returns (bool) {
+        maximumValue = m;
         return true;
     }
 
@@ -3480,11 +3444,9 @@ contract Lender {
     /// @notice allows the admin to schedule the withdrawal of tokens
     /// @param e address of (erc20) token to withdraw
     /// @return bool true if successful
-    function scheduleWithdrawal(address e)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function scheduleWithdrawal(
+        address e
+    ) external authorized(admin) returns (bool) {
         // Calculate the timestamp that must be passed prior to withdrawal
         uint256 when = block.timestamp + HOLD;
 
@@ -3498,11 +3460,9 @@ contract Lender {
     /// @notice emergency function to block unplanned withdrawals
     /// @param e address of token withdrawal to block
     /// @return bool true if successful
-    function blockWithdrawal(address e)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function blockWithdrawal(
+        address e
+    ) external authorized(admin) returns (bool) {
         // Resets threshold to 0 for the token, stopping withdrawl of the token
         delete withdrawals[e];
 
@@ -3604,10 +3564,10 @@ contract Lender {
     /// @notice Tranfers FYTs to Redeemer (used specifically for APWine redemptions)
     /// @param f FYT contract address
     /// @param a amount of tokens to send to the redeemer
-    function transferFYTs(address f, uint256 a)
-        external
-        authorized(IMarketPlace(marketPlace).redeemer())
-    {
+    function transferFYTs(
+        address f,
+        uint256 a
+    ) external authorized(IMarketPlace(marketPlace).redeemer()) {
         // Transfer the Lender's FYT tokens to the Redeemer
         Safe.transfer(IERC20(f), IMarketPlace(marketPlace).redeemer(), a);
     }
@@ -3615,10 +3575,10 @@ contract Lender {
     /// @notice Transfers premium from the market to Redeemer (used specifically for Swivel redemptions)
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    function transferPremium(address u, uint256 m)
-        external
-        authorized(IMarketPlace(marketPlace).redeemer())
-    {
+    function transferPremium(
+        address u,
+        uint256 m
+    ) external authorized(IMarketPlace(marketPlace).redeemer()) {
         Safe.transfer(
             IERC20(u),
             IMarketPlace(marketPlace).redeemer(),
@@ -3630,11 +3590,9 @@ contract Lender {
 
     /// @notice Allows batched call to self (this contract).
     /// @param c An array of inputs for each call.
-    function batch(bytes[] calldata c)
-        external
-        payable
-        returns (bytes[] memory results)
-    {
+    function batch(
+        bytes[] calldata c
+    ) external payable returns (bytes[] memory results) {
         results = new bytes[](c.length);
 
         for (uint256 i; i < c.length; i++) {
@@ -3793,9 +3751,9 @@ contract Lender {
         // Determine which asset has more decimals
         if (underlyingDecimals > principalDecimals) {
             // Shift decimals accordingly
-            return a * 10**(underlyingDecimals - principalDecimals);
+            return a * 10 ** (underlyingDecimals - principalDecimals);
         }
-        return a / 10**(principalDecimals - underlyingDecimals);
+        return a / 10 ** (principalDecimals - underlyingDecimals);
     }
 
     /// @notice limits the amount of funds (in USD value) that can flow through a principal in a day
@@ -3803,11 +3761,7 @@ contract Lender {
     /// @param u address of an underlying asset
     /// @param a amount being minted which is normalized to 18 decimals prior to check
     /// @return bool true if successful, reverts otherwise
-    function rateLimit(
-        uint8 p,
-        address u,
-        uint256 a
-    ) internal returns (bool) {
+    function rateLimit(uint8 p, address u, uint256 a) internal returns (bool) {
         // Get amount in USD to be minted
         uint256 valueToMint = a;
 
@@ -3818,10 +3772,10 @@ contract Lender {
         }
 
         // Normalize the value to be minted to 27 decimals
-        valueToMint = valueToMint * 10**(27 - IERC20(u).decimals());
+        valueToMint = valueToMint * 10 ** (27 - IERC20(u).decimals());
 
         // Cache max value
-        uint256 maxValue = MAX_VALUE;
+        uint256 maxValue = maximumValue;
 
         // Transactions of greater than ~2M USD are rate limited
         if (valueToMint > maxValue) {

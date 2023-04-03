@@ -1718,11 +1718,7 @@ contract MarketPlace {
     /// @param r address of the deployed redeemer contract
     /// @param l address of the deployed lender contract
     /// @param c address of the deployed creator contract
-    constructor(
-        address r,
-        address l,
-        address c
-    ) {
+    constructor(address r, address l, address c) {
         admin = msg.sender;
         redeemer = r;
         lender = l;
@@ -1881,14 +1877,6 @@ contract MarketPlace {
         uint256 m,
         address a
     ) external authorized(admin) returns (bool) {
-        // Verify that the pool has not already been set
-        address pool = pools[u][m];
-
-        // Revert if the pool already exists
-        if (pool != address(0)) {
-            revert Exception(10, 0, 0, pool, address(0));
-        }
-
         // Set the pool
         pools[u][m] = a;
 
@@ -2073,14 +2061,7 @@ contract MarketPlace {
         uint256 p,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -2122,14 +2103,7 @@ contract MarketPlace {
         uint256 p,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -2164,14 +2138,7 @@ contract MarketPlace {
         uint256 a,
         uint256 minRatio,
         uint256 maxRatio
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        )
-    {
+    ) external returns (uint256, uint256, uint256) {
         // Get the pool for the market
         IPool pool = IPool(pools[u][m]);
 
@@ -2230,11 +2197,9 @@ contract MarketPlace {
 
     /// @notice Allows batched call to self (this contract).
     /// @param c An array of inputs for each call.
-    function batch(bytes[] calldata c)
-        external
-        payable
-        returns (bytes[] memory results)
-    {
+    function batch(
+        bytes[] calldata c
+    ) external payable returns (bytes[] memory results) {
         results = new bytes[](c.length);
         for (uint256 i; i < c.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(
