@@ -321,7 +321,7 @@ contract MarketPlace {
         );
 
         // Execute the swap
-        uint128 received = pool.sellFYToken(msg.sender, Cast.u128(expected));
+        uint128 received = pool.sellFYToken(msg.sender, s);
         emit Swap(u, m, address(pool.fyToken()), u, received, a, msg.sender);
 
         return received;
@@ -360,7 +360,7 @@ contract MarketPlace {
         );
 
         // Execute the swap to purchase `a` base tokens
-        uint128 spent = pool.buyFYToken(msg.sender, a, expected);
+        uint128 spent = pool.buyFYToken(msg.sender, a, s);
 
         emit Swap(u, m, u, address(pool.fyToken()), a, spent, msg.sender);
         return spent;
@@ -393,7 +393,7 @@ contract MarketPlace {
         Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
 
         // Execute the swap
-        uint128 received = pool.sellBase(msg.sender, expected);
+        uint128 received = pool.sellBase(msg.sender, s);
 
         emit Swap(u, m, u, address(pool.fyToken()), received, a, msg.sender);
         return received;
@@ -432,7 +432,7 @@ contract MarketPlace {
         );
 
         // Execute the swap to purchase `a` underlying tokens
-        uint128 spent = pool.buyBase(msg.sender, a, Cast.u128(expected));
+        uint128 spent = pool.buyBase(msg.sender, a, s);
 
         emit Swap(u, m, address(pool.fyToken()), u, a, spent, msg.sender);
         return spent;
