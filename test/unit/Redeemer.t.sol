@@ -271,9 +271,9 @@ contract RedeemerTest is Test {
         assertEq(pyt.redeemPYCalled(), address(r));
         // redeem check
         (
-            address receiverCalled, 
-            uint256 amountCalled, 
-            address assetCalled, 
+            address receiverCalled,
+            uint256 amountCalled,
+            address assetCalled,
             uint256 minimumOutCalled,
             bool flagCalled
         ) = psyt.redeemCalled(address(r));
@@ -512,7 +512,9 @@ contract RedeemerTest is Test {
         vm.stopPrank();
         assertEq(r.holdings(underlying, maturity), 100);
 
-        (address to, uint256 received) = mock_erc20.ERC20(underlying).transferFromCalled(r.admin());
+        (address to, uint256 received) = mock_erc20
+            .ERC20(underlying)
+            .transferFromCalled(r.admin());
         assertEq(to, address(r));
         assertEq(received, 100);
     }

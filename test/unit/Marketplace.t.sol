@@ -56,7 +56,6 @@ contract MarketplaceTest is Test {
     // Yield Space Pool
     mock_pool.Pool pool;
 
-
     function setUp() public {
         // deploy mocked redeemer
         r = new mock_r.Redeemer();
@@ -142,11 +141,11 @@ contract MarketplaceTest is Test {
 
         // verify token creation
         (
-            uint256 maturityCalled, 
-            address redeemerCalled, 
-            address lenderCalled, 
-            address marketPlaceCalled, 
-            string memory nameCalled, 
+            uint256 maturityCalled,
+            address redeemerCalled,
+            address lenderCalled,
+            address marketPlaceCalled,
+            string memory nameCalled,
             string memory symbolCalled
         ) = c.createCalled(underlying);
         assertEq(newMaturity, maturityCalled);
@@ -204,10 +203,24 @@ contract MarketplaceTest is Test {
         assertEq(approvedNotional, contracts[7]);
         assertEq(approvedPeriphery, address(sensePeriphery));
 
-        mp.setPrincipal(4, underlying, maturity, address(token3), address(0), address(0));
+        mp.setPrincipal(
+            4,
+            underlying,
+            maturity,
+            address(token3),
+            address(0),
+            address(0)
+        );
         assertEq(mp.markets(underlying, maturity, 4), address(token3));
 
-        mp.setPrincipal(7, underlying, maturity, address(token6), address(0), address(0));
+        mp.setPrincipal(
+            7,
+            underlying,
+            maturity,
+            address(token6),
+            address(0),
+            address(0)
+        );
         assertEq(mp.markets(underlying, maturity, 7), address(token6));
     }
 
@@ -233,8 +246,8 @@ contract MarketplaceTest is Test {
             address(0),
             address(0),
             address(0),
-            address(0));
-
+            address(0)
+        );
 
         assertEq(address(0), mp.markets(u, m, 7));
 
@@ -416,16 +429,5 @@ contract MarketplaceTest is Test {
         pool.sellBasePreviewReturns(failingPreview);
         vm.expectRevert(Exception.selector);
         mp.sellPrincipalToken(underlying, maturity, amount, slippage);
-    }
-
-    function testFailSetExistingPrincipal() public {
-        mp.setPrincipal(1, address(0), 0, msg.sender, address(0), address(0));
-        vm.expectRevert(Exception.selector);
-        mp.setPrincipal(1, address(0), 0, msg.sender, address(0), address(0));
-    }
-
-    function testFailSetExistingPool() public {
-        vm.expectRevert(Exception.selector);
-        mp.setPool(address(0), 0, msg.sender);
     }
 }

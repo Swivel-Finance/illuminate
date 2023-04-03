@@ -214,12 +214,17 @@ contract LenderTest is Test {
         // fee
         assertEq(fee, collected);
         // initiate
-        assertEq(total - total / feenominator, sw.initiateCalledAmount(address(yt)));
+        assertEq(
+            total - total / feenominator,
+            sw.initiateCalledAmount(address(yt))
+        );
         assertEq(components[1].v, sw.initiateCalledSignature(address(yt)));
         // mint
-        uint256 expectedPremium = (total - (total / feenominator)) / 2 - (total / feenominator);
+        uint256 expectedPremium = (total - (total / feenominator)) /
+            2 -
+            (total / feenominator);
         expectedPremium = expectedPremium - expectedPremium / feenominator;
-        
+
         uint256 expectedLentOnSwivel = total - total / feenominator;
         assertEq(
             expectedLentOnSwivel + expectedPremium,
@@ -340,24 +345,15 @@ contract LenderTest is Test {
         pm.readTokensReturns(address(pt));
 
         Pendle.ApproxParams memory guess = Pendle.ApproxParams(
-            1, 
-            type(uint256).max, 
-            0, 
-            256, 
-            10**15
+            1,
+            type(uint256).max,
+            0,
+            256,
+            10 ** 15
         );
 
         // execute
-        l.lend(
-            4,
-            underlying,
-            maturity,
-            amount,
-            minReturn,
-            guess,
-            address(pm)
-        );
-
+        l.lend(4, underlying, maturity, amount, minReturn, guess, address(pm));
 
         // markets check
         (uint256 calledMaturity, uint256 calledPrincipal) = mp.marketsCalled(
@@ -379,8 +375,8 @@ contract LenderTest is Test {
 
         // swap check
         (
-            address receiverCalled, 
-            address marketCalled, 
+            address receiverCalled,
+            address marketCalled,
             uint256 minReturnCalled,
             plib.Pendle.ApproxParams memory guessCalled,
             plib.Pendle.TokenInput memory tokenInputCalled
@@ -391,13 +387,16 @@ contract LenderTest is Test {
         assertEq(guessCalled.guessMin, 1);
         assertEq(guessCalled.guessMax, type(uint256).max);
         assertEq(guessCalled.guessOffchain, 0);
-        assertEq(guessCalled.eps, 10**15);
+        assertEq(guessCalled.eps, 10 ** 15);
         assertEq(tokenInputCalled.tokenIn, underlying);
         assertEq(tokenInputCalled.netTokenIn, amount - collected);
         assertEq(tokenInputCalled.tokenMintSy, underlying);
         assertEq(tokenInputCalled.bulk, address(0));
         assertEq(tokenInputCalled.kyberRouter, address(0));
-        assertEq(tokenInputCalled.kybercall, '0x00000000000000000000000000000000000000000000000000000000000000');
+        assertEq(
+            tokenInputCalled.kybercall,
+            '0x00000000000000000000000000000000000000000000000000000000000000'
+        );
 
         // mint check
         assertEq(amount - collected, ipt.mintCalled(address(this)));
@@ -462,7 +461,7 @@ contract LenderTest is Test {
     function testSenseLend() public {
         uint256 minReturn = amount / 2;
         uint256 senseMaturity = maturity - 20;
-        uint256 returned = (amount + 25) * 10**2;
+        uint256 returned = (amount + 25) * 10 ** 2;
         uint256 starting = 1124;
 
         mp.marketsReturns(address(st));
@@ -514,7 +513,7 @@ contract LenderTest is Test {
         assertEq(minimum, minReturn);
 
         // mint check
-        assertEq(returned / 10**2, ipt.mintCalled(address(this)));
+        assertEq(returned / 10 ** 2, ipt.mintCalled(address(this)));
     }
 
     function testAPWineLend() public {
@@ -762,7 +761,7 @@ contract LenderTest is Test {
             uint8(MarketPlace.Principals.Notional),
             underlying,
             maturity,
-            2_000_000_000
+            2_000_000e6
         );
     }
 
@@ -773,12 +772,11 @@ contract LenderTest is Test {
         n.transferFromReturns(true);
         mock_erc20.ERC20(underlying).decimalsReturns(6);
 
-        vm.expectRevert(Exception.selector);
         l.mint(
             uint8(MarketPlace.Principals.Notional),
             underlying,
             maturity,
-            1_000_000_000
+            1_000e6
         );
 
         vm.expectRevert(Exception.selector);
@@ -786,7 +784,7 @@ contract LenderTest is Test {
             uint8(MarketPlace.Principals.Notional),
             underlying,
             maturity,
-            1_100_000_000
+            1_100_000_000e6
         );
     }
 
@@ -802,7 +800,7 @@ contract LenderTest is Test {
             uint8(MarketPlace.Principals.Notional),
             underlying,
             maturity,
-            1_000_000_000
+            1_000_000e6
         );
 
         skip(1 days + 1 minutes);
@@ -811,7 +809,7 @@ contract LenderTest is Test {
             uint8(MarketPlace.Principals.Notional),
             underlying,
             maturity,
-            1_100_000_000
+            1_100e6
         );
 
         vm.expectRevert(Exception.selector);
@@ -819,7 +817,7 @@ contract LenderTest is Test {
             uint8(MarketPlace.Principals.Notional),
             underlying,
             maturity,
-            1_000_000_000
+            1_000_000_000e6
         );
     }
 

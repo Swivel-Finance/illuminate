@@ -30,7 +30,7 @@ contract LenderTest is Test {
     uint256 maturity = 2664550000;
     uint256 startingBalance = 1000000;
     uint256 amount = 100000;
-    uint256 deadline = 2**256 - 1;
+    uint256 deadline = 2 ** 256 - 1;
     uint256 minReturn = 0;
 
     function setUp() public {
@@ -112,7 +112,7 @@ contract LenderTest is Test {
         vm.startPrank(msg.sender);
 
         // Approve lender to spend the underlying
-        IERC20(u).approve(address(l), 2**256 - 1);
+        IERC20(u).approve(address(l), 2 ** 256 - 1);
     }
 
     function testYieldLend() public {
@@ -184,14 +184,15 @@ contract LenderTest is Test {
             uint8(8),
             Contracts.DAI,
             maturity,
-            500000e18,
+            50000e18,
             5
         );
 
         // Make sure the principal tokens were transferred to the lender
-        uint256 expectedPTs = returned / 
-            (10**(IERC20(Contracts.DAI).decimals() - 
-              IERC20(Contracts.NOTIONAL_TOKEN).decimals()));
+        uint256 expectedPTs = returned /
+            (10 **
+                (IERC20(Contracts.DAI).decimals() -
+                    IERC20(Contracts.NOTIONAL_TOKEN).decimals()));
         assertEq(
             expectedPTs,
             IERC20(Contracts.NOTIONAL_TOKEN).balanceOf(address(l))
@@ -209,7 +210,7 @@ contract LenderTest is Test {
         deal(Contracts.USDT, address(this), startingBalance);
 
         // Approve lender to spend the underlying
-        Safe.approve(IERC20(Contracts.USDT), address(l), 2**256 - 1);
+        Safe.approve(IERC20(Contracts.USDT), address(l), 2 ** 256 - 1);
 
         // Execute the lend
         uint256 returned = l.lend(
@@ -396,7 +397,14 @@ contract LenderTest is Test {
         l.pause(uint8(MarketPlace.Principals.Yield), true);
 
         vm.expectRevert(Exception.selector);
-        l.lend(uint8(MarketPlace.Principals.Yield), Contracts.USDC, maturity, 10000, address(0), 0);
+        l.lend(
+            uint8(MarketPlace.Principals.Yield),
+            Contracts.USDC,
+            maturity,
+            10000,
+            address(0),
+            0
+        );
     }
 
     function testFailIlluminatePaused() public {
@@ -409,6 +417,13 @@ contract LenderTest is Test {
         l.pauseIlluminate(true);
 
         vm.expectRevert(Exception.selector);
-        l.lend(uint8(MarketPlace.Principals.Yield), Contracts.USDC, maturity, 10000, address(0), 0);
+        l.lend(
+            uint8(MarketPlace.Principals.Yield),
+            Contracts.USDC,
+            maturity,
+            10000,
+            address(0),
+            0
+        );
     }
 }

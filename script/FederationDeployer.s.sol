@@ -3,34 +3,30 @@ pragma solidity 0.8.16;
 
 import 'forge-std/Script.sol';
 
-import {Lender} from 'flattened/Lender.flattened.sol';
-import {MarketPlace} from 'flattened/MarketPlace.flattened.sol';
-import {Redeemer} from 'flattened/Redeemer.flattened.sol';
-import {Converter} from 'flattened/Converter.flattened.sol';
-import {Creator} from 'flattened/Creator.flattened.sol';
+import {Lender} from 'src/Lender.sol';
+import {MarketPlace} from 'src/MarketPlace.sol';
+import {Redeemer} from 'src/Redeemer.sol';
+import {Converter} from 'src/Converter.sol';
+import {Creator} from 'src/Creator.sol';
 
 contract IlluminateFederationDeployer is Script {
-    address admin;
+    address admin = 0x173033758E8623fEE7C612e2f251CEa808127654;
     // third party contracts for lender and redeemer
-    address swivel;
-    address pendle;
-    address apwine;
-    address tempus;
+    address swivel = 0x373a06bD3067f8DA90239a47f316F09312b7800F;
+    address pendle = 0x41FAD93F225b5C1C95f2445A5d7fcB85bA46713f;
+    address apwine = 0xf5ba2E5DdED276fc0f7a7637A61157a4be79C626;
+    address tempus = 0xdB5fD0678eED82246b599da6BC36B56157E4beD8;
 
     function run() external {
         // setup deployer contract
-        uint256 deployerPrivateKey = vm.envUint('');
+        uint256 deployerPrivateKey = vm.envUint('MAINNET_PRIVATE_KEY');
 
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploy contracts
         Creator creator = new Creator();
         Lender lender = new Lender(swivel, pendle, apwine);
-        Redeemer redeemer = new Redeemer(
-            address(lender),
-            swivel,
-            tempus
-        );
+        Redeemer redeemer = new Redeemer(address(lender), swivel, tempus);
         MarketPlace marketplace = new MarketPlace(
             address(redeemer),
             address(lender),

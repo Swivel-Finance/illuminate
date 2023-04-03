@@ -857,7 +857,6 @@ library Safe {
     }
 }
 
- 
 contract ERC5095 is ERC20Permit, IERC5095 {
     /// @dev unix timestamp when the ERC5095 token can be redeemed
     uint256 public immutable override maturity;
@@ -915,7 +914,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Allows the marketplace to spend underlying, principal tokens held by the token
     /// @dev This is necessary when MarketPlace calls pool methods to swap tokens
     /// @return True if successful
-    function approveMarketPlace() external authorized(marketplace) returns (bool) {
+    function approveMarketPlace()
+        external
+        authorized(marketplace)
+        returns (bool)
+    {
         // Approve the marketplace to spend the token's underlying
         Safe.approve(IERC20(underlying), marketplace, type(uint256).max);
 
@@ -1031,7 +1034,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param r The receiver of the principal tokens
     /// @param m Minimum number of shares that the user will receive
     /// @return uint256 The amount of principal tokens purchased
-    function deposit(uint256 a, address r, uint256 m) external returns (uint256) {
+    function deposit(
+        uint256 a,
+        address r,
+        uint256 m
+    ) external returns (uint256) {
         // Execute the deposit
         return _deposit(r, a, m);
     }
@@ -1050,7 +1057,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param m Maximum amount of underlying that the user will spend
     /// @return uint256 The amount of principal tokens purchased
-    function mint(uint256 s, address r, uint256 m) external returns (uint256) {
+    function mint(
+        uint256 s,
+        address r,
+        uint256 m
+    ) external returns (uint256) {
         // Execute the mint
         return _mint(r, s, m);
     }
@@ -1160,7 +1171,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return true;
     }
 
-    function _deposit(address r, uint256 a, uint256 m) internal returns (uint256) {
+    function _deposit(
+        address r,
+        uint256 a,
+        uint256 m
+    ) internal returns (uint256) {
         // Revert if called at or after maturity
         if (block.timestamp >= maturity) {
             revert Exception(
@@ -1189,7 +1204,11 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return returned;
     }
 
-    function _mint(address r, uint256 s, uint256 m) internal returns (uint256) {
+    function _mint(
+        address r,
+        uint256 s,
+        uint256 m
+    ) internal returns (uint256) {
         // Revert if called at or after maturity
         if (block.timestamp >= maturity) {
             revert Exception(
@@ -1226,7 +1245,12 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return sold;
     }
 
-    function _withdraw(uint256 a, address r, address o, uint256 m) internal returns (uint256) {
+    function _withdraw(
+        uint256 a,
+        address r,
+        address o,
+        uint256 m
+    ) internal returns (uint256) {
         // Determine how many principal tokens are needed to purchase the underlying
         uint256 needed = previewWithdraw(a);
 
@@ -1248,19 +1272,14 @@ contract ERC5095 is ERC20Permit, IERC5095 {
                 Safe.transfer(IERC20(underlying), r, a);
 
                 return returned;
-            } else { // Else, sell PT with allowance check
+            } else {
+                // Else, sell PT with allowance check
                 // Get the allowance of the user spending the tokens
                 uint256 allowance = _allowance[o][msg.sender];
 
                 // Check for sufficient allowance
                 if (allowance < needed) {
-                    revert Exception(
-                        20,
-                        allowance,
-                        a,
-                        address(0),
-                        address(0)
-                    );
+                    revert Exception(20, allowance, a, address(0), address(0));
                 }
 
                 // Update the caller's allowance
@@ -1324,7 +1343,12 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         }
     }
 
-    function _redeem(uint256 s, address r, address o, uint256 m) internal returns (uint256) {
+    function _redeem(
+        uint256 s,
+        address r,
+        address o,
+        uint256 m
+    ) internal returns (uint256) {
         // Pre-maturity
         if (block.timestamp < maturity) {
             // Receive the funds from the user
