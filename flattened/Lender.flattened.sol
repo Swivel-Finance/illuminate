@@ -1925,7 +1925,7 @@ contract MarketPlace {
         );
 
         // Execute the swap
-        uint128 received = pool.sellFYToken(msg.sender, Cast.u128(expected));
+        uint128 received = pool.sellFYToken(msg.sender, s);
         emit Swap(u, m, address(pool.fyToken()), u, received, a, msg.sender);
 
         return received;
@@ -1964,7 +1964,7 @@ contract MarketPlace {
         );
 
         // Execute the swap to purchase `a` base tokens
-        uint128 spent = pool.buyFYToken(msg.sender, a, expected);
+        uint128 spent = pool.buyFYToken(msg.sender, a, s);
 
         emit Swap(u, m, u, address(pool.fyToken()), a, spent, msg.sender);
         return spent;
@@ -1997,7 +1997,7 @@ contract MarketPlace {
         Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
 
         // Execute the swap
-        uint128 received = pool.sellBase(msg.sender, expected);
+        uint128 received = pool.sellBase(msg.sender, s);
 
         emit Swap(u, m, u, address(pool.fyToken()), received, a, msg.sender);
         return received;
@@ -2036,7 +2036,7 @@ contract MarketPlace {
         );
 
         // Execute the swap to purchase `a` underlying tokens
-        uint128 spent = pool.buyBase(msg.sender, a, Cast.u128(expected));
+        uint128 spent = pool.buyBase(msg.sender, a, s);
 
         emit Swap(u, m, address(pool.fyToken()), u, a, spent, msg.sender);
         return spent;
@@ -3777,7 +3777,7 @@ contract Lender {
         // Cache max value
         uint256 maxValue = maximumValue;
 
-        // Transactions of greater than ~2M USD are rate limited
+        // Transactions of greater than the max value of USD are rate limited
         if (valueToMint > maxValue) {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
@@ -3796,7 +3796,7 @@ contract Lender {
             // Reset the period
             periodStart[p] = block.timestamp;
         }
-        // If more than 2M USD has flowed through the protocol, revert
+        // If more than the max USD has flowed through the protocol, revert
         else if (flow > maxValue) {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
