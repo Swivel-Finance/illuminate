@@ -283,7 +283,7 @@ contract MarketplaceTest is Test {
         mp.sellPrincipalToken(underlying, maturity, amount, slippage);
 
         uint256 amountSold = pool.sellFYTokenCalled(address(this));
-        assertEq(amountSold, preview);
+        assertEq(amountSold, slippage);
     }
 
     function testBuyPrincipalToken() public {
@@ -303,7 +303,7 @@ contract MarketplaceTest is Test {
         mp.sellUnderlying(underlying, maturity, amount, slippage);
 
         uint256 previewed = pool.sellBaseCalled(address(this));
-        assertEq(previewed, preview);
+        assertEq(previewed, slippage);
     }
 
     function testBuyUnderlying() public {

@@ -1,5 +1,5 @@
 # Lender
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/Lender.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/76b26ef748dc63cf89e3fa660df1bda262dcef15/src/Lender.sol)
 
 **Author:**
 Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -157,12 +157,12 @@ uint256 private _status = _NOT_ENTERED;
 ```
 
 
-### MAX_VALUE
+### maximumValue
 maximum amount of value that can flow through a protocol in a day (in USD)
 
 
 ```solidity
-uint256 public constant MAX_VALUE = 2_000_000e27;
+uint256 public maximumValue = 250_000e27;
 ```
 
 
@@ -417,6 +417,27 @@ function setEtherPrice(uint256 p) external authorized(admin) returns (bool);
 |`<none>`|`bool`|bool true if the price was set|
 
 
+### setMaxValue
+
+sets the maximum value that can flow through a protocol
+
+
+```solidity
+function setMaxValue(uint256 m) external authorized(admin) returns (bool);
+```
+**Parameters**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`m`|`uint256`|the maximum value by protocol|
+
+**Returns**
+
+|Name|Type|Description|
+|----|----|-----------|
+|`<none>`|`bool`|bool true if the price was set|
+
+
 ### mint
 
 mint swaps the sender's principal tokens for Illuminate's ERC5095 tokens in effect, this opens a new fixed rate position for the sender on Illuminate
@@ -499,8 +520,8 @@ function lend(
 |`m`|`uint256`|maturity (timestamp) of the market|
 |`a`|`uint256[]`|array of amounts of underlying tokens lent to each order in the orders array|
 |`y`|`address`|Yield Space Pool for the Illuminate PT in this market|
-|`o`|`Order.Swivel[]`|array of Swivel orders being filled|
-|`s`|`Components.Swivel[]`|array of signatures for each order in the orders array|
+|`o`|`Swivel.Order[]`|array of Swivel orders being filled|
+|`s`|`Swivel.Components[]`|array of signatures for each order in the orders array|
 |`e`|`bool`|flag to indicate if returned funds should be swapped in Yield Space Pool|
 |`premiumSlippage`|`uint256`|slippage limit, minimum amount to PTs to buy|
 
@@ -566,7 +587,7 @@ function lend(uint8 p, address u, uint256 m, uint256 a, uint256 r, Pendle.Approx
 |`m`|`uint256`|maturity (timestamp) of the market|
 |`a`|`uint256`|amount of underlying tokens to lend|
 |`r`|`uint256`|slippage limit, minimum amount to PTs to buy|
-|`g`|`ApproxParams.Pendle`|guess parameters for the swap|
+|`g`|`Pendle.ApproxParams`|guess parameters for the swap|
 |`market`|`address`|contract that corresponds to the market for the PT|
 
 **Returns**

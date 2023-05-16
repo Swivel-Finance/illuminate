@@ -1,8 +1,8 @@
 # ERC5095
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/tokens/ERC5095.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/76b26ef748dc63cf89e3fa660df1bda262dcef15/src/tokens/ERC5095.sol)
 
 **Inherits:**
-[ERC20Permit](/src/tokens/ERC20Permit.sol/contract.ERC20Permit.md), [IERC5095](/src/interfaces/IERC5095.sol/contract.IERC5095.md)
+[ERC20Permit](/src/tokens/ERC20Permit.sol/abstract.ERC20Permit.md), [IERC5095](/src/interfaces/IERC5095.sol/interface.IERC5095.md)
 
 
 ## State Variables
