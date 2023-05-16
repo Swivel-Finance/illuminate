@@ -9,5 +9,5 @@
 - [Converter](Converter.sol/contract.Converter.md)
 - [Creator](Creator.sol/contract.Creator.md)
 - [Lender](Lender.sol/contract.Lender.md)
-- [MarketPlace](Marketplace.sol/contract.MarketPlace.md)
+- [MarketPlace](MarketPlace.sol/contract.MarketPlace.md)
 - [Redeemer](Redeemer.sol/contract.Redeemer.md)

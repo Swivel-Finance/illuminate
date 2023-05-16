@@ -1,5 +1,5 @@
 # ElementToken
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/mocks/ElementToken.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/76b26ef748dc63cf89e3fa660df1bda262dcef15/src/mocks/ElementToken.sol)
 
 **Inherits:**
 [ERC20](/src/mocks/ERC20.sol/contract.ERC20.md)

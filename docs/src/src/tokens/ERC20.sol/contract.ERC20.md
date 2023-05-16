@@ -1,8 +1,8 @@
 # ERC20
-[Git Source](https://github.com/Swivel-Finance/illuminate/blob/7162e4822e4bbebd99b67c43e703ecedf92a2138/src/tokens/ERC20.sol)
+[Git Source](https://github.com/Swivel-Finance/illuminate/blob/76b26ef748dc63cf89e3fa660df1bda262dcef15/src/tokens/ERC20.sol)
 
 **Inherits:**
-[IERC20Metadata](/src/interfaces/IERC20Metadata.sol/contract.IERC20Metadata.md)
+[IERC20Metadata](/src/interfaces/IERC20Metadata.sol/interface.IERC20Metadata.md)
 
 *Implementation of the {IERC20} interface.
 This implementation is agnostic to the way tokens are created. This means
