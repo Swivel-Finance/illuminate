@@ -12,22 +12,10 @@ import 'src/lib/RevertMsgExtractor.sol';
 import 'src/lib/Maturities.sol';
 import 'src/errors/Exception.sol';
 
-import 'src/interfaces/ITempus.sol';
-import 'src/interfaces/ITempusAMM.sol';
-import 'src/interfaces/ITempusPool.sol';
-import 'src/interfaces/ITempusToken.sol';
 import 'src/interfaces/IERC20.sol';
 import 'src/interfaces/IERC5095.sol';
-import 'src/interfaces/ISensePeriphery.sol';
-import 'src/interfaces/ISenseDivider.sol';
 import 'src/interfaces/IYield.sol';
-import 'src/interfaces/ISwivel.sol';
 import 'src/interfaces/IElementVault.sol';
-import 'src/interfaces/IAPWineAMMPool.sol';
-import 'src/interfaces/IAPWineRouter.sol';
-import 'src/interfaces/INotional.sol';
-import 'src/interfaces/IPendle.sol';
-import 'src/interfaces/IPendleMarket.sol';
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -536,6 +524,52 @@ contract Lender {
         );
 
         premiums[u][m] = 0;
+    }
+
+    /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
+    /// @param p principal value according to the MarketPlace's Principals Enum
+    /// @param u underlying asset address of the market's tuple
+    /// @param m timestamp of maturity of the market's tuple
+    /// @param a amount in underlying to be lent
+    /// @param d data to conduct the call
+    function lend(
+        uint8 p,
+        address u,
+        uint256 m,
+        uint256 a,
+        bytes calldata d
+    ) external returns (uint256) {
+        // Receive the funds from the user
+        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
+
+        // Fetch the adapter for this lend call
+        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
+
+        // Fetch the principal token for this lend call
+        address pt = IMarketPlace(marketPlace).markets(u, m, p);
+
+        // Get the starting balance for the Lender
+        uint256 starting = IERC20(pt).balanceOf(address(this));
+
+        // Conduct the lend operation to acquire principal tokens
+        (bool success, ) = adapter.delegatecall(
+            abi.encodeWithSignature('lend(bytes calldata inputdata)', d) // TODO: create lend signature
+        );
+
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        }
+
+        // Fetch how many principal tokens were obtained
+        uint256 obtained = IERC20(pt).balanceOf(address(this)) - starting;
+
+        // Convert decimals from principal token to underlying
+        uint256 returned = convertDecimals(u, pt, obtained);
+
+        // Mint Illuminate PTs to msg.sender
+        IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
+        emit Lend(p, u, m, returned, a, msg.sender);
+        return returned;
     }
 
     /// @notice Allows batched call to self (this contract).
