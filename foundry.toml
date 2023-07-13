@@ -5,7 +5,7 @@ libs = ['lib']
 solc = "0.8.16" 
 eth-rpc-url = "${RPC_URL}"
 gas_reports = ["*"]
-via_ir = true
+via_ir = false
 
 [rpc_endpoints]
 goerli = "${GOERLI_RPC_URL}"

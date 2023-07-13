@@ -140,18 +140,8 @@ contract MarketPlace {
         string calldata n,
         string calldata s
     ) external authorized(admin) returns (bool) {
-        {
-            // Get the Illuminate principal token for this market (if one exists)
-            address illuminate = markets[u][m][0];
-
-            // If illuminate PT already exists, a new market cannot be created
-            if (illuminate != address(0)) {
-                revert Exception(9, 0, 0, illuminate, address(0));
-            }
-        }
-
         // Create an Illuminate principal token for the new market
-        address illuminateToken = ICreator(creator).create(
+        markets[u][m][0] = ICreator(creator).create(
             u,
             m,
             redeemer,
@@ -162,24 +152,22 @@ contract MarketPlace {
         );
 
         {
-            // create the principal tokens array
-            address[] memory market = new address[](t.length);
-            market[0] = illuminateToken;
+            // assign values for the principal tokens and adapters array
             for (uint i = 0; i < t.length; i++) {
-                market[i + 1] = t[i];
+                markets[u][m][i + 1] = t[i];
+                adapters[u][m][i + 1] = a[i];
             }
+        }
 
-            // create the adapters array
-            address[] memory adapter = new address[](a.length);
-            for (uint i = 0; i < a.length; i++) {
-                adapter[i + 1] = a[i];
-            }
-
-            // Set the market
-            markets[u][m] = market;
-            adapters[u][m] = adapter;
-
-            emit CreateMarket(u, m, market, adapter);
+        {
+            address underlying = u;
+            uint256 maturity = m;
+            emit CreateMarket(
+                underlying,
+                maturity,
+                markets[underlying][maturity],
+                adapters[underlying][maturity]
+            );
         }
         return true;
     }

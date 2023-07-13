@@ -266,50 +266,57 @@ contract Redeemer {
         // Get the adapter for the protocol being redeemed
         address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
 
-        // Verify that the PT has matured
-        (bool success, bytes memory returndata) = adapter.delegatecall(
-            abi.encodeWithSignature('maturity()', '')
-        );
-        if (!success) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add maturity retrieval failure code
+        {
+            // Verify that the PT has matured
+            (bool success, bytes memory returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('maturity()', '')
+            );
+            if (!success) {
+                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add maturity retrieval failure code
+            }
+
+            uint256 ptMaturity = abi.decode(returndata, (uint256));
+            if (block.timestamp < ptMaturity) {
+                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add failed to mature code
+            }
         }
 
-        uint256 ptMaturity = abi.decode(returndata, (uint256));
-        if (block.timestamp < ptMaturity) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add failed to mature code
+        uint256 amount;
+        uint256 redeemed;
+
+        {
+            // Cache the lender to save gas on sload
+            address cachedLender = lender;
+
+            // Get the amount of principal tokens held by the lender
+            amount = IERC20(pt).balanceOf(cachedLender);
+
+            // Receive the principal token from the lender contract
+            Safe.transferFrom(IERC20(pt), cachedLender, address(this), amount);
         }
 
-        // Cache the lender to save gas on sload
-        address cachedLender = lender;
+        {
+            // Get the starting balance of the underlying held by the redeemer
+            uint256 starting = IERC20(u).balanceOf(address(this));
 
-        // Get the amount of principal tokens held by the lender
-        uint256 amount = IERC20(pt).balanceOf(cachedLender);
+            // Conduct the redemption via the adapter
+            (bool success, ) = adapter.delegatecall(
+                abi.encodeWithSignature('redeem()', d)
+            );
+            if (!success) {
+                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
+            }
 
-        // For Pendle, we can transfer directly to the YT
-        address destination = address(this);
-        if (p == uint8(MarketPlace.Principals.Pendle)) {
-            destination = IPendleToken(pt).YT();
+            // Calculate how much underlying was redeemed
+            redeemed = IERC20(u).balanceOf(address(this)) - starting;
+
+            // Update the holding for this market
+            address underlying = u;
+            uint256 maturity = m;
+            holdings[underlying][maturity] =
+                holdings[underlying][maturity] +
+                redeemed;
         }
-
-        // Receive the principal token from the lender contract
-        Safe.transferFrom(IERC20(pt), cachedLender, destination, amount);
-
-        // Get the starting balance of the underlying held by the redeemer
-        uint256 starting = IERC20(u).balanceOf(address(this));
-
-        // Conduct the redemption via the adapter
-        (success, ) = adapter.delegatecall(
-            abi.encodeWithSignature('redeem()', d)
-        );
-        if (!success) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
-        }
-
-        // Calculate how much underlying was redeemed
-        uint256 redeemed = IERC20(u).balanceOf(address(this)) - starting;
-
-        // Update the holding for this market
-        holdings[u][m] = holdings[u][m] + redeemed;
 
         emit Redeem(p, u, m, redeemed, amount, msg.sender);
         return true;
@@ -428,9 +435,6 @@ contract Redeemer {
             // Calculate how many tokens the user should receive
             uint256 redeemed = (amount * holdings[u][m]) / pt.totalSupply();
 
-            // Calculate the fees to be received
-            uint256 fee = redeemed / feenominator;
-
             // Verify allowance
             if (allowance < amount) {
                 revert Exception(20, allowance, amount, address(0), address(0));
@@ -445,14 +449,19 @@ contract Redeemer {
             // Update the holdings for this market
             holdings[u][m] = holdings[u][m] - redeemed;
 
-            // Transfer the underlying to the user
-            Safe.transfer(IERC20(u), f[i], redeemed - fee);
+            {
+                // Calculate the fees to be received
+                uint256 fee = redeemed / feenominator;
 
-            unchecked {
-                // Track the fees gained by the caller
-                incentiveFee += fee;
+                // Transfer the underlying to the user
+                Safe.transfer(IERC20(u), f[i], redeemed - fee);
 
-                ++i;
+                unchecked {
+                    // Track the fees gained by the caller
+                    incentiveFee += fee;
+
+                    ++i;
+                }
             }
         }
 
