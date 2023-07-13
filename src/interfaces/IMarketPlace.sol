@@ -3,11 +3,9 @@
 pragma solidity 0.8.16;
 
 interface IMarketPlace {
-    function markets(
-        address,
-        uint256,
-        uint256
-    ) external returns (address);
+    function markets(address, uint256, uint256) external returns (address);
+
+    function adapters(address, uint256, uint256) external returns (address);
 
     function pools(address, uint256) external view returns (address);
 
