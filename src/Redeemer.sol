@@ -248,6 +248,73 @@ contract Redeemer {
         }
     }
 
+    /// @notice redeems principal tokens held by the Lender contract via its adapter
+    /// @param p enum value of the protocol being redeemed in the market
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param d calldata necessary to conduct the protocol's redemption
+    /// @return true if successful, false otherwise
+    function redeem(
+        uint8 p,
+        address u,
+        uint256 m,
+        bytes calldata d
+    ) external unpaused(u, m) returns (bool) {
+        // Get the principal token that is being redeemed
+        address pt = IMarketPlace(marketPlace).markets(u, m, p);
+
+        // Get the adapter for the protocol being redeemed
+        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
+
+        // Verify that the PT has matured
+        (bool success, bytes memory returndata) = adapter.delegatecall(
+            abi.encodeWithSignature('maturity()', '')
+        );
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add maturity retrieval failure code
+        }
+
+        uint256 ptMaturity = abi.decode(returndata, (uint256));
+        if (block.timestamp < ptMaturity) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add failed to mature code
+        }
+
+        // Cache the lender to save gas on sload
+        address cachedLender = lender;
+
+        // Get the amount of principal tokens held by the lender
+        uint256 amount = IERC20(pt).balanceOf(cachedLender);
+
+        // For Pendle, we can transfer directly to the YT
+        address destination = address(this);
+        if (p == uint8(MarketPlace.Principals.Pendle)) {
+            destination = IPendleToken(pt).YT();
+        }
+
+        // Receive the principal token from the lender contract
+        Safe.transferFrom(IERC20(pt), cachedLender, destination, amount);
+
+        // Get the starting balance of the underlying held by the redeemer
+        uint256 starting = IERC20(u).balanceOf(address(this));
+
+        // Conduct the redemption via the adapter
+        (success, ) = adapter.delegatecall(
+            abi.encodeWithSignature('redeem()', d)
+        );
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
+        }
+
+        // Calculate how much underlying was redeemed
+        uint256 redeemed = IERC20(u).balanceOf(address(this)) - starting;
+
+        // Update the holding for this market
+        holdings[u][m] = holdings[u][m] + redeemed;
+
+        emit Redeem(p, u, m, redeemed, amount, msg.sender);
+        return true;
+    }
+
     /// @notice burns Illuminate principal tokens and sends underlying to user
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
