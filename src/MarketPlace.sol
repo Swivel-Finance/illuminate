@@ -34,8 +34,11 @@ contract MarketPlace {
         Notional // 8
     }
 
-    /// @notice markets are defined by a tuple that points to a fixed length array of principal token addresses.
-    mapping(address => mapping(uint256 => address[9])) public markets;
+    /// @notice markets are defined by a maturity and underlying tuple that points to an array of principal token addresses.
+    mapping(address => mapping(uint256 => address[])) public markets;
+
+    /// @notice adapters are defined by a maturity and underlying tuple that points to an array of adapter contracts
+    mapping(address => mapping(uint256 => address[])) public adapters;
 
     /// @notice pools map markets to their respective YieldSpace pools for the MetaPrincipal token
     mapping(address => mapping(uint256 => address)) public pools;
@@ -53,15 +56,15 @@ contract MarketPlace {
     event CreateMarket(
         address indexed underlying,
         uint256 indexed maturity,
-        address[9] tokens,
-        address element,
-        address apwine
+        address[] tokens,
+        address[] adapters
     );
     /// @notice emitted upon setting a principal token
     event SetPrincipal(
         address indexed underlying,
         uint256 indexed maturity,
         address indexed principal,
+        address adapter,
         uint8 protocol
     );
     /// @notice emitted upon swapping with the pool
@@ -125,36 +128,20 @@ contract MarketPlace {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param t principal token addresses for this market
+    /// @param a adapter addresses for this market
     /// @param n name for the Illuminate token
     /// @param s symbol for the Illuminate token
-    /// @param a address of the APWine router that corresponds to this market
-    /// @param e address of the Element vault that corresponds to this market
-    /// @param h address of a helper contract, used for Sense approvals if active in the market
-    /// @param sensePeriphery address of the Sense periphery contract that must be approved by the lender
     /// @return bool true if successful
     function createMarket(
         address u,
         uint256 m,
-        address[8] calldata t,
+        address[] calldata t,
+        address[] calldata a,
         string calldata n,
-        string calldata s,
-        address a,
-        address e,
-        address h,
-        address sensePeriphery
+        string calldata s
     ) external authorized(admin) returns (bool) {
-        {
-            // Get the Illuminate principal token for this market (if one exists)
-            address illuminate = markets[u][m][0];
-
-            // If illuminate PT already exists, a new market cannot be created
-            if (illuminate != address(0)) {
-                revert Exception(9, 0, 0, illuminate, address(0));
-            }
-        }
-
         // Create an Illuminate principal token for the new market
-        address illuminateToken = ICreator(creator).create(
+        markets[u][m][0] = ICreator(creator).create(
             u,
             m,
             redeemer,
@@ -165,39 +152,22 @@ contract MarketPlace {
         );
 
         {
-            // create the principal tokens array
-            address[9] memory market = [
-                illuminateToken, // Illuminate
-                t[0], // Swivel
-                t[1], // Yield
-                t[2], // Element
-                t[3], // Pendle
-                t[4], // Tempus
-                t[5], // Sense
-                t[6], // APWine
-                t[7] // Notional
-            ];
-
-            // Set the market
-            markets[u][m] = market;
-
-            // Have the lender contract approve the several contracts
-            ILender(lender).approve(u, a, e, t[7], sensePeriphery);
-
-            // Allow converter to spend interest bearing asset
-            if (t[5] != address(0)) {
-                IRedeemer(redeemer).approve(h);
+            // assign values for the principal tokens and adapters array
+            for (uint i = 0; i < t.length; i++) {
+                markets[u][m][i + 1] = t[i];
+                adapters[u][m][i + 1] = a[i];
             }
+        }
 
-            // Approve interest bearing token conversion to underlying for APWine
-            if (t[6] != address(0)) {
-                address futureVault = IAPWineToken(t[6]).futureVault();
-                address interestBearingToken = IAPWineFutureVault(futureVault)
-                    .getIBTAddress();
-                IRedeemer(redeemer).approve(interestBearingToken);
-            }
-
-            emit CreateMarket(u, m, market, e, a);
+        {
+            address underlying = u;
+            uint256 maturity = m;
+            emit CreateMarket(
+                underlying,
+                maturity,
+                markets[underlying][maturity],
+                adapters[underlying][maturity]
+            );
         }
         return true;
     }
@@ -207,50 +177,22 @@ contract MarketPlace {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param a address of the new principal token
-    /// @param h a supplementary address (apwine needs a router, element needs a vault, sense needs interest bearing asset)
-    /// @param sensePeriphery address of the Sense periphery contract that must be approved by the lender
+    /// @param adapter address of the protocol's adapter contract
     /// @return bool true if the principal set, false otherwise
     function setPrincipal(
         uint8 p,
         address u,
         uint256 m,
         address a,
-        address h,
-        address sensePeriphery
+        address adapter
     ) external authorized(admin) returns (bool) {
         // Set the principal token in the markets mapping
         markets[u][m][p] = a;
 
-        if (p == uint8(Principals.Element)) {
-            // Approve Element vault if setting Element's principal token
-            ILender(lender).approve(u, address(0), h, address(0), address(0));
-        } else if (p == uint8(Principals.Sense)) {
-            // Approve converter to transfer yield token for Sense's redeem
-            IRedeemer(redeemer).approve(h);
+        // Set the adapter contract in the adapters mapping
+        adapters[u][m][p] = adapter;
 
-            // Approve Periphery to be used from Lender
-            ILender(lender).approve(
-                u,
-                address(0),
-                address(0),
-                address(0),
-                sensePeriphery
-            );
-        } else if (p == uint8(Principals.Apwine)) {
-            // Approve converter to transfer yield token for APWine's redeem
-            address futureVault = IAPWineToken(a).futureVault();
-            address interestBearingToken = IAPWineFutureVault(futureVault)
-                .getIBTAddress();
-            IRedeemer(redeemer).approve(interestBearingToken);
-
-            // Approve APWine's router if setting APWine's principal token
-            ILender(lender).approve(u, h, address(0), address(0), address(0));
-        } else if (p == uint8(Principals.Notional)) {
-            // Principal token must be approved for Notional's lend
-            ILender(lender).approve(u, address(0), address(0), a, address(0));
-        }
-
-        emit SetPrincipal(u, m, a, p);
+        emit SetPrincipal(u, m, a, adapter, p);
         return true;
     }
 

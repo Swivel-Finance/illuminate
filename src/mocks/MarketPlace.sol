@@ -6,6 +6,7 @@ import 'src/mocks/IlluminatePrincipalToken.sol';
 
 contract MarketPlace is IMarketPlace {
     address private marketsReturn;
+    address private adaptersReturn;
     address private poolsReturn;
     address private iptReturn;
     uint128 private sellPrincipalTokenReturn;
@@ -41,6 +42,10 @@ contract MarketPlace is IMarketPlace {
 
     function marketsReturns(address m) external {
         marketsReturn = m;
+    }
+
+    function adaptersReturns(address a) external {
+        adaptersReturn = a;
     }
 
     function poolsReturns(address p) external {
@@ -79,6 +84,14 @@ contract MarketPlace is IMarketPlace {
         }
         marketsCalled[u] = MarketsArgs(m, p);
         return marketsReturn;
+    }
+
+    function adapters(
+        address,
+        uint256,
+        uint256
+    ) external view returns (address) {
+        return adaptersReturn;
     }
 
     function pools(address, uint256) external view returns (address) {

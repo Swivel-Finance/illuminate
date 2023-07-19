@@ -109,11 +109,7 @@ contract Redeemer {
     /// @param l the lender contract
     /// @param s the Swivel contract
     /// @param t the Tempus contract
-    constructor(
-        address l,
-        address s,
-        address t
-    ) {
+    constructor(address l, address s, address t) {
         admin = msg.sender;
         lender = l;
         swivelAddr = s;
@@ -133,11 +129,9 @@ contract Redeemer {
     /// @notice sets the address of the marketplace contract which contains the addresses of all the fixed rate markets
     /// @param m the address of the marketplace contract
     /// @return bool true if the address was set
-    function setMarketPlace(address m)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function setMarketPlace(
+        address m
+    ) external authorized(admin) returns (bool) {
         // MarketPlace may only be set once
         if (marketPlace != address(0)) {
             revert Exception(5, 0, 0, marketPlace, address(0));
@@ -151,11 +145,10 @@ contract Redeemer {
     /// @param c address of the new converter
     /// @param i a list of interest bearing tokens the redeemer will approve
     /// @return bool true if successful
-    function setConverter(address c, address[] memory i)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function setConverter(
+        address c,
+        address[] memory i
+    ) external authorized(admin) returns (bool) {
         // Set the new converter
         converter = c;
 
@@ -255,238 +248,77 @@ contract Redeemer {
         }
     }
 
-    /// @notice redeem method for Yield, Element, Pendle, APWine, Tempus and Notional protocols
-    /// @param p principal value according to the MarketPlace's Principals Enum
+    /// @notice redeems principal tokens held by the Lender contract via its adapter
+    /// @param p enum value of the protocol being redeemed in the market
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    /// @return bool true if the redemption was successful
+    /// @param d calldata necessary to conduct the protocol's redemption
+    /// @return true if successful, false otherwise
     function redeem(
         uint8 p,
         address u,
-        uint256 m
+        uint256 m,
+        bytes calldata d
     ) external unpaused(u, m) returns (bool) {
-        // Get the principal token that is being redeemed by the user
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
+        // Get the principal token that is being redeemed
+        address pt = IMarketPlace(marketPlace).markets(u, m, p);
 
-        // Get the maturity for the given principal token
-        uint256 maturity;
-        if (p == uint8(MarketPlace.Principals.Yield)) {
-            maturity = Maturities.yield(principal);
-        } else if (p == uint8(MarketPlace.Principals.Element)) {
-            maturity = Maturities.element(principal);
-        } else if (p == uint8(MarketPlace.Principals.Pendle)) {
-            maturity = Maturities.pendle(principal);
-        } else if (p == uint8(MarketPlace.Principals.Tempus)) {
-            maturity = Maturities.tempus(principal);
-        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
-            maturity = Maturities.apwine(principal);
-        } else if (p == uint8(MarketPlace.Principals.Notional)) {
-            maturity = Maturities.notional(principal);
-        } else {
-            revert Exception(6, p, 0, address(0), address(0));
-        }
+        // Get the adapter for the protocol being redeemed
+        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
 
-        // Verify that the token has matured
-        if (maturity > block.timestamp) {
-            revert Exception(7, maturity, 0, address(0), address(0));
-        }
-
-        // Cache the lender to save gas on sload
-        address cachedLender = lender;
-
-        // Get the amount of principal tokens held by the lender
-        uint256 amount = IERC20(principal).balanceOf(cachedLender);
-
-        // For Pendle, we can transfer directly to the YT
-        address destination = address(this);
-        if (p == uint8(MarketPlace.Principals.Pendle)) {
-            destination = IPendleToken(principal).YT();
-        }
-
-        // Receive the principal token from the lender contract
-        Safe.transferFrom(IERC20(principal), cachedLender, destination, amount);
-
-        // Get the starting balance of the underlying held by the redeemer
-        uint256 starting = IERC20(u).balanceOf(address(this));
-
-        if (p == uint8(MarketPlace.Principals.Yield)) {
-            // Redeems principal tokens from Yield
-            IYieldToken(principal).redeem(address(this), amount);
-        } else if (p == uint8(MarketPlace.Principals.Element)) {
-            // Redeems principal tokens from Element
-            IElementToken(principal).withdrawPrincipal(amount, address(this));
-        } else if (p == uint8(MarketPlace.Principals.Pendle)) {
-            // Retrieve the YT for the PT
-            address yt = IPendleToken(principal).YT();
-
-            // Redeem the PTs to the SY token
-            uint256 syRedeemed = IPendleYieldToken(yt).redeemPY(address(this));
-
-            // Retreive the SY token from the PT
-            address sy = IPendleToken(principal).SY();
-
-            // Redeem the underlying by unwrapping the SY token
-            IPendleSYToken(sy).redeem(address(this), syRedeemed, u, 0, false);
-        } else if (p == uint8(MarketPlace.Principals.Tempus)) {
-            // Retrieve the pool for the principal token
-            address pool = ITempusToken(principal).pool();
-
-            // Redeems principal tokens from Tempus
-            ITempus(tempusAddr).redeemToBacking(pool, amount, 0, address(this));
-        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
-            apwineWithdraw(principal, u, amount);
-        } else if (p == uint8(MarketPlace.Principals.Notional)) {
-            // Redeems principal tokens from Notional
-            INotional(principal).redeem(
-                IERC20(principal).balanceOf(address(this)),
-                address(this),
-                address(this)
+        {
+            // Verify that the PT has matured
+            (bool success, bytes memory returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('maturity()', '')
             );
+            if (!success) {
+                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add maturity retrieval failure code
+            }
+
+            uint256 ptMaturity = abi.decode(returndata, (uint256));
+            if (block.timestamp < ptMaturity) {
+                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add failed to mature code
+            }
         }
 
-        // Calculate how much underlying was redeemed
-        uint256 redeemed = IERC20(u).balanceOf(address(this)) - starting;
+        uint256 amount;
+        uint256 redeemed;
 
-        // Update the holding for this market
-        holdings[u][m] = holdings[u][m] + redeemed;
+        {
+            // Cache the lender to save gas on sload
+            address cachedLender = lender;
+
+            // Get the amount of principal tokens held by the lender
+            amount = IERC20(pt).balanceOf(cachedLender);
+
+            // Receive the principal token from the lender contract
+            Safe.transferFrom(IERC20(pt), cachedLender, address(this), amount);
+        }
+
+        {
+            // Get the starting balance of the underlying held by the redeemer
+            uint256 starting = IERC20(u).balanceOf(address(this));
+
+            // Conduct the redemption via the adapter
+            (bool success, ) = adapter.delegatecall(
+                abi.encodeWithSignature('redeem()', d)
+            );
+            if (!success) {
+                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
+            }
+
+            // Calculate how much underlying was redeemed
+            redeemed = IERC20(u).balanceOf(address(this)) - starting;
+
+            // Update the holding for this market
+            address underlying = u;
+            uint256 maturity = m;
+            holdings[underlying][maturity] =
+                holdings[underlying][maturity] +
+                redeemed;
+        }
 
         emit Redeem(p, u, m, redeemed, amount, msg.sender);
-        return true;
-    }
-
-    /// @notice redeem method signature for Swivel
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @return bool true if the redemption was successful
-    function redeem(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint8 protocol
-    ) external unpaused(u, m) returns (bool) {
-        // Check the principal is Swivel
-        if (p != uint8(MarketPlace.Principals.Swivel)) {
-            revert Exception(6, p, 0, address(0), address(0));
-        }
-
-        // Get Swivel's principal token for this market
-        address token = IMarketPlace(marketPlace).markets(u, m, p);
-
-        // Get the maturity of the token
-        uint256 maturity = ISwivelToken(token).maturity();
-
-        // Verify that the token has matured
-        if (maturity > block.timestamp) {
-            revert Exception(7, maturity, 0, address(0), address(0));
-        }
-
-        // Cache the lender to save on SLOAD operations
-        address cachedLender = lender;
-
-        // Get the balance of tokens to be redeemed by the lenders
-        uint256 amount = IERC20(token).balanceOf(cachedLender);
-
-        // Transfer the lenders' tokens to the redeem contract
-        Safe.transferFrom(IERC20(token), cachedLender, address(this), amount);
-
-        // Get the starting balance to verify the amount received afterwards
-        uint256 starting = IERC20(u).balanceOf(address(this));
-
-        // Redeem principal tokens from Swivel
-        if (!ISwivel(swivelAddr).redeemZcToken(protocol, u, maturity, amount)) {
-            revert Exception(15, 0, 0, address(0), address(0));
-        }
-
-        // Retrieve unswapped premium from the Lender contract
-        ILender(cachedLender).transferPremium(u, m);
-
-        // Calculate how much underlying was redeemed
-        uint256 redeemed = IERC20(u).balanceOf(address(this)) - starting;
-
-        // Update the holding for this market
-        holdings[u][m] = holdings[u][m] + redeemed;
-
-        emit Redeem(p, u, m, redeemed, amount, msg.sender);
-        return true;
-    }
-
-    /// @notice redeem method signature for Sense
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param s Sense's maturity is needed to extract the pt address
-    /// @param a Sense's adapter index
-    /// @param periphery Sense's periphery contract, used to get the verified adapter
-    /// @return bool true if the redemption was successful
-    function redeem(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 s,
-        uint256 a,
-        address periphery
-    ) external unpaused(u, m) returns (bool) {
-        // Get Sense's principal token for this market
-        IERC20 token = IERC20(
-            IMarketPlace(marketPlace).markets(
-                u,
-                m,
-                uint8(MarketPlace.Principals.Sense)
-            )
-        );
-
-        // Confirm the periphery is verified by the lender
-        if (IERC20(u).allowance(lender, periphery) == 0) {
-            revert Exception(29, 0, 0, address(0), address(0));
-        }
-
-        // Cache the lender to save on SLOAD operations
-        address cachedLender = lender;
-
-        // Get the balance of tokens to be redeemed by the user
-        uint256 amount = token.balanceOf(cachedLender);
-
-        // Transfer the user's tokens to the redeem contract
-        Safe.transferFrom(token, cachedLender, address(this), amount);
-
-        // Calculate the balance of the redeemer contract
-        uint256 redeemable = token.balanceOf(address(this));
-
-        // Get the starting balance to verify the amount received afterwards
-        uint256 starting = IERC20(u).balanceOf(address(this));
-
-        // Get the existing balance of Sense PTs
-        uint256 senseBalance = token.balanceOf(address(this));
-
-        // Get the divider from the periphery
-        ISenseDivider divider = ISenseDivider(
-            ISensePeriphery(periphery).divider()
-        );
-
-        // Get the adapter from the divider
-        address adapter = divider.adapterAddresses(a);
-
-        // Redeem the tokens from the Sense contract
-        ISenseDivider(divider).redeem(adapter, s, senseBalance);
-
-        // Get the compounding token that is redeemed by Sense
-        address compounding = ISenseAdapter(adapter).target();
-
-        // Redeem the compounding token back to the underlying
-        IConverter(converter).convert(
-            compounding,
-            u,
-            IERC20(compounding).balanceOf(address(this))
-        );
-
-        // Get the amount received
-        uint256 redeemed = IERC20(u).balanceOf(address(this)) - starting;
-
-        // Update the holdings for this market
-        holdings[u][m] = holdings[u][m] + redeemed;
-
-        emit Redeem(p, u, m, redeemed, redeemable, msg.sender);
         return true;
     }
 
@@ -603,9 +435,6 @@ contract Redeemer {
             // Calculate how many tokens the user should receive
             uint256 redeemed = (amount * holdings[u][m]) / pt.totalSupply();
 
-            // Calculate the fees to be received
-            uint256 fee = redeemed / feenominator;
-
             // Verify allowance
             if (allowance < amount) {
                 revert Exception(20, allowance, amount, address(0), address(0));
@@ -620,14 +449,19 @@ contract Redeemer {
             // Update the holdings for this market
             holdings[u][m] = holdings[u][m] - redeemed;
 
-            // Transfer the underlying to the user
-            Safe.transfer(IERC20(u), f[i], redeemed - fee);
+            {
+                // Calculate the fees to be received
+                uint256 fee = redeemed / feenominator;
 
-            unchecked {
-                // Track the fees gained by the caller
-                incentiveFee += fee;
+                // Transfer the underlying to the user
+                Safe.transfer(IERC20(u), f[i], redeemed - fee);
 
-                ++i;
+                unchecked {
+                    // Track the fees gained by the caller
+                    incentiveFee += fee;
+
+                    ++i;
+                }
             }
         }
 
@@ -642,11 +476,7 @@ contract Redeemer {
     /// @param u address of the underlying asset
     /// @param m maturity of the market
     /// @param a amount of underlying to be deposited
-    function depositHoldings(
-        address u,
-        uint256 m,
-        uint256 a
-    ) external {
+    function depositHoldings(address u, uint256 m, uint256 a) external {
         // Receive the underlying asset from the admin
         Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
 
@@ -655,11 +485,7 @@ contract Redeemer {
     }
 
     /// @notice Execute the business logic for conducting an APWine redemption
-    function apwineWithdraw(
-        address p,
-        address u,
-        uint256 a
-    ) internal {
+    function apwineWithdraw(address p, address u, uint256 a) internal {
         // Retrieve the vault which executes the redemption in APWine
         address futureVault = IAPWineToken(p).futureVault();
 

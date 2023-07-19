@@ -12,22 +12,10 @@ import 'src/lib/RevertMsgExtractor.sol';
 import 'src/lib/Maturities.sol';
 import 'src/errors/Exception.sol';
 
-import 'src/interfaces/ITempus.sol';
-import 'src/interfaces/ITempusAMM.sol';
-import 'src/interfaces/ITempusPool.sol';
-import 'src/interfaces/ITempusToken.sol';
 import 'src/interfaces/IERC20.sol';
 import 'src/interfaces/IERC5095.sol';
-import 'src/interfaces/ISensePeriphery.sol';
-import 'src/interfaces/ISenseDivider.sol';
 import 'src/interfaces/IYield.sol';
-import 'src/interfaces/ISwivel.sol';
 import 'src/interfaces/IElementVault.sol';
-import 'src/interfaces/IAPWineAMMPool.sol';
-import 'src/interfaces/IAPWineRouter.sol';
-import 'src/interfaces/INotional.sol';
-import 'src/interfaces/IPendle.sol';
-import 'src/interfaces/IPendleMarket.sol';
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -391,558 +379,6 @@ contract Lender {
         return true;
     }
 
-    /// @notice lend method for the Illuminate and Yield protocols
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying tokens to lend
-    /// @param y Yield Space Pool for the principal token
-    /// @param minimum slippage limit, minimum amount to PTs to buy
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 a,
-        address y,
-        uint256 minimum
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        // Get principal token for this market
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
-
-        // Extract fee
-        fees[u] = fees[u] + a / feenominator;
-
-        // Transfer underlying from user to the lender contract
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
-        // Make sure the Yield Space Pool matches the market
-        address fyToken = IYield(y).fyToken();
-        if (IYield(y).fyToken() != principal) {
-            revert Exception(12, 0, 0, fyToken, principal);
-        }
-        address base = address(IYield(y).base());
-        if (base != u) {
-            revert Exception(27, 0, 0, base, u);
-        }
-
-        // Set who should get the tokens that are swapped for
-        address receiver = address(this);
-
-        // If lending on Illuminate, swap directly to the caller
-        if (p == uint8(MarketPlace.Principals.Illuminate)) {
-            receiver = msg.sender;
-        }
-
-        // Swap underlying for PTs to lender
-        uint256 returned = yield(
-            u,
-            y,
-            a - a / feenominator,
-            receiver,
-            principal,
-            minimum
-        );
-
-        // Convert decimals from principal token to underlying
-        returned = convertDecimals(u, principal, returned);
-
-        // Only mint iPTs to user if lending through Yield protocol
-        if (p == uint8(MarketPlace.Principals.Yield)) {
-            // Confirm that minted iPT amount will not exceed rate limit for the protocol
-            rateLimit(p, u, returned);
-
-            // Mint Illuminate PTs to msg.sender
-            IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
-        }
-
-        emit Lend(p, u, m, returned, a, msg.sender);
-
-        return returned;
-    }
-
-    /// @notice lend method signature for Swivel
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a array of amounts of underlying tokens lent to each order in the orders array
-    /// @param y Yield Space Pool for the Illuminate PT in this market
-    /// @param o array of Swivel orders being filled
-    /// @param s array of signatures for each order in the orders array
-    /// @param e flag to indicate if returned funds should be swapped in Yield Space Pool
-    /// @param premiumSlippage slippage limit, minimum amount to PTs to buy
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256[] memory a,
-        address y,
-        Swivel.Order[] calldata o,
-        Swivel.Components[] calldata s,
-        bool e,
-        uint256 premiumSlippage
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        // Ensure all the orders are for the underlying asset
-        swivelVerify(o, u);
-
-        // Lent represents the total amount of underlying to be lent
-        uint256 lent = swivelAmount(a);
-
-        // Get the underlying balance prior to calling initiate
-        uint256 starting = IERC20(u).balanceOf(address(this));
-
-        // Transfer underlying token from user to Illuminate
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), lent);
-
-        // Calculate fee for the total amount to be lent
-        uint256 fee = lent / feenominator;
-
-        {
-            // Get last order to be processed's index
-            uint256 lastIndex = a.length - 1;
-
-            // Add the accumulated fees to the total
-            a[lastIndex] = a[lastIndex] - fee; // Revert here if fee not paid
-
-            // Extract fee
-            fees[u] += fee;
-        }
-
-        uint256 received;
-        {
-            // Get the starting amount of principal tokens
-            uint256 startingZcTokens = IERC20(
-                IMarketPlace(marketPlace).markets(u, m, p)
-            ).balanceOf(address(this));
-
-            // Fill the given orders on Swivel
-            ISwivel(swivelAddr).initiate(o, a, s);
-
-            // Compute how many principal tokens were received
-            received = (IERC20(IMarketPlace(marketPlace).markets(u, m, p))
-                .balanceOf(address(this)) - startingZcTokens);
-
-            // Calculate the premium
-            uint256 premium = (IERC20(u).balanceOf(address(this)) - starting) -
-                fee;
-
-            // Calculate the fee on the premium
-            uint256 premiumFee = premium / feenominator;
-
-            // Extract fee from premium
-            fees[u] += premiumFee;
-
-            // Remove the fee from the premium
-            premium = premium - premiumFee;
-
-            // Store how much the user received in exchange for swapping the premium for iPTs
-            uint256 swapped;
-
-            if (e) {
-                // Swap the premium for Illuminate principal tokens
-                swapped += yield(
-                    u,
-                    y,
-                    premium,
-                    msg.sender,
-                    IMarketPlace(marketPlace).markets(u, m, 0),
-                    premiumSlippage
-                );
-            } else {
-                // Send the premium to the redeemer to hold until redemption
-                premiums[u][m] = premiums[u][m] + premium;
-
-                // Account for the premium
-                received = received + premium;
-            }
-
-            // Mint Illuminate principal tokens to the user
-            IERC5095(principalToken(u, m)).authMint(msg.sender, received);
-
-            emit Lend(
-                uint8(MarketPlace.Principals.Swivel),
-                u,
-                m,
-                received + swapped,
-                lent,
-                msg.sender
-            );
-        }
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, received);
-        return received;
-    }
-
-    /// @notice lend method signature for Element
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying tokens to lend
-    /// @param r slippage limit, minimum amount to PTs to buy
-    /// @param d deadline is a timestamp by which the swap must be executed
-    /// @param e Element pool that is lent to
-    /// @param i the id of the pool
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 r,
-        uint256 d,
-        address e,
-        bytes32 i
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        // Get the principal token for this market for Element
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
-
-        // Transfer underlying token from user to Illuminate
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
-        // Track the accumulated fees
-        fees[u] = fees[u] + a / feenominator;
-
-        uint256 purchased;
-        {
-            // Calculate the amount to be lent
-            uint256 lent = a - a / feenominator;
-
-            // Create the variables needed to execute an Element swap
-            Element.FundManagement memory fund = Element.FundManagement({
-                sender: address(this),
-                recipient: payable(address(this)),
-                fromInternalBalance: false,
-                toInternalBalance: false
-            });
-
-            Element.SingleSwap memory swap = Element.SingleSwap({
-                poolId: i,
-                amount: lent,
-                kind: Element.SwapKind.GIVEN_IN,
-                assetIn: IAny(u),
-                assetOut: IAny(principal),
-                userData: '0x00000000000000000000000000000000000000000000000000000000000000'
-            });
-
-            // Conduct the swap on Element
-            purchased = elementSwap(e, swap, fund, r, d);
-
-            // Convert decimals from principal token to underlying
-            purchased = convertDecimals(u, principal, purchased);
-        }
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, purchased);
-
-        // Mint tokens to the user
-        IERC5095(principalToken(u, m)).authMint(msg.sender, purchased);
-
-        emit Lend(p, u, m, purchased, a, msg.sender);
-        return purchased;
-    }
-
-    /// @notice lend method signature for Pendle
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying tokens to lend
-    /// @param r slippage limit, minimum amount to PTs to buy
-    /// @param g guess parameters for the swap
-    /// @param market contract that corresponds to the market for the PT
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 r,
-        Pendle.ApproxParams calldata g,
-        address market
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        // Instantiate market and tokens
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
-
-        // Confirm the market corresponds to this Illuminate market
-        (, address marketPrincipal, ) = IPendleMarket(market).readTokens();
-        if (marketPrincipal != principal) {
-            revert Exception(27, 0, 0, market, principal);
-        }
-
-        // Transfer funds from user to Illuminate
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
-        uint256 returned;
-        {
-            // Add the accumulated fees to the total
-            uint256 fee = a / feenominator;
-            fees[u] = fees[u] + fee;
-
-            // Setup the token input
-            Pendle.TokenInput memory input = Pendle.TokenInput(
-                u,
-                a - fee,
-                u,
-                address(0),
-                address(0),
-                '0x00000000000000000000000000000000000000000000000000000000000000'
-            );
-
-            // Swap on the Pendle Router using the provided market and params
-            (returned, ) = IPendle(pendleAddr).swapExactTokenForPt(
-                address(this),
-                market,
-                r,
-                g,
-                input
-            );
-
-            // Convert decimals from principal token to underlying
-            returned = convertDecimals(u, principal, returned);
-        }
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, returned);
-
-        // Mint Illuminate zero coupons
-        IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
-
-        emit Lend(p, u, m, returned, a, msg.sender);
-        return returned;
-    }
-
-    /// @notice lend method signature for Tempus and APWine
-    /// @param p value of a specific principal according to the Illuminate Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount of principal tokens to lend
-    /// @param r minimum amount to return when executing the swap (sets a limit to slippage)
-    /// @param d deadline is a timestamp by which the swap must be executed
-    /// @param x Tempus or APWine AMM that executes the swap
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 r,
-        uint256 d,
-        address x
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
-
-        // Transfer funds from user to Illuminate
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
-        uint256 lent;
-        {
-            // Add the accumulated fees to the total
-            uint256 fee = a / feenominator;
-            fees[u] = fees[u] + fee;
-
-            // Calculate amount to be lent out
-            lent = a - fee;
-        }
-
-        // Get the starting balance of the principal token
-        uint256 start = IERC20(principal).balanceOf(address(this));
-
-        if (p == uint8(MarketPlace.Principals.Tempus)) {
-            // Get the Tempus pool from the principal token
-            ITempusPool pool = ITempusPool(ITempusToken(principal).pool());
-
-            // Get the pool of the contract the user submitted
-            address userPool = ITempusAMM(x).tempusPool();
-
-            // Confirm that the pool matches the principal token
-            if (address(pool) != userPool) {
-                revert Exception(27, 0, 0, address(pool), userPool);
-            }
-
-            // Get the Tempus router from the principal token
-            address controller = pool.controller();
-
-            // Swap on the Tempus router using the provided market and params
-            ITempus(controller).depositAndFix(x, lent, true, 0, d);
-        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
-            address poolUnderlying = IAPWineAMMPool(x)
-                .getUnderlyingOfIBTAddress();
-            if (u != poolUnderlying) {
-                revert Exception(27, 0, 0, u, poolUnderlying);
-            }
-            address poolPrincipal = IAPWineAMMPool(x).getPTAddress();
-            if (principal != poolPrincipal) {
-                revert Exception(27, 0, 0, principal, poolPrincipal);
-            }
-            // Swap on the APWine Pool using the provided market and params
-            IAPWineRouter(apwineAddr).swapExactAmountIn(
-                x,
-                apwinePairPath(),
-                apwineTokenPath(),
-                lent,
-                r,
-                address(this),
-                d,
-                address(0)
-            );
-        }
-
-        // Calculate the amount of Tempus principal tokens received after the deposit
-        uint256 received = IERC20(principal).balanceOf(address(this)) - start;
-
-        // Convert decimals from principal token to underlying
-        received = convertDecimals(u, principal, received);
-
-        // Verify that a minimum number of principal tokens were received
-        if (p == uint8(MarketPlace.Principals.Tempus) && received < r) {
-            revert Exception(11, received, r, address(0), address(0));
-        }
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, received);
-
-        // Mint Illuminate zero coupons
-        IERC5095(principalToken(u, m)).authMint(msg.sender, received);
-
-        emit Lend(p, u, m, received, a, msg.sender);
-        return received;
-    }
-
-    /// @notice lend method signature for Sense
-    /// @dev this method can be called before maturity to lend to Sense while minting Illuminate tokens
-    /// @dev Sense provides a [divider] contract that splits [target] assets (underlying) into PTs and YTs. Each [target] asset has a [series] of contracts, each identifiable by their [maturity].
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying tokens to lend
-    /// @param r slippage limit, minimum amount to PTs to buy
-    /// @param x periphery contract that is used to conduct the swap
-    /// @param s Sense's maturity for the given market
-    /// @param adapter Sense's adapter necessary to facilitate the swap
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint128 a,
-        uint256 r,
-        address x,
-        uint256 s,
-        address adapter
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        // Get the periphery's divider contract to verify that it maps to the prinicpal token of the market
-        address divider = ISensePeriphery(x).divider();
-
-        // Get the principal token for the user submitted periphery
-        address userPrincipal = ISenseDivider(divider).pt(adapter, s);
-
-        // Retrieve the principal token for this market
-        IERC20 token = IERC20(IMarketPlace(marketPlace).markets(u, m, p));
-
-        // Verify that the `x` parameter matches the market's Sense principal token
-        if (address(token) != userPrincipal) {
-            revert Exception(27, 0, 0, address(token), userPrincipal);
-        }
-
-        // Transfer funds from user to Illuminate
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
-        // Determine the fee
-        uint256 fee = a / feenominator;
-
-        // Add the accumulated fees to the total
-        fees[u] = fees[u] + fee;
-
-        // Determine lent amount after fees
-        uint256 lent = a - fee;
-
-        // Stores the amount of principal tokens received in swap for underlying
-        uint256 received;
-        {
-            // Get the starting balance of the principal token
-            uint256 starting = token.balanceOf(address(this));
-
-            // Swap those tokens for the principal tokens
-            ISensePeriphery(x).swapUnderlyingForPTs(adapter, s, lent, r);
-
-            // Calculate number of principal tokens received in the swap
-            received = token.balanceOf(address(this)) - starting;
-
-            // Verify that we received the principal tokens
-            if (received < r) {
-                revert Exception(11, 0, 0, address(0), address(0));
-            }
-        }
-
-        // Get the Illuminate PT
-        address ipt = principalToken(u, m);
-
-        // Calculate the mintable amount of tokens for Sense due to decimal mismatch
-        uint256 mintable = convertDecimals(u, address(token), received);
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, mintable);
-
-        // Mint the Illuminate tokens based on the returned amount
-        IERC5095(ipt).authMint(msg.sender, mintable);
-
-        emit Lend(p, u, m, mintable, a, msg.sender);
-        return mintable;
-    }
-
-    /// @dev lend method signature for Notional
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount of underlying tokens to lend
-    /// @param r slippage limit, minimum amount to PTs to buy
-    /// @return uint256 the amount of principal tokens lent out
-    function lend(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 r
-    ) external nonReentrant unpaused(u, m, p) matured(m) returns (uint256) {
-        // Confirm that we are using Notional's PT to avoid conflicts with other ERC4626 tokens
-        if (p != uint8(MarketPlace.Principals.Notional)) {
-            revert Exception(6, p, 0, address(0), address(0));
-        }
-
-        // Instantiate Notional princpal token
-        address token = IMarketPlace(marketPlace).markets(u, m, p);
-
-        // Transfer funds from user to Illuminate
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
-        // Determine the fee
-        uint256 fee = a / feenominator;
-
-        // Add the accumulated fees to the total
-        fees[u] = fees[u] + fee;
-
-        // Swap on the Notional Token wrapper
-        uint256 received = INotional(token).deposit(a - fee, address(this));
-
-        // Convert decimals from principal token to underlying
-        received = convertDecimals(u, token, received);
-
-        // Verify that we received the principal tokens
-        if (received < r) {
-            revert Exception(16, received, r, address(0), address(0));
-        }
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, received);
-
-        // Mint Illuminate zero coupons
-        IERC5095(principalToken(u, m)).authMint(msg.sender, received);
-
-        emit Lend(p, u, m, received, a, msg.sender);
-        return received;
-    }
-
     /// @notice allows the admin to schedule the withdrawal of tokens
     /// @param e address of (erc20) token to withdraw
     /// @return bool true if successful
@@ -1088,6 +524,52 @@ contract Lender {
         );
 
         premiums[u][m] = 0;
+    }
+
+    /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
+    /// @param p principal value according to the MarketPlace's Principals Enum
+    /// @param u underlying asset address of the market's tuple
+    /// @param m timestamp of maturity of the market's tuple
+    /// @param a amount in underlying to be lent
+    /// @param d data to conduct the call
+    function lend(
+        uint8 p,
+        address u,
+        uint256 m,
+        uint256 a,
+        bytes calldata d
+    ) external returns (uint256) {
+        // Receive the funds from the user
+        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
+
+        // Fetch the adapter for this lend call
+        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
+
+        // Fetch the principal token for this lend call
+        address pt = IMarketPlace(marketPlace).markets(u, m, p);
+
+        // Get the starting balance for the Lender
+        uint256 starting = IERC20(pt).balanceOf(address(this));
+
+        // Conduct the lend operation to acquire principal tokens
+        (bool success, ) = adapter.delegatecall(
+            abi.encodeWithSignature('lend(bytes calldata inputdata)', d) // TODO: create lend signature
+        );
+
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        }
+
+        // Fetch how many principal tokens were obtained
+        uint256 obtained = IERC20(pt).balanceOf(address(this)) - starting;
+
+        // Convert decimals from principal token to underlying
+        uint256 returned = convertDecimals(u, pt, obtained);
+
+        // Mint Illuminate PTs to msg.sender
+        IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
+        emit Lend(p, u, m, returned, a, msg.sender);
+        return returned;
     }
 
     /// @notice Allows batched call to self (this contract).

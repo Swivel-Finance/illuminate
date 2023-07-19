@@ -47,10 +47,16 @@ contract Creator {
         string calldata n,
         string calldata s
     ) external authorized(marketPlace) returns (address) {
-        // Create an Illuminate principal token for the new market
-        address illuminateToken = address(
-            new ERC5095(u, m, r, l, mp, n, s, IERC20(u).decimals())
-        );
+        address illuminateToken;
+        {
+            // Get the decimals for the ERC5095
+            uint8 decimals = IERC20(u).decimals();
+
+            // Create an Illuminate principal token for the new market
+            illuminateToken = address(
+                new ERC5095(u, m, r, l, mp, n, s, decimals)
+            );
+        }
 
         return illuminateToken;
     }
@@ -58,11 +64,9 @@ contract Creator {
     /// @notice sets the address of the marketplace contract
     /// @param m the address of the marketplace contract
     /// @return bool true if the address was set
-    function setMarketPlace(address m)
-        external
-        authorized(admin)
-        returns (bool)
-    {
+    function setMarketPlace(
+        address m
+    ) external authorized(admin) returns (bool) {
         if (marketPlace != address(0)) {
             revert Exception(5, 0, 0, marketPlace, address(0));
         }
