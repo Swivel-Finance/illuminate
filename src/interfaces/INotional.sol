@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 import 'src/interfaces/IERC20.sol';
 
@@ -13,9 +13,5 @@ interface INotional {
 
     function maxRedeem(address) external returns (uint256);
 
-    function redeem(
-        uint256,
-        address,
-        address
-    ) external returns (uint256);
+    function redeem(uint256, address, address) external returns (uint256);
 }

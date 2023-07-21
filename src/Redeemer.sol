@@ -12,6 +12,7 @@ import 'src/interfaces/IERC20.sol';
 import 'src/interfaces/IAPWineController.sol';
 import 'src/interfaces/IAPWineFutureVault.sol';
 import 'src/interfaces/IAPWineToken.sol';
+import 'src/interfaces/ILender.sol';
 import 'src/interfaces/IConverter.sol';
 
 /// @title Redeemer
@@ -472,6 +473,7 @@ contract Redeemer {
 
     /// @notice Execute the business logic for conducting an APWine redemption
     function apwineWithdraw(address p, address u, uint256 a) internal {
+        // TODO: revisit the need for this method in v2
         // Retrieve the vault which executes the redemption in APWine
         address futureVault = IAPWineToken(p).futureVault();
 
