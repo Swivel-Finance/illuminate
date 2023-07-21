@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 interface IAPWineFutureVault {
     function PERIOD_DURATION() external view returns (uint256);

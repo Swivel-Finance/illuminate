@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 import 'src/interfaces/IERC20.sol';
 import 'src/interfaces/IERC5095.sol';
@@ -16,14 +16,7 @@ interface IPool {
 
     function scaleFactor() external view returns (uint96);
 
-    function getCache()
-        external
-        view
-        returns (
-            uint112,
-            uint112,
-            uint32
-        );
+    function getCache() external view returns (uint112, uint112, uint32);
 
     // NOTE This will be deprecated
     function base() external view returns (IERC20);
@@ -42,19 +35,11 @@ interface IPool {
 
     function sellBase(address, uint128) external returns (uint128);
 
-    function buyBase(
-        address,
-        uint128,
-        uint128
-    ) external returns (uint128);
+    function buyBase(address, uint128, uint128) external returns (uint128);
 
     function sellFYToken(address, uint128) external returns (uint128);
 
-    function buyFYToken(
-        address,
-        uint128,
-        uint128
-    ) external returns (uint128);
+    function buyFYToken(address, uint128, uint128) external returns (uint128);
 
     function sellBasePreview(uint128) external view returns (uint128);
 
@@ -69,13 +54,7 @@ interface IPool {
         address,
         uint256,
         uint256
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        );
+    ) external returns (uint256, uint256, uint256);
 
     function mintWithBase(
         address,
@@ -83,26 +62,14 @@ interface IPool {
         uint256,
         uint256,
         uint256
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        );
+    ) external returns (uint256, uint256, uint256);
 
     function burn(
         address,
         address,
         uint256,
         uint256
-    )
-        external
-        returns (
-            uint256,
-            uint256,
-            uint256
-        );
+    ) external returns (uint256, uint256, uint256);
 
     function burnForBase(
         address,

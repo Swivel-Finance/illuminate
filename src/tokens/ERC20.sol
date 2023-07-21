@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Inspired on token.sol from DappHub. Natspec adpated from OpenZeppelin.
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 import 'src/interfaces/IERC20Metadata.sol';
 
@@ -36,11 +36,7 @@ contract ERC20 is IERC20Metadata {
     /**
      *  @dev Sets the values for {name}, {symbol} and {decimals}.
      */
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) {
         name = name_;
         symbol = symbol_;
         decimals = decimals_;
@@ -56,38 +52,29 @@ contract ERC20 is IERC20Metadata {
     /**
      * @dev See {IERC20-balanceOf}.
      */
-    function balanceOf(address guy)
-        external
-        view
-        virtual
-        override
-        returns (uint256)
-    {
+    function balanceOf(
+        address guy
+    ) external view virtual override returns (uint256) {
         return _balanceOf[guy];
     }
 
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender)
-        external
-        view
-        virtual
-        override
-        returns (uint256)
-    {
+    function allowance(
+        address owner,
+        address spender
+    ) external view virtual override returns (uint256) {
         return _allowance[owner][spender];
     }
 
     /**
      * @dev See {IERC20-approve}.
      */
-    function approve(address spender, uint256 wad)
-        external
-        virtual
-        override
-        returns (bool)
-    {
+    function approve(
+        address spender,
+        uint256 wad
+    ) external virtual override returns (bool) {
         return _setAllowance(msg.sender, spender, wad);
     }
 
@@ -98,12 +85,10 @@ contract ERC20 is IERC20Metadata {
      *
      * - the caller must have a balance of at least `wad`.
      */
-    function transfer(address dst, uint256 wad)
-        external
-        virtual
-        override
-        returns (bool)
-    {
+    function transfer(
+        address dst,
+        uint256 wad
+    ) external virtual override returns (bool) {
         return _transfer(msg.sender, dst, wad);
     }
 
@@ -185,11 +170,10 @@ contract ERC20 is IERC20Metadata {
      * `wad`, unless src == msg.sender
      */
     /// if_succeeds {:msg "Decrease allowance - underflow"} old(_allowance[src][msg.sender]) <= _allowance[src][msg.sender];
-    function _decreaseAllowance(address src, uint256 wad)
-        internal
-        virtual
-        returns (bool)
-    {
+    function _decreaseAllowance(
+        address src,
+        uint256 wad
+    ) internal virtual returns (bool) {
         if (src != msg.sender) {
             uint256 allowed = _allowance[src][msg.sender];
             if (allowed != type(uint256).max) {
