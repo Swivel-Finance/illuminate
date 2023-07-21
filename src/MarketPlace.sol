@@ -3,12 +3,10 @@
 pragma solidity 0.8.20;
 
 import 'src/tokens/ERC5095.sol';
-import 'src/lib/Safe.sol';
 import 'src/lib/RevertMsgExtractor.sol';
 import 'src/errors/Exception.sol';
 
 import 'src/interfaces/ICreator.sol';
-import 'src/interfaces/IPool.sol';
 
 /// @title MarketPlace
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -62,34 +60,6 @@ contract MarketPlace {
         address indexed principal,
         address adapter,
         uint8 protocol
-    );
-    /// @notice emitted upon swapping with the pool
-    event Swap(
-        address indexed underlying,
-        uint256 indexed maturity,
-        address sold,
-        address bought,
-        uint256 received,
-        uint256 spent,
-        address spender
-    );
-    /// @notice emitted upon minting tokens with the pool
-    event Mint(
-        address indexed underlying,
-        uint256 indexed maturity,
-        uint256 underlyingIn,
-        uint256 principalTokensIn,
-        uint256 minted,
-        address minter
-    );
-    /// @notice emitted upon burning tokens with the pool
-    event Burn(
-        address indexed underlying,
-        uint256 indexed maturity,
-        uint256 tokensBurned,
-        uint256 underlyingReceived,
-        uint256 principalTokensReceived,
-        address burner
     );
     /// @notice emitted upon changing the admin
     event SetAdmin(address indexed admin);
@@ -260,159 +230,6 @@ contract MarketPlace {
         );
 
         return success;
-    }
-
-    /// @notice mint liquidity tokens in exchange for adding underlying and PT
-    /// @dev amount of liquidity tokens to mint is calculated from the amount of unaccounted for PT in this contract.
-    /// @dev A proportional amount of underlying tokens need to be present in this contract, also unaccounted for.
-    /// @param u the address of the underlying token
-    /// @param m the maturity of the principal token
-    /// @param b number of base tokens
-    /// @param p the principal token amount being sent
-    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
-    /// @param maxRatio maximum ratio of LP tokens to PT in the pool.
-    /// @return uint256 number of base tokens passed to the method
-    /// @return uint256 number of yield tokens passed to the method
-    /// @return uint256 the amount of tokens minted.
-    function mint(
-        address u,
-        uint256 m,
-        uint256 b,
-        uint256 p,
-        uint256 minRatio,
-        uint256 maxRatio
-    ) external returns (uint256, uint256, uint256) {
-        // Get the pool for the market
-        IPool pool = IPool(pools[u][m]);
-
-        // Transfer the underlying tokens to the pool
-        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), b);
-
-        // Transfer the principal tokens to the pool
-        Safe.transferFrom(
-            IERC20(address(pool.fyToken())),
-            msg.sender,
-            address(pool),
-            p
-        );
-
-        // Mint the tokens and return the leftover assets to the caller
-        (uint256 underlyingIn, uint256 principalTokensIn, uint256 minted) = pool
-            .mint(msg.sender, msg.sender, minRatio, maxRatio);
-
-        emit Mint(u, m, underlyingIn, principalTokensIn, minted, msg.sender);
-        return (underlyingIn, principalTokensIn, minted);
-    }
-
-    /// @notice Mint liquidity tokens in exchange for adding only underlying
-    /// @dev amount of liquidity tokens is calculated from the amount of PT to buy from the pool,
-    /// plus the amount of unaccounted for PT in this contract.
-    /// @param u the address of the underlying token
-    /// @param m the maturity of the principal token
-    /// @param a the underlying amount being sent
-    /// @param p amount of `PT` being bought in the Pool, from this we calculate how much underlying it will be taken in.
-    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
-    /// @param maxRatio maximum ratio of LP tokens to PT in the pool.
-    /// @return uint256 number of base tokens passed to the method
-    /// @return uint256 number of yield tokens passed to the method
-    /// @return uint256 the amount of tokens minted.
-    function mintWithUnderlying(
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 p,
-        uint256 minRatio,
-        uint256 maxRatio
-    ) external returns (uint256, uint256, uint256) {
-        // Get the pool for the market
-        IPool pool = IPool(pools[u][m]);
-
-        // Transfer the underlying tokens to the pool
-        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
-
-        // Mint the tokens to the user
-        (uint256 underlyingIn, , uint256 minted) = pool.mintWithBase(
-            msg.sender,
-            msg.sender,
-            p,
-            minRatio,
-            maxRatio
-        );
-
-        emit Mint(u, m, underlyingIn, 0, minted, msg.sender);
-        return (underlyingIn, 0, minted);
-    }
-
-    /// @notice burn liquidity tokens in exchange for underlying and PT.
-    /// @param u the address of the underlying token
-    /// @param m the maturity of the principal token
-    /// @param a the amount of liquidity tokens to burn
-    /// @param minRatio minimum ratio of LP tokens to PT in the pool
-    /// @param maxRatio maximum ratio of LP tokens to PT in the pool
-    /// @return uint256 amount of LP tokens burned
-    /// @return uint256 amount of base tokens received
-    /// @return uint256 amount of fyTokens received
-    function burn(
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 minRatio,
-        uint256 maxRatio
-    ) external returns (uint256, uint256, uint256) {
-        // Get the pool for the market
-        IPool pool = IPool(pools[u][m]);
-
-        // Transfer the underlying tokens to the pool
-        Safe.transferFrom(IERC20(address(pool)), msg.sender, address(pool), a);
-
-        // Burn the tokens
-        (
-            uint256 tokensBurned,
-            uint256 underlyingReceived,
-            uint256 principalTokensReceived
-        ) = pool.burn(msg.sender, msg.sender, minRatio, maxRatio);
-
-        emit Burn(
-            u,
-            m,
-            tokensBurned,
-            underlyingReceived,
-            principalTokensReceived,
-            msg.sender
-        );
-        return (tokensBurned, underlyingReceived, principalTokensReceived);
-    }
-
-    /// @notice burn liquidity tokens in exchange for underlying.
-    /// @param u the address of the underlying token
-    /// @param m the maturity of the principal token
-    /// @param a the amount of liquidity tokens to burn
-    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
-    /// @param maxRatio minimum ratio of LP tokens to PT in the pool.
-    /// @return uint256 amount of PT tokens sent to the pool
-    /// @return uint256 amount of underlying tokens returned
-    function burnForUnderlying(
-        address u,
-        uint256 m,
-        uint256 a,
-        uint256 minRatio,
-        uint256 maxRatio
-    ) external returns (uint256, uint256) {
-        // Get the pool for the market
-        IPool pool = IPool(pools[u][m]);
-
-        // Transfer the underlying tokens to the pool
-        Safe.transferFrom(IERC20(address(pool)), msg.sender, address(pool), a);
-
-        // Burn the tokens in exchange for underlying tokens
-        (uint256 tokensBurned, uint256 underlyingReceived) = pool.burnForBase(
-            msg.sender,
-            minRatio,
-            maxRatio
-        );
-
-        emit Burn(u, m, tokensBurned, underlyingReceived, 0, msg.sender);
-        return (tokensBurned, underlyingReceived);
     }
 
     /// @notice Allows batched call to self (this contract).
