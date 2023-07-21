@@ -227,6 +227,31 @@ contract MarketPlace {
         return true;
     }
 
+    /// @notice approves any necessary addresses for a protocol via its adapter
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param p index of the protocol's adapter
+    /// @param a approval calldata for the given protocol
+    /// @return bool true if approvals occurred, false if not
+    function approve(
+        address u,
+        uint256 m,
+        uint8 p,
+        bytes calldata a
+    ) external returns (bool) {
+        address adapter = adapters[u][m][p];
+
+        if (adapter == address(0)) {
+            revert Exception(0, 0, 0, address(0), address(0));
+        }
+
+        (bool success, ) = adapter.delegatecall(
+            abi.encodeWithSignature('approve(address[] calldata)', a)
+        );
+
+        return success;
+    }
+
     /// @notice sells the PT for the underlying via the pool
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
