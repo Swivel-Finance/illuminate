@@ -174,13 +174,15 @@ contract MarketPlace {
     /// @param m maturity (timestamp) of the market
     /// @param a address of the new principal token
     /// @param adapter address of the protocol's adapter contract
+    /// @param approvalCalldata calldata for approvals for the protcol
     /// @return bool true if the principal set, false otherwise
     function setPrincipal(
         uint8 p,
         address u,
         uint256 m,
         address a,
-        address adapter
+        address adapter,
+        bytes calldata approvalCalldata
     ) external authorized(admin) returns (bool) {
         // Set the principal token in the markets mapping
         markets[u][m][p] = a;
@@ -188,8 +190,16 @@ contract MarketPlace {
         // Set the adapter contract in the adapters mapping
         adapters[u][m][p] = adapter;
 
+        // Call any necessary approvals for the new adapter
+        (bool success, ) = adapter.delegatecall(
+            abi.encodeWithSignature(
+                'approve(address[] calldata)',
+                approvalCalldata
+            )
+        );
+
         emit SetPrincipal(u, m, a, adapter, p);
-        return true;
+        return success;
     }
 
     /// @notice sets the admin address
