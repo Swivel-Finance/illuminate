@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 import 'src/lib/Safe.sol';
 import 'src/errors/Exception.sol';
@@ -18,11 +18,7 @@ contract Converter is IConverter {
     /// @param c address of the compounding token
     /// @param u address of the underlying token
     /// @param a amount of tokens to convert
-    function convert(
-        address c,
-        address u,
-        uint256 a
-    ) external {
+    function convert(address c, address u, uint256 a) external {
         // First receive the tokens from msg.sender
         Safe.transferFrom(IERC20(c), msg.sender, address(this), a);
 

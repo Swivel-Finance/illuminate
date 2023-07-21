@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.16;
+pragma solidity 0.8.20;
 
 import 'src/tokens/ERC20Permit.sol';
 import 'src/interfaces/IERC5095.sol';
@@ -56,11 +56,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Allows the marketplace to set the pool
     /// @param p Address of the pool
     /// @return bool True if successful
-    function setPool(address p)
-        external
-        authorized(marketplace)
-        returns (bool)
-    {
+    function setPool(
+        address p
+    ) external authorized(marketplace) returns (bool) {
         pool = p;
         return true;
     }
@@ -85,12 +83,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Post or at maturity, converts an amount of principal tokens to an amount of underlying that would be returned.
     /// @param s The amount of principal tokens to convert
     /// @return uint256 The amount of underlying tokens returned by the conversion
-    function convertToUnderlying(uint256 s)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function convertToUnderlying(
+        uint256 s
+    ) external view override returns (uint256) {
         if (block.timestamp < maturity) {
             return previewRedeem(s);
         }
@@ -100,12 +95,9 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @notice Post or at maturity, converts a desired amount of underlying tokens returned to principal tokens needed.
     /// @param a The amount of underlying tokens to convert
     /// @return uint256 The amount of principal tokens returned by the conversion
-    function convertToShares(uint256 a)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function convertToShares(
+        uint256 a
+    ) external view override returns (uint256) {
         if (block.timestamp < maturity) {
             return previewWithdraw(a);
         }
@@ -211,11 +203,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param m Maximum amount of underlying that the user will spend
     /// @return uint256 The amount of principal tokens purchased
-    function mint(
-        uint256 s,
-        address r,
-        uint256 m
-    ) external returns (uint256) {
+    function mint(uint256 s, address r, uint256 m) external returns (uint256) {
         // Execute the mint
         return _mint(r, s, m);
     }
@@ -292,11 +280,10 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param f Address to burn from
     /// @param a Amount to burn
     /// @return bool true if successful
-    function authBurn(address f, uint256 a)
-        external
-        authorized(redeemer)
-        returns (bool)
-    {
+    function authBurn(
+        address f,
+        uint256 a
+    ) external authorized(redeemer) returns (bool) {
         _burn(f, a);
         return true;
     }
@@ -304,11 +291,10 @@ contract ERC5095 is ERC20Permit, IERC5095 {
     /// @param t Address recieving the minted amount
     /// @param a The amount to mint
     /// @return bool True if successful
-    function authMint(address t, uint256 a)
-        external
-        authorized(lender)
-        returns (bool)
-    {
+    function authMint(
+        address t,
+        uint256 a
+    ) external authorized(lender) returns (bool) {
         _mint(t, a);
         return true;
     }
@@ -358,11 +344,7 @@ contract ERC5095 is ERC20Permit, IERC5095 {
         return returned;
     }
 
-    function _mint(
-        address r,
-        uint256 s,
-        uint256 m
-    ) internal returns (uint256) {
+    function _mint(address r, uint256 s, uint256 m) internal returns (uint256) {
         // Revert if called at or after maturity
         if (block.timestamp >= maturity) {
             revert Exception(
