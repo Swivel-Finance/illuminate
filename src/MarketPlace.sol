@@ -218,7 +218,7 @@ contract MarketPlace {
         uint256 m,
         uint8 p,
         bytes calldata a
-    ) external returns (bool) {
+    ) external authorized(admin) returns (bool) {
         address adapter = adapters[u][m][p];
 
         if (adapter == address(0)) {
