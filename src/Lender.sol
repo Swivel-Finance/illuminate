@@ -464,6 +464,12 @@ contract Lender {
         return true;
     }
 
+    /// @notice allows admin to add a protocol contract for reference by adapters
+    /// @param a address of a new protocol contract
+    function addContract(address a) external authorized(admin) {
+        protocolAddressess.push(a);
+    }
+
     /// @notice Tranfers FYTs to Redeemer (used specifically for APWine redemptions)
     /// @param f FYT contract address
     /// @param a amount of tokens to send to the redeemer
