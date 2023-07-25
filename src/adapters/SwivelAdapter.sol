@@ -127,7 +127,7 @@ contract SwivelAdapter is IAdapter {
 
         // execute the orders
         uint256 premium = IERC20(underlying).balanceOf(address(this));
-        ISwivel(address(0)).initiate(orders, amounts, components);
+        ISwivel(protocolAddressess[0]).initiate(orders, amounts, components);
         premium = IERC20(underlying).balanceOf(address(this)) - premium;
         received = IERC20(pt).balanceOf(address(this)) - received;
 
