@@ -144,7 +144,7 @@ contract SwivelAdapter is IAdapter {
 
         // Swap the premium for iPTs or return premium to the sender
         if (swapFlag) {
-            received += swap(pool, premium, slippage);
+            received += swap(pool, underlying, premium, slippage);
         } else {
             premiums[underlying][maturity] += premium;
             received += premium;
@@ -155,10 +155,19 @@ contract SwivelAdapter is IAdapter {
 
     /// @notice facilitates a swap for Illuminate's principal tokens
     /// @param p Yield Space pool for the market
+    /// @param u underlying asset being sold for PTs
     /// @param a amount of underlying to be swapped
     /// @param m minimum number of tokens to receive
     /// @return received amount of PTs received in swap
-    function swap(address p, uint256 a, uint256 m) internal returns (uint256) {
+    function swap(
+        address p,
+        address u,
+        uint256 a,
+        uint256 m
+    ) internal returns (uint256) {
+        // transfer funds to the pool
+        Safe.transfer(IERC20(u), p, a);
+
         uint256 received = IYield(p).sellBase(address(this), uint128(a));
         if (received < m) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: add exception code
