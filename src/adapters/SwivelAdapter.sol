@@ -10,6 +10,7 @@ import {IMarketPlace} from 'src/interfaces/IMarketPlace.sol';
 
 import {Swivel} from 'src/lib/Swivel.sol';
 import {Exception} from 'src/errors/Exception.sol';
+import {Safe} from 'src/lib/Safe.sol';
 
 // NOTE: The storage of the adapter _must_ exactly match the storage layout of the Lender
 contract SwivelAdapter is IAdapter {
@@ -61,7 +62,7 @@ contract SwivelAdapter is IAdapter {
 
     function approve(address[] calldata a) external {}
 
-    function lend(bytes calldata d) external returns (uint256) {
+    function lend(bytes calldata d) external returns (uint256, uint256) {
         // Parse the calldata into the arguments
         (
             uint256[] memory amounts,
@@ -104,16 +105,18 @@ contract SwivelAdapter is IAdapter {
         }
 
         // get the amount of the orders
+        uint256 total;
+        uint256 fee;
         {
-            uint256 total;
             for (uint256 i = 0; i < amounts.length; ) {
                 total += amounts[i];
 
                 // extract fee
                 if (i == amounts.length - 1) {
-                    uint256 fee = total / 1000; // todo: fetch feenominator
+                    fee = total / feenominator;
                     amounts[i] = amounts[i] - fee;
                     total = total - fee;
+                    fees[underlying] += fee;
                 }
 
                 unchecked {
@@ -121,6 +124,14 @@ contract SwivelAdapter is IAdapter {
                 }
             }
         }
+
+        // receive the underlying funds from the user
+        Safe.transferFrom(
+            IERC20(underlying),
+            msg.sender,
+            address(this),
+            total + fee
+        );
 
         // store amount of iPTs to be minted to user
         uint256 received = IERC20(pt).balanceOf(address(this));
@@ -139,7 +150,7 @@ contract SwivelAdapter is IAdapter {
             received += premium;
         }
 
-        return received;
+        return (received, total);
     }
 
     /// @notice facilitates a swap for Illuminate's principal tokens

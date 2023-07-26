@@ -501,18 +501,13 @@ contract Lender {
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param u underlying asset address of the market's tuple
     /// @param m timestamp of maturity of the market's tuple
-    /// @param a amount in underlying to be lent
     /// @param d data to conduct the call
     function lend(
         uint8 p,
         address u,
         uint256 m,
-        uint256 a,
         bytes calldata d
     ) external returns (uint256) {
-        // Receive the funds from the user
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
         // Fetch the adapter for this lend call
         address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
 
@@ -521,7 +516,7 @@ contract Lender {
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = adapter.delegatecall(
-            abi.encodeWithSignature('lend(bytes calldata inputdata)', d) // TODO: create lend signature
+            abi.encodeWithSignature('lend(bytes calldata inputdata)', d)
         );
 
         if (!success) {
@@ -529,17 +524,17 @@ contract Lender {
         }
 
         // Get the amount of PTs (in protocol decimals) received
-        uint256 obtained = abi.decode(returndata, (uint256));
-
-        // Extract fee
-        fees[u] += a / feenominator;
+        (uint256 obtained, uint256 spent) = abi.decode(
+            returndata,
+            (uint256, uint256)
+        );
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, pt, obtained);
 
         // Mint Illuminate PTs to msg.sender
         IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
-        emit Lend(p, u, m, returned, a, msg.sender);
+        emit Lend(p, u, m, returned, spent, msg.sender);
         return returned;
     }
 
