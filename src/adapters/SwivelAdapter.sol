@@ -28,7 +28,7 @@ contract SwivelAdapter is IAdapter {
 
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
-    address[] public protocolAddressess;
+    address[] public protocolRouters;
 
     /// @notice a mapping that tracks the amount of unswapped premium by market. This underlying is later transferred to the Redeemer during Swivel's redeem call
     mapping(address => mapping(uint256 => uint256)) public premiums;
@@ -60,7 +60,19 @@ contract SwivelAdapter is IAdapter {
     /// @notice estimated price of ether, set by the admin
     uint256 public etherPrice = 2_500;
 
-    function approve(address[] calldata a) external {}
+    function approve(address[] calldata a) external {
+        address[] memory underlyings = abi.decode('', (address[]));
+
+        for (uint256 i = 0; i < underlyings.length; ) {
+            IERC20(underlyings[i]).approve(
+                protocolRouters[0],
+                type(uint256).max
+            );
+            unchecked {
+                i++;
+            }
+        }
+    }
 
     function lend(bytes calldata d) external returns (uint256, uint256) {
         // Parse the calldata into the arguments
@@ -138,7 +150,7 @@ contract SwivelAdapter is IAdapter {
 
         // execute the orders
         uint256 premium = IERC20(underlying).balanceOf(address(this));
-        ISwivel(protocolAddressess[0]).initiate(orders, amounts, components);
+        ISwivel(protocolRouters[0]).initiate(orders, amounts, components);
         premium = IERC20(underlying).balanceOf(address(this)) - premium;
         received = IERC20(pt).balanceOf(address(this)) - received;
 
