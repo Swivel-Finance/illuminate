@@ -34,12 +34,9 @@ contract Lender {
     /// @notice flag that allows admin to stop all lending and minting across the entire protocol
     bool public halted;
 
-    /// @notice contract used to execute swaps on Swivel's exchange
-    address public immutable swivelAddr;
-    /// @notice a SushiSwap router used by Pendle to execute swaps
-    address public immutable pendleAddr;
-    /// @notice a pool router used by APWine to execute swaps
-    address public immutable apwineAddr;
+    /// @notice protocol specific addresses that adapters reference when executing lends
+    /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
+    address[] public protocolRouters;
 
     /// @notice a mapping that tracks the amount of unswapped premium by market. This underlying is later transferred to the Redeemer during Swivel's redeem call
     mapping(address => mapping(uint256 => uint256)) public premiums;
@@ -160,9 +157,9 @@ contract Lender {
     /// @param a the APWine contract
     constructor(address s, address p, address a) {
         admin = msg.sender;
-        swivelAddr = s;
-        pendleAddr = p;
-        apwineAddr = a;
+        protocolRouters.push(s);
+        protocolRouters.push(p);
+        protocolRouters.push(a);
         feenominator = 1000;
     }
 
@@ -213,38 +210,6 @@ contract Lender {
             }
         }
         return true;
-    }
-
-    /// @notice approves market contracts that require lender approval
-    /// @param u address of an underlying asset
-    /// @param a APWine's router contract
-    /// @param e Element's vault contract
-    /// @param n Notional's token contract
-    /// @param p Sense's periphery contract
-    function approve(
-        address u,
-        address a,
-        address e,
-        address n,
-        address p
-    ) external authorized(marketPlace) {
-        uint256 max = type(uint256).max;
-        IERC20 uToken = IERC20(u);
-        if (a != address(0)) {
-            Safe.approve(uToken, a, max);
-        }
-        if (e != address(0)) {
-            Safe.approve(uToken, e, max);
-        }
-        if (n != address(0)) {
-            Safe.approve(uToken, n, max);
-        }
-        if (p != address(0)) {
-            Safe.approve(uToken, p, max);
-        }
-        if (IERC20(u).allowance(address(this), swivelAddr) == 0) {
-            Safe.approve(uToken, swivelAddr, max);
-        }
     }
 
     /// @notice sets the admin address
@@ -499,6 +464,17 @@ contract Lender {
         return true;
     }
 
+    /// @notice allows admin to add a protocol contract for reference by adapters
+    /// @param r address of a new protocol contract
+    function addRouter(address r) external authorized(admin) {
+        protocolRouters.push(r);
+    }
+
+    /// @notice allows admin to change the router contract for reference by adapters
+    function setRouter(address r, uint256 i) external authorized(admin) {
+        protocolRouters[i] = r;
+    }
+
     /// @notice Tranfers FYTs to Redeemer (used specifically for APWine redemptions)
     /// @param f FYT contract address
     /// @param a amount of tokens to send to the redeemer
@@ -530,45 +506,40 @@ contract Lender {
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param u underlying asset address of the market's tuple
     /// @param m timestamp of maturity of the market's tuple
-    /// @param a amount in underlying to be lent
     /// @param d data to conduct the call
     function lend(
         uint8 p,
         address u,
         uint256 m,
-        uint256 a,
         bytes calldata d
     ) external returns (uint256) {
-        // Receive the funds from the user
-        Safe.transferFrom(IERC20(u), msg.sender, address(this), a);
-
         // Fetch the adapter for this lend call
         address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
 
         // Fetch the principal token for this lend call
         address pt = IMarketPlace(marketPlace).markets(u, m, p);
 
-        // Get the starting balance for the Lender
-        uint256 starting = IERC20(pt).balanceOf(address(this));
-
         // Conduct the lend operation to acquire principal tokens
-        (bool success, ) = adapter.delegatecall(
-            abi.encodeWithSignature('lend(bytes calldata inputdata)', d) // TODO: create lend signature
+        (bool success, bytes memory returndata) = adapter.delegatecall(
+            abi.encodeWithSignature('lend(bytes calldata inputdata)', d)
         );
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
         }
 
-        // Fetch how many principal tokens were obtained
-        uint256 obtained = IERC20(pt).balanceOf(address(this)) - starting;
+        // Get the amount of PTs (in protocol decimals) received
+        (uint256 obtained, uint256 spent) = abi.decode(
+            returndata,
+            (uint256, uint256)
+        );
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, pt, obtained);
 
         // Mint Illuminate PTs to msg.sender
         IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
-        emit Lend(p, u, m, returned, a, msg.sender);
+        emit Lend(p, u, m, returned, spent, msg.sender);
         return returned;
     }
 
