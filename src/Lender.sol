@@ -36,7 +36,7 @@ contract Lender {
 
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
-    address[] public protocolAddressess;
+    address[] public protocolRouters;
 
     /// @notice a mapping that tracks the amount of unswapped premium by market. This underlying is later transferred to the Redeemer during Swivel's redeem call
     mapping(address => mapping(uint256 => uint256)) public premiums;
@@ -157,9 +157,9 @@ contract Lender {
     /// @param a the APWine contract
     constructor(address s, address p, address a) {
         admin = msg.sender;
-        protocolAddressess.push(s);
-        protocolAddressess.push(p);
-        protocolAddressess.push(a);
+        protocolRouters.push(s);
+        protocolRouters.push(p);
+        protocolRouters.push(a);
         feenominator = 1000;
     }
 
@@ -465,9 +465,14 @@ contract Lender {
     }
 
     /// @notice allows admin to add a protocol contract for reference by adapters
-    /// @param a address of a new protocol contract
-    function addContract(address a) external authorized(admin) {
-        protocolAddressess.push(a);
+    /// @param r address of a new protocol contract
+    function addRouter(address r) external authorized(admin) {
+        protocolRouters.push(r);
+    }
+
+    /// @notice allows admin to change the router contract for reference by adapters
+    function setRouter(address r, uint256 i) external authorized(admin) {
+        protocolRouters[i] = r;
     }
 
     /// @notice Tranfers FYTs to Redeemer (used specifically for APWine redemptions)
