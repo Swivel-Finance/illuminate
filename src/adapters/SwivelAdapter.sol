@@ -18,16 +18,9 @@ contract SwivelAdapter is IAdapter, Lender {
 
     address public lender = address(0);
 
-    modifier authorizedLender() {
-        if (address(this) != lender) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add exception value
-        }
-        _;
-    }
-
     function lend(
         bytes calldata d
-    ) external authorizedLender returns (uint256, uint256) {
+    ) external authorized(lender) returns (uint256, uint256) {
         // Parse the calldata into the arguments
         (
             uint256[] memory amounts,
