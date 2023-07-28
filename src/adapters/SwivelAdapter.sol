@@ -61,13 +61,8 @@ contract SwivelAdapter is IAdapter {
     uint256 public etherPrice = 2_500;
 
     function approve(address[] calldata a) external {
-        address[] memory underlyings = abi.decode('', (address[]));
-
-        for (uint256 i = 0; i < underlyings.length; ) {
-            IERC20(underlyings[i]).approve(
-                protocolRouters[0],
-                type(uint256).max
-            );
+        for (uint256 i = 0; i < a.length; ) {
+            IERC20(a[i]).approve(protocolRouters[0], type(uint256).max);
             unchecked {
                 i++;
             }
