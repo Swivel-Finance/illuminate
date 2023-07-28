@@ -20,7 +20,7 @@ contract SwivelAdapter is IAdapter, Lender {
 
     modifier authorizedLender() {
         if (address(this) != lender) {
-            revert Exception(0, 0, 0, address(0), address(0));
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add exception value
         }
         _;
     }
