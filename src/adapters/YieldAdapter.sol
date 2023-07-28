@@ -40,11 +40,10 @@ contract YieldAdapter is IAdapter, Lender {
 
         uint256 fee = amount / feenominator;
         fees[underlying] += fee;
-        uint256 lent = amount - fee;
 
         // Execute the order
         uint256 starting = IERC20(pt).balanceOf(address(this));
-        Safe.transfer(IERC20(underlying), pool, lent);
+        Safe.transfer(IERC20(underlying), pool, amount - fee);
         IYield(pool).sellBase(address(this), uint128(minimum));
         uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
 
