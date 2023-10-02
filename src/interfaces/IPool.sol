@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.20;
 
-import 'src/interfaces/IERC20.sol';
-import 'src/interfaces/IERC5095.sol';
+import "./IERC20.sol";
+import "./IERC5095.sol";
 
 interface IPool {
     function ts() external view returns (int128);

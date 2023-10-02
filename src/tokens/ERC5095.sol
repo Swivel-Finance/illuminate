@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import 'src/tokens/ERC20Permit.sol';
-import 'src/interfaces/IERC5095.sol';
-import 'src/interfaces/IRedeemer.sol';
-import 'src/interfaces/IMarketPlace.sol';
-import 'src/interfaces/IYield.sol';
-import 'src/errors/Exception.sol';
+import "./ERC20Permit.sol";
+import "../interfaces/IERC5095.sol";
+import "../interfaces/IRedeemer.sol";
+import "../interfaces/IMarketPlace.sol";
+import "../interfaces/IYield.sol";
+import "../errors/Exception.sol";
 
-import 'src/lib/Cast.sol';
-import 'src/lib/Safe.sol';
+import "../lib/Cast.sol";
+import "../lib/Safe.sol";
 
 contract ERC5095 is ERC20Permit, IERC5095 {
     /// @dev unix timestamp when the ERC5095 token can be redeemed

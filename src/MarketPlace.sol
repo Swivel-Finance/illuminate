@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.20;
 
-import 'src/tokens/ERC5095.sol';
-import 'src/lib/RevertMsgExtractor.sol';
-import 'src/errors/Exception.sol';
+import "./tokens/ERC5095.sol";
+import "./lib/RevertMsgExtractor.sol";
+import "./errors/Exception.sol";
 
-import 'src/interfaces/ICreator.sol';
+import "./interfaces/ICreator.sol";
 
 /// @title MarketPlace
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -28,8 +28,14 @@ contract MarketPlace {
         Notional // 8
     }
 
+    struct Market {
+        address[] tokens;
+        address[] adapters;
+        address pool;
+    }
+
     /// @notice markets are defined by a maturity and underlying tuple that points to an array of principal token addresses.
-    mapping(address => mapping(uint256 => address[])) public markets;
+    mapping(address => mapping(uint256 => Market)) public markets;
 
     /// @notice adapters are defined by a maturity and underlying tuple that points to an array of adapter contracts
     mapping(address => mapping(uint256 => address[])) public adapters;

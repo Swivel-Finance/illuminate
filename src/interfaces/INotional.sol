@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import 'src/interfaces/IERC20.sol';
+import "./IERC20.sol";
 
 interface INotional {
     function getUnderlyingToken() external view returns (IERC20, int256);

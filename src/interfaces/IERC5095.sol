@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import 'src/interfaces/IERC2612.sol';
+import "./IERC2612.sol";
 
 interface IERC5095 is IERC2612 {
     function maturity() external view returns (uint256);

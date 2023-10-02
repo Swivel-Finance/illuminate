@@ -2,15 +2,15 @@
 
 pragma solidity 0.8.20;
 
-import 'src/lib/Safe.sol';
-import 'src/errors/Exception.sol';
+import "./lib/Safe.sol";
+import "./errors/Exception.sol";
 
-import 'src/interfaces/IConverter.sol';
-import 'src/interfaces/IAaveAToken.sol';
-import 'src/interfaces/IAaveLendingPool.sol';
-import 'src/interfaces/ICompoundToken.sol';
-import 'src/interfaces/ILido.sol';
-import 'src/interfaces/IERC20.sol';
+import "./interfaces/IConverter.sol";
+import "./interfaces/IAaveAToken.sol";
+import "./interfaces/IAaveLendingPool.sol";
+import "./interfaces/ICompoundToken.sol";
+import "./interfaces/ILido.sol";
+import "./interfaces/IERC20.sol";
 
 contract Converter is IConverter {
     /// @notice converts the compounding asset to the underlying asset for msg.sender
