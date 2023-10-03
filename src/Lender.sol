@@ -176,7 +176,7 @@ contract Lender {
         // approve the underlying for max per given principal
         for (uint8 i; i != 9; ) {
             // get the principal token's address
-            address token = IMarketPlace(marketPlace).markets(u, m, i);
+            address token = IMarketPlace(marketPlace).markets(u, m).tokens[i];
             // check that the token is defined for this particular market
             if (token != address(0)) {
                 // max approve the token
@@ -289,7 +289,7 @@ contract Lender {
         uint256 a
     ) external nonReentrant unpaused(u, m, p) returns (bool) {
         // Fetch the desired principal token
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m).tokens[p];
 
         // Disallow mints if market is not initialized
         if (principal == address(0)) {
@@ -513,11 +513,13 @@ contract Lender {
         uint256 m,
         bytes calldata d
     ) external returns (uint256) {
+        IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
+
         // Fetch the adapter for this lend call
-        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
+        address adapter = _Market.adapters[p];
 
         // Fetch the principal token for this lend call
-        address pt = IMarketPlace(marketPlace).markets(u, m, p);
+        address pt = _Market.tokens[p];
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = adapter.delegatecall(
