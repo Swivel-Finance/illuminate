@@ -16,6 +16,7 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IERC5095.sol";
 import "./interfaces/IYield.sol";
 import "./interfaces/IElementVault.sol";
+import "./interfaces/ICurveWrapper.sol";
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -521,10 +522,32 @@ contract Lender {
         // Fetch the principal token for this lend call
         address pt = _Market.tokens[p];
 
-        // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = adapter.delegatecall(
-            abi.encodeWithSignature('lend(bytes calldata inputdata)', d)
-        );
+        bytes memory returndata;
+        bool success;
+        if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
+            // Parse the calldata
+        (
+            address underlying,
+            uint256 maturity,
+            address pool,
+            uint256 amount,
+            uint256 minimum,
+            address lst,
+            uint256 swapMinimum
+        ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
+
+            amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
+
+            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+        }
+        else {
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d));
+        }
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception

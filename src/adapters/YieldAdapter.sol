@@ -28,7 +28,7 @@ contract YieldAdapter is IAdapter, Lender {
             uint256 minimum
         ) = abi.decode(d, (address, uint256, address, uint256, uint256));
 
-        address pt = IMarketPlace(marketPlace).markets(underlying, maturity, 0);
+        address pt = IMarketPlace(marketPlace).markets(underlying, maturity).tokens[0];
 
         // Receive underlying funds, extract fees
         Safe.transferFrom(
