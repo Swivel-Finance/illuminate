@@ -535,13 +535,20 @@ contract Lender {
             address lst,
             uint256 swapMinimum
         ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
+            if (lst != address(0)) {
+                amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
 
-            amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
-
-            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
-            // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = adapter.delegatecall(
-                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+                bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+                // Conduct the lend operation to acquire principal tokens
+                (success, returndata) = adapter.delegatecall(
+                    abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+            }
+            else {
+                bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+                // Conduct the lend operation to acquire principal tokens
+                (success, returndata) = adapter.delegatecall(
+                    abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+            }
         }
         else {
             // Conduct the lend operation to acquire principal tokens
