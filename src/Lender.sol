@@ -526,7 +526,7 @@ contract Lender {
         bool success;
         // If the underlying is WETH, the market is for ETH and `d` contains additional parameters
         if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
-            ETHLend(adapter, d);
+            (success, returndata) = ETHLend(adapter, d);
         }
         // If the underlying is not WETH, no extra swaps or parameters are necessary
         else {
