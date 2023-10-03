@@ -554,35 +554,38 @@ contract Lender {
         return returned;
     }
 
+    // @notice: Handles all lending to ETH markets and any swaps necessary
+    // @param adapter: The adapter contract to lend through
+    // @param d: The calldata for the lend (and potentially swap) operation
     function ETHLend(address adapter, bytes calldata d) internal returns (bool success, bytes memory returndata) {
         // Parse the calldata
-            (
-                address underlying,
-                uint256 maturity,
-                address pool,
-                uint256 amount,
-                uint256 minimum,
-                address lst,
-                uint256 swapMinimum
-            ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
-            // If the "lst" address is populated, a swap is required
-            if (lst != address(0)) {
-                amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
-                // Encode to the adapter interface
-                bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
-                // Conduct the lend operation to acquire principal tokens
-                (success, returndata) = adapter.delegatecall(
-                    abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
-                return (success, returndata);
-            }
-            // If the `lst` address is blank, no swap is necessary
-            else { 
-                // Encode to the adapter interface
-                bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
-                // Conduct the lend operation to acquire principal tokens
-                (success, returndata) = adapter.delegatecall(
-                    abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
-            }
+        (
+            address underlying,
+            uint256 maturity,
+            address pool,
+            uint256 amount,
+            uint256 minimum,
+            address lst,
+            uint256 swapMinimum
+        ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
+        // If the "lst" address is populated, a swap is required
+        if (lst != address(0)) {
+            amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
+            // Encode to the adapter interface
+            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+            return (success, returndata);
+        }
+        // If the `lst` address is blank, no swap is necessary
+        else { 
+            // Encode to the adapter interface
+            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+        }
     }
 
     /// @notice Allows batched call to self (this contract).
