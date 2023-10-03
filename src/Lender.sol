@@ -746,8 +746,8 @@ contract Lender {
         uint256 valueToMint = a;
 
         // In case of stETH, we will calculate an approximate USD value
-        // 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84 (stETH address)
-        if (u == 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84) {
+        // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (WETH address)
+        if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
             valueToMint = etherPrice * valueToMint;
         }
 
