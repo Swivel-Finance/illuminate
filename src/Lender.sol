@@ -709,7 +709,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketPlace).markets(u, m, 0);
+        return IMarketPlace(marketPlace).markets(u, m).tokens[uint8(MarketPlace.Principals.Illuminate)];
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
