@@ -524,6 +524,7 @@ contract Lender {
 
         bytes memory returndata;
         bool success;
+        // If the underlying is WETH, the market is for ETH and `d` contains additional parameters
         if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
             // Parse the calldata
         (
@@ -535,21 +536,25 @@ contract Lender {
             address lst,
             uint256 swapMinimum
         ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
+            // If the "lst" address is populated, a swap is required
             if (lst != address(0)) {
                 amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
-
+                // Encode to the adapter interface
                 bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
                 // Conduct the lend operation to acquire principal tokens
                 (success, returndata) = adapter.delegatecall(
                     abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
             }
-            else {
+            // If the `lst` address is blank, no swap is necessary
+            else { 
+                // Encode to the adapter interface
                 bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
                 // Conduct the lend operation to acquire principal tokens
                 (success, returndata) = adapter.delegatecall(
                     abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
             }
         }
+        // If the underlying is not WETH, no extra swaps or parameters are necessary
         else {
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = adapter.delegatecall(
