@@ -2,7 +2,7 @@
 // Inspired on token.sol from DappHub. Natspec adpated from OpenZeppelin.
 pragma solidity 0.8.20;
 
-import 'src/interfaces/IERC20Metadata.sol';
+import "../interfaces/IERC20Metadata.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.

@@ -2,8 +2,8 @@
 // Adapted from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/53516bc555a454862470e7860a9b5254db4d00f5/contracts/token/ERC20/ERC20Permit.sol
 pragma solidity 0.8.20;
 
-import 'src/tokens/ERC20.sol';
-import 'src/interfaces/IERC2612.sol';
+import "./ERC20.sol";
+import "../interfaces/IERC2612.sol";
 
 /**
  * @dev Extension of {ERC20} that allows token holders to use their tokens

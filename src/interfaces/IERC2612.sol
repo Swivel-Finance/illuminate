@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import 'src/interfaces/IERC20Metadata.sol';
+import "./IERC20Metadata.sol";
 
 /**
  * @dev Interface of the ERC2612 standard as defined in the EIP.

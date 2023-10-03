@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.20;
 
-import 'src/lib/Pendle.sol';
+import "../lib/Pendle.sol";
 
 interface IPendle {
     function swapExactTokenForPt(

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import 'src/lib/Swivel.sol';
+import "../lib/Swivel.sol";
 
 interface ISwivel {
     function initiate(

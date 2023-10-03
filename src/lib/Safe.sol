@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.13;
 
-import 'src/interfaces/IERC20.sol';
+import "../interfaces/IERC20.sol";
 
 /**
   @notice Safe ETH and ERC20 transfer library that gracefully handles missing return values.

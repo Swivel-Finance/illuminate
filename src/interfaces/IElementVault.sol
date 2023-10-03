@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.16;
 
-import 'src/lib/Element.sol';
+import "../lib/Element.sol";
 
 interface IElementVault {
     function swap(

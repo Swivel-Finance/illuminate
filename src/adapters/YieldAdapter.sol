@@ -2,14 +2,14 @@
 
 pragma solidity 0.8.20;
 
-import {Lender} from 'src/Lender.sol';
+import {Lender} from "../Lender.sol";
 
-import {IAdapter} from 'src/interfaces/IAdapter.sol';
-import {IERC20} from 'src/interfaces/IERC20.sol';
-import {IYield} from 'src/interfaces/IYield.sol';
-import {IMarketPlace} from 'src/interfaces/IMarketPlace.sol';
+import {IAdapter} from "../interfaces/IAdapter.sol";
+import {IERC20} from "../interfaces/IERC20.sol";
+import {IYield} from "../interfaces/IYield.sol";
+import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 
-import {Safe} from 'src/lib/Safe.sol';
+import {Safe} from "../lib/Safe.sol";
 
 contract YieldAdapter is IAdapter, Lender {
     constructor() Lender(address(0), address(0), address(0)) {}

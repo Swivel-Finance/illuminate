@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import 'src/interfaces/IERC20.sol';
+import "./IERC20.sol";
 
 interface IERC20Metadata is IERC20 {
     /**

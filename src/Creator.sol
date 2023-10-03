@@ -2,11 +2,11 @@
 
 pragma solidity 0.8.20;
 
-import 'src/tokens/ERC5095.sol';
+import "./tokens/ERC5095.sol";
 
-import 'src/interfaces/IERC20.sol';
+import "./interfaces/IERC20.sol";
 
-import 'src/errors/Exception.sol';
+import "./errors/Exception.sol";
 
 contract Creator {
     /// @notice address that is allowed to create markets and set contracts. It is commonly used in the authorized modifier.

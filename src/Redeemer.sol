@@ -2,18 +2,18 @@
 
 pragma solidity 0.8.20;
 
-import 'src/MarketPlace.sol';
+import "./MarketPlace.sol";
 
-import 'src/lib/Safe.sol';
-import 'src/errors/Exception.sol';
+import "./lib/Safe.sol";
+import "./errors/Exception.sol";
 
-import 'src/interfaces/IERC5095.sol';
-import 'src/interfaces/IERC20.sol';
-import 'src/interfaces/IAPWineController.sol';
-import 'src/interfaces/IAPWineFutureVault.sol';
-import 'src/interfaces/IAPWineToken.sol';
-import 'src/interfaces/ILender.sol';
-import 'src/interfaces/IConverter.sol';
+import "./interfaces/IERC5095.sol";
+import "./interfaces/IERC20.sol";
+import "./interfaces/IAPWineController.sol";
+import "./interfaces/IAPWineFutureVault.sol";
+import "./interfaces/IAPWineToken.sol";
+import "./interfaces/ILender.sol";
+import "./interfaces/IConverter.sol";
 
 /// @title Redeemer
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
