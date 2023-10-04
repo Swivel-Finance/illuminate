@@ -26,28 +26,28 @@ contract YieldAdapter is IAdapter, Lender {
     ) external authorized(lender) returns (uint256, uint256) {
         // Parse the calldata
         (
-            address underlying,
+            address underlying_,
             uint256 maturity,
             uint256 minimum,
             address pool
         ) = abi.decode(d, (address, uint256, uint256, address));
 
-        address pt = IMarketPlace(marketPlace).markets(underlying, maturity).tokens[0];
+        address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[0];
 
         // Receive underlying funds, extract fees
         Safe.transferFrom(
-            IERC20(underlying),
+            IERC20(underlying_),
             msg.sender,
             address(this),
             amount[0]
         );
 
         uint256 fee = amount[0] / feenominator;
-        fees[underlying] += fee;
+        fees[underlying_] += fee;
 
         // Execute the order
         uint256 starting = IERC20(pt).balanceOf(address(this));
-        Safe.transfer(IERC20(underlying), pool, amount[0] - fee);
+        Safe.transfer(IERC20(underlying_), pool, amount[0] - fee);
         IYield(pool).sellBase(address(this), uint128(minimum));
         uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
 

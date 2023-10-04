@@ -4,5 +4,5 @@ pragma solidity 0.8.20;
 
 interface IAdapter {
     function lend(uint256[] calldata, bytes calldata) external returns (uint256, uint256);
-    function underlying(address pt) public view returns (address) 
+    function underlying(address pt) external view returns (address);
 }

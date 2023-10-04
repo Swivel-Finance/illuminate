@@ -4,7 +4,7 @@ pragma solidity 0.8.20;
 
 interface IMarketPlace {
     
-    function markets(address, uint256) external returns (Market memory);
+    function markets(address, uint256) external view returns (Market memory);
 
     struct Market {
         address[] tokens;
