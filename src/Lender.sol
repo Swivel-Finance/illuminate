@@ -16,6 +16,7 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IERC5095.sol";
 import "./interfaces/IYield.sol";
 import "./interfaces/IElementVault.sol";
+import "./interfaces/ICurveWrapper.sol";
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -176,7 +177,7 @@ contract Lender {
         // approve the underlying for max per given principal
         for (uint8 i; i != 9; ) {
             // get the principal token's address
-            address token = IMarketPlace(marketPlace).markets(u, m, i);
+            address token = IMarketPlace(marketPlace).markets(u, m).tokens[i];
             // check that the token is defined for this particular market
             if (token != address(0)) {
                 // max approve the token
@@ -289,7 +290,7 @@ contract Lender {
         uint256 a
     ) external nonReentrant unpaused(u, m, p) returns (bool) {
         // Fetch the desired principal token
-        address principal = IMarketPlace(marketPlace).markets(u, m, p);
+        address principal = IMarketPlace(marketPlace).markets(u, m).tokens[p];
 
         // Disallow mints if market is not initialized
         if (principal == address(0)) {
@@ -513,16 +514,26 @@ contract Lender {
         uint256 m,
         bytes calldata d
     ) external returns (uint256) {
+        IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
+
         // Fetch the adapter for this lend call
-        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
+        address adapter = _Market.adapters[p];
 
         // Fetch the principal token for this lend call
-        address pt = IMarketPlace(marketPlace).markets(u, m, p);
+        address pt = _Market.tokens[p];
 
-        // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = adapter.delegatecall(
-            abi.encodeWithSignature('lend(bytes calldata inputdata)', d)
-        );
+        bytes memory returndata;
+        bool success;
+        // If the underlying is WETH, the market is for ETH and `d` contains additional parameters
+        if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
+            (success, returndata) = ETHLend(adapter, d);
+        }
+        // If the underlying is not WETH, no extra swaps or parameters are necessary
+        else {
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d));
+        }
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
@@ -541,6 +552,40 @@ contract Lender {
         IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
         emit Lend(p, u, m, returned, spent, msg.sender);
         return returned;
+    }
+
+    // @notice: Handles all lending to ETH markets and any swaps necessary
+    // @param adapter: The adapter contract to lend through
+    // @param d: The calldata for the lend (and potentially swap) operation
+    function ETHLend(address adapter, bytes calldata d) internal returns (bool success, bytes memory returndata) {
+        // Parse the calldata
+        (
+            address underlying,
+            uint256 maturity,
+            address pool,
+            uint256 amount,
+            uint256 minimum,
+            address lst,
+            uint256 swapMinimum
+        ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
+        // If the "lst" address is populated, a swap is required
+        if (lst != address(0)) {
+            amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
+            // Encode to the adapter interface
+            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+            return (success, returndata);
+        }
+        // If the `lst` address is blank, no swap is necessary
+        else { 
+            // Encode to the adapter interface
+            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = adapter.delegatecall(
+                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+        }
     }
 
     /// @notice Allows batched call to self (this contract).
@@ -684,7 +729,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketPlace).markets(u, m, 0);
+        return IMarketPlace(marketPlace).markets(u, m).tokens[uint8(MarketPlace.Principals.Illuminate)];
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
@@ -721,8 +766,8 @@ contract Lender {
         uint256 valueToMint = a;
 
         // In case of stETH, we will calculate an approximate USD value
-        // 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84 (stETH address)
-        if (u == 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84) {
+        // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (WETH address)
+        if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
             valueToMint = etherPrice * valueToMint;
         }
 
