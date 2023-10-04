@@ -517,14 +517,8 @@ contract Lender {
     ) external returns (uint256) {
         IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
 
-        // Fetch the adapter for this lend call
-        address adapter = _Market.adapters[p];
-
-        // Fetch the principal token for this lend call
-        address pt = _Market.tokens[p];
-
         // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = adapter.delegatecall(
+        (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
             abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
 
         if (!success) {
@@ -538,12 +532,12 @@ contract Lender {
         );
 
         // Convert decimals from principal token to underlying
-        uint256 returned = convertDecimals(u, pt, obtained);
+        uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
 
         // Mint Illuminate PTs to msg.sender
         IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
         emit Lend(p, u, m, returned, spent, msg.sender);
-        return returned;
+        return (returned);
     }
 
     // An override lend method for all ETH lending with the additional lpt and swap parameters
@@ -559,11 +553,6 @@ contract Lender {
     ) external returns (uint256) {
         IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
 
-        // Fetch the adapter for this lend call
-        address adapter = _Market.adapters[p];
-
-        // Fetch the principal token for this lend call
-        address pt = _Market.tokens[p];
         // If the lst parameter is not populated, a swap is not required
         if (lst != address(0)) {
             // If the protocol is not Swivel, send the lent amount as is
@@ -586,7 +575,7 @@ contract Lender {
             }
         }
         // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = adapter.delegatecall(
+        (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
             abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
         
         if (!success) {
@@ -600,12 +589,12 @@ contract Lender {
         );
 
         // Convert decimals from principal token to underlying
-        uint256 returned = convertDecimals(u, pt, obtained);
+        uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
 
         // Mint Illuminate PTs to msg.sender
         IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
         emit Lend(p, u, m, returned, spent, msg.sender);
-        return returned;
+        return (returned);
     }
 
     // @notice: Adjusts all Swivel Amounts according to the slippageRatio
