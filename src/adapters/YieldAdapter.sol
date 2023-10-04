@@ -16,6 +16,10 @@ contract YieldAdapter is IAdapter, Lender {
 
     address public lender = address(0);
 
+    function underlying(address pt) public view returns (address) {
+        return address(IYield(pt).base());
+    }
+
     function lend(
         bytes calldata d
     ) external authorized(lender) returns (uint256, uint256) {
