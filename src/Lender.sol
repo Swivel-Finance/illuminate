@@ -564,21 +564,27 @@ contract Lender {
 
         // Fetch the principal token for this lend call
         address pt = _Market.tokens[p];
-
-        // If the protocol is not Swivel, send the lent amount as is
-        if (p == uint8(MarketPlace.Principals.Swivel)) {
-            // Sum the amounts to be spent
-            uint256 total;
-            for (uint256 i; i != a.length; ) {
-                total += a[i];
-                unchecked {
-                    ++i;
+        // If the lst parameter is not populated, a swap is not required
+        if (lst != address(0)) {
+            // If the protocol is not Swivel, send the lent amount as is
+            if (p == uint8(MarketPlace.Principals.Swivel)) {
+                // Sum the amounts to be spent
+                uint256 total;
+                for (uint256 i; i != a.length; ) {
+                    total += a[i];
+                    unchecked {
+                        ++i;
+                    }
                 }
+                (, uint256 slippageRatio) = ETHWrap(lst, total, swapMinimum);
+                a = adjustSwivelAmounts(a, slippageRatio);
             }
-            (, uint256 slippageRatio) = ETHWrap(lst, total, swapMinimum);
-            a = adjustSwivelAmounts(a, slippageRatio);
+            // If the protocol is not Swivel, wrap the input `a` and overwrite with the returned lend amount
+            else {
+                (uint256 lent, ) = ETHWrap(lst, a[0], swapMinimum);
+                a[0] = lent;
+            }
         }
-
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = adapter.delegatecall(
             abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
