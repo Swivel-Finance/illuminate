@@ -23,11 +23,11 @@ contract SwivelAdapter is IAdapter, Lender {
     }
 
     function lend(
+        uint256[] memory amount,
         bytes calldata d
     ) external authorized(lender) returns (uint256, uint256) {
         // Parse the calldata into the arguments
         (
-            uint256[] memory amounts,
             Swivel.Order[] memory orders,
             Swivel.Components[] memory components,
             address pool,
@@ -36,7 +36,6 @@ contract SwivelAdapter is IAdapter, Lender {
         ) = abi.decode(
                 d,
                 (
-                    uint256[],
                     Swivel.Order[],
                     Swivel.Components[],
                     address,

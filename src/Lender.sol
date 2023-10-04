@@ -512,6 +512,7 @@ contract Lender {
         uint8 p,
         address u,
         uint256 m,
+        uint256[] memory a,
         bytes calldata d
     ) external returns (uint256) {
         IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
@@ -522,18 +523,9 @@ contract Lender {
         // Fetch the principal token for this lend call
         address pt = _Market.tokens[p];
 
-        bytes memory returndata;
-        bool success;
-        // If the underlying is WETH, the market is for ETH and `d` contains additional parameters
-        if (u == 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2) {
-            (success, returndata) = ETHLend(adapter, d);
-        }
-        // If the underlying is not WETH, no extra swaps or parameters are necessary
-        else {
-            // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = adapter.delegatecall(
-                abi.encodeWithSignature('lend(bytes calldata inputdata)', d));
-        }
+        // Conduct the lend operation to acquire principal tokens
+        (bool success, bytes memory returndata) = adapter.delegatecall(
+            abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
@@ -554,37 +546,91 @@ contract Lender {
         return returned;
     }
 
-    // @notice: Handles all lending to ETH markets and any swaps necessary
-    // @param adapter: The adapter contract to lend through
+    // An override lend method for all ETH lending with the additional lpt and swap parameters
+    // This method is only used for lending to ETH markets
+    function lend(
+        uint8 p,
+        address u,
+        uint256 m,
+        uint256[] memory a,
+        bytes calldata d,
+        address lst,
+        uint256 swapMinimum
+    ) external returns (uint256) {
+        IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
+
+        // Fetch the adapter for this lend call
+        address adapter = _Market.adapters[p];
+
+        // Fetch the principal token for this lend call
+        address pt = _Market.tokens[p];
+
+        // If the protocol is not Swivel, send the lent amount as is
+        if (p == uint8(MarketPlace.Principals.Swivel)) {
+            // Sum the amounts to be spent
+            uint256 total;
+            for (uint256 i; i != a.length; ) {
+                total += a[i];
+                unchecked {
+                    ++i;
+                }
+            }
+            (, uint256 slippageRatio) = ETHWrap(lst, total, swapMinimum);
+            a = adjustSwivelAmounts(a, slippageRatio);
+        }
+
+        // Conduct the lend operation to acquire principal tokens
+        (bool success, bytes memory returndata) = adapter.delegatecall(
+            abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
+        
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        }
+
+        // Get the amount of PTs (in protocol decimals) received
+        (uint256 obtained, uint256 spent) = abi.decode(
+            returndata,
+            (uint256, uint256)
+        );
+
+        // Convert decimals from principal token to underlying
+        uint256 returned = convertDecimals(u, pt, obtained);
+
+        // Mint Illuminate PTs to msg.sender
+        IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
+        emit Lend(p, u, m, returned, spent, msg.sender);
+        return returned;
+    }
+
+    // @notice: Adjusts all Swivel Amounts according to the slippageRatio
+    // @param slippageRatio: The slippageRatio to adjust by
     // @param d: The calldata for the lend (and potentially swap) operation
-    function ETHLend(address adapter, bytes calldata d) internal returns (bool success, bytes memory returndata) {
-        // Parse the calldata
-        (
-            address underlying,
-            uint256 maturity,
-            address pool,
-            uint256 amount,
-            uint256 minimum,
-            address lst,
-            uint256 swapMinimum
-        ) = abi.decode(d, (address, uint256, address, uint256, uint256, address, uint256));
+    // @returns The adjusted amount array
+    function adjustSwivelAmounts(uint256[] memory amounts, uint256 slippageRatio) internal pure returns (uint256[] memory) {
+        for (uint256 i; i != amounts.length; ) {
+            amounts[i] = amounts[i] - amounts[i] * slippageRatio;
+            unchecked {
+                ++i;
+            }
+        }
+        return (amounts);
+    }
+
+    // @notice: Handles all lending to ETH markets and any swaps necessary
+    // @param lst: The address of the token to swap to
+    // @param amount: The amount of underlying to spend
+    // @param swapMinimum: The minimum amount of lst to receive
+    // @returns lent: The amount of underlying to be lent
+    // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
+    function ETHWrap(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
         // If the "lst" address is populated, a swap is required
         if (lst != address(0)) {
-            amount = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
-            // Encode to the adapter interface
-            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
-            // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = adapter.delegatecall(
-                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
-            return (success, returndata);
+            (lent, slippageRatio)  = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
+            return (lent, slippageRatio);
         }
         // If the `lst` address is blank, no swap is necessary
-        else { 
-            // Encode to the adapter interface
-            bytes memory d_ = abi.encode(underlying, maturity, pool, amount, minimum);
-            // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = adapter.delegatecall(
-                abi.encodeWithSignature('lend(bytes calldata inputdata)', d_));
+        else {
+            return (amount, 1);
         }
     }
 

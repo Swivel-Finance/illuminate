@@ -8,5 +8,5 @@ interface ICurveWrapper {
         address to,
         uint256 amount,
         uint256 minimum
-    ) external returns (uint256);
+    ) external returns (uint256, uint256);
 }
