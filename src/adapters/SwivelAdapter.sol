@@ -18,6 +18,10 @@ contract SwivelAdapter is IAdapter, Lender {
 
     address public lender = address(0);
 
+    function underlying(address pt) public view returns (address) {
+        return address(IERC5095(pt).underlying());
+    }
+
     function lend(
         bytes calldata d
     ) external authorized(lender) returns (uint256, uint256) {
