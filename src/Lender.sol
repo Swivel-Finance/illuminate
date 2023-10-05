@@ -552,7 +552,7 @@ contract Lender {
         uint256 swapMinimum
     ) external returns (uint256) {
         IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
-
+        uint256 spent;
         bool success;
         bytes memory returndata;
 
@@ -574,12 +574,14 @@ contract Lender {
                         ++i;
                     }
                 }
-                (, uint256 slippageRatio) = ETHWrap(lst, total, swapMinimum);
+                spent = total;
+                (, uint256 slippageRatio) = SwapETH(lst, total, swapMinimum);
                 a = adjustSwivelAmounts(a, slippageRatio);
             }
             // If the protocol is not Swivel, swap the input `a[0]` and overwrite a[0] with the returned lend amount
             else {
-                (uint256 lent, ) = ETHWrap(lst, a[0], swapMinimum);
+                (uint256 lent, ) = SwapETH(lst, a[0], swapMinimum);
+                spent = a[0];
                 a[0] = lent;
             }
             // Conduct the lend operation to acquire principal tokens
@@ -592,7 +594,7 @@ contract Lender {
         }
 
         // Get the amount of PTs (in protocol decimals) received
-        (uint256 obtained, uint256 spent) = abi.decode(
+        (uint256 obtained,) = abi.decode(
             returndata,
             (uint256, uint256)
         );
@@ -626,7 +628,7 @@ contract Lender {
     // @param swapMinimum: The minimum amount of lst to receive
     // @returns lent: The amount of underlying to be lent
     // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
-    function ETHWrap(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
+    function SwapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
         // If the "lst" address is populated, a swap is required
         if (lst != address(0)) {
             (lent, slippageRatio)  = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
