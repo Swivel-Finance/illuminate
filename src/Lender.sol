@@ -16,7 +16,7 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IERC5095.sol";
 import "./interfaces/IYield.sol";
 import "./interfaces/IElementVault.sol";
-import "./interfaces/ICurveWrapper.sol";
+import "./interfaces/IETHWrapper.sol";
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -34,6 +34,8 @@ contract Lender {
     mapping(uint8 => bool) public paused;
     /// @notice flag that allows admin to stop all lending and minting across the entire protocol
     bool public halted;
+    /// @notice address on which ETH swaps are conducted to purchase LSTs
+    address public ETHWrapper;
 
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
@@ -213,6 +215,14 @@ contract Lender {
         return true;
     }
 
+    /// @notice sets the ETHWrapper address
+    /// @param a address of the ETHWrapper contract
+    /// @return bool true if successful
+    function setETHWrapper(address a) external authorized(admin) returns (bool) {
+        ETHWrapper = a;
+        return (true);
+    }
+
     /// @notice sets the admin address
     /// @param a address of a new admin
     /// @return bool true if successful
@@ -274,74 +284,6 @@ contract Lender {
     /// @return bool true if the price was set
     function setMaxValue(uint256 m) external authorized(admin) returns (bool) {
         maximumValue = m;
-        return true;
-    }
-
-    /// @notice mint swaps the sender's principal tokens for Illuminate's ERC5095 tokens in effect, this opens a new fixed rate position for the sender on Illuminate
-    /// @param p principal value according to the MarketPlace's Principals Enum
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param a amount being minted
-    /// @return bool true if the mint was successful
-    function mint(
-        uint8 p,
-        address u,
-        uint256 m,
-        uint256 a
-    ) external nonReentrant unpaused(u, m, p) returns (bool) {
-        // Fetch the desired principal token
-        address principal = IMarketPlace(marketPlace).markets(u, m).tokens[p];
-
-        // Disallow mints if market is not initialized
-        if (principal == address(0)) {
-            revert Exception(26, 0, 0, address(0), address(0));
-        }
-
-        // Get the maturity of the principal token
-        uint256 maturity;
-        if (p == uint8(MarketPlace.Principals.Illuminate)) {
-            revert Exception(32, 0, 0, address(0), address(0));
-        } else if (p == uint8(MarketPlace.Principals.Swivel)) {
-            maturity = Maturities.swivel(principal);
-        } else if (p == uint8(MarketPlace.Principals.Yield)) {
-            maturity = Maturities.yield(principal);
-        } else if (p == uint8(MarketPlace.Principals.Element)) {
-            maturity = Maturities.element(principal);
-        } else if (p == uint8(MarketPlace.Principals.Pendle)) {
-            maturity = Maturities.pendle(principal);
-        } else if (p == uint8(MarketPlace.Principals.Tempus)) {
-            maturity = Maturities.tempus(principal);
-        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
-            maturity = Maturities.apwine(principal);
-        } else if (p == uint8(MarketPlace.Principals.Notional)) {
-            maturity = Maturities.notional(principal);
-        }
-
-        // Confirm that the principal token has not matured yet
-        if (block.timestamp > maturity || maturity == 0) {
-            revert Exception(
-                7,
-                maturity,
-                block.timestamp,
-                address(0),
-                address(0)
-            );
-        }
-
-        // Transfer the users principal tokens to the lender contract
-        Safe.transferFrom(IERC20(principal), msg.sender, address(this), a);
-
-        // Calculate how much should be minted based on the decimal difference
-        uint256 mintable = convertDecimals(u, principal, a);
-
-        // Confirm that minted iPT amount will not exceed rate limit for the protocol
-        rateLimit(p, u, mintable);
-
-        // Mint the tokens received from the user
-        IERC5095(principalToken(u, m)).authMint(msg.sender, mintable);
-
-        emit Mint(p, u, m, mintable);
-
         return true;
     }
 
@@ -502,6 +444,73 @@ contract Lender {
 
         premiums[u][m] = 0;
     }
+    /// @notice mint swaps the sender's principal tokens for Illuminate's ERC5095 tokens in effect, this opens a new fixed rate position for the sender on Illuminate
+    /// @param p principal value according to the MarketPlace's Principals Enum
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param a amount being minted
+    /// @return bool true if the mint was successful
+    function mint(
+        uint8 p,
+        address u,
+        uint256 m,
+        uint256 a
+    ) external nonReentrant unpaused(u, m, p) returns (bool) {
+        // Fetch the desired principal token
+        address principal = IMarketPlace(marketPlace).markets(u, m).tokens[p];
+
+        // Disallow mints if market is not initialized
+        if (principal == address(0)) {
+            revert Exception(26, 0, 0, address(0), address(0));
+        }
+
+        // Get the maturity of the principal token
+        uint256 maturity;
+        if (p == uint8(MarketPlace.Principals.Illuminate)) {
+            revert Exception(32, 0, 0, address(0), address(0));
+        } else if (p == uint8(MarketPlace.Principals.Swivel)) {
+            maturity = Maturities.swivel(principal);
+        } else if (p == uint8(MarketPlace.Principals.Yield)) {
+            maturity = Maturities.yield(principal);
+        } else if (p == uint8(MarketPlace.Principals.Element)) {
+            maturity = Maturities.element(principal);
+        } else if (p == uint8(MarketPlace.Principals.Pendle)) {
+            maturity = Maturities.pendle(principal);
+        } else if (p == uint8(MarketPlace.Principals.Tempus)) {
+            maturity = Maturities.tempus(principal);
+        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
+            maturity = Maturities.apwine(principal);
+        } else if (p == uint8(MarketPlace.Principals.Notional)) {
+            maturity = Maturities.notional(principal);
+        }
+
+        // Confirm that the principal token has not matured yet
+        if (block.timestamp > maturity || maturity == 0) {
+            revert Exception(
+                7,
+                maturity,
+                block.timestamp,
+                address(0),
+                address(0)
+            );
+        }
+
+        // Transfer the users principal tokens to the lender contract
+        Safe.transferFrom(IERC20(principal), msg.sender, address(this), a);
+
+        // Calculate how much should be minted based on the decimal difference
+        uint256 mintable = convertDecimals(u, principal, a);
+
+        // Confirm that minted iPT amount will not exceed rate limit for the protocol
+        rateLimit(p, u, mintable);
+
+        // Mint the tokens received from the user
+        IERC5095(principalToken(u, m)).authMint(msg.sender, mintable);
+
+        emit Mint(p, u, m, mintable);
+
+        return true;
+    }
 
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
     /// @param p principal value according to the MarketPlace's Principals Enum
@@ -631,7 +640,7 @@ contract Lender {
     function SwapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
         // If the "lst" address is populated, a swap is required
         if (lst != address(0)) {
-            (lent, slippageRatio)  = ICurveWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
+            (lent, slippageRatio)  = IETHWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
             return (lent, slippageRatio);
         }
         // If the `lst` address is blank, no swap is necessary
