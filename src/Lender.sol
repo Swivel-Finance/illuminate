@@ -519,7 +519,7 @@ contract Lender {
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
-            abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
+            abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
@@ -553,9 +553,18 @@ contract Lender {
     ) external returns (uint256) {
         IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
 
+        bool success;
+        bytes memory returndata;
+
         // If the lst parameter is not populated, a swap is not required
         if (lst != address(0)) {
-            // If the protocol is not Swivel, send the lent amount as is
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = _Market.adapters[p].delegatecall(
+                abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+        }
+        // If the lst parameter is populated, swap into the requested lst
+        else {
+            // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
             if (p == uint8(MarketPlace.Principals.Swivel)) {
                 // Sum the amounts to be spent
                 uint256 total;
@@ -568,15 +577,15 @@ contract Lender {
                 (, uint256 slippageRatio) = ETHWrap(lst, total, swapMinimum);
                 a = adjustSwivelAmounts(a, slippageRatio);
             }
-            // If the protocol is not Swivel, wrap the input `a` and overwrite with the returned lend amount
+            // If the protocol is not Swivel, swap the input `a[0]` and overwrite a[0] with the returned lend amount
             else {
                 (uint256 lent, ) = ETHWrap(lst, a[0], swapMinimum);
                 a[0] = lent;
             }
+            // Conduct the lend operation to acquire principal tokens
+            (success, returndata) = _Market.adapters[p].delegatecall(
+                abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, true, d));
         }
-        // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
-            abi.encodeWithSignature('lend(uint256[] amount, bytes calldata inputdata)', a, d));
         
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception

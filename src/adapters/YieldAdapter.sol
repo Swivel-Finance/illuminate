@@ -22,6 +22,7 @@ contract YieldAdapter is IAdapter, Lender {
 
     function lend(
         uint256[] memory amount,
+        bool internalBalance,
         bytes calldata d
     ) external authorized(lender) returns (uint256, uint256) {
         // Parse the calldata
@@ -33,14 +34,15 @@ contract YieldAdapter is IAdapter, Lender {
         ) = abi.decode(d, (address, uint256, uint256, address));
 
         address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[0];
-
-        // Receive underlying funds, extract fees
-        Safe.transferFrom(
-            IERC20(underlying_),
-            msg.sender,
-            address(this),
-            amount[0]
-        );
+        if (internalBalance == false){
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(underlying_),
+                msg.sender,
+                address(this),
+                amount[0]
+            );
+        }
 
         uint256 fee = amount[0] / feenominator;
         fees[underlying_] += fee;

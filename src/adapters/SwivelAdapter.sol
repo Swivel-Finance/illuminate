@@ -25,6 +25,7 @@ contract SwivelAdapter is IAdapter, Lender {
 
     function lend(
         uint256[] memory amount,
+        bool internalBalance,
         bytes calldata d
     ) external authorized(lender) returns (uint256, uint256) {
         // Parse the calldata into the arguments
@@ -50,7 +51,7 @@ contract SwivelAdapter is IAdapter, Lender {
         uint256 maturity = orders[0].maturity;
         address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[1];
 
-        // verify orders are for the same underlying
+        // Verify orders are for the same underlying
         {
             for (uint256 i = 0; i < orders.length; ) {
                 if (
@@ -66,7 +67,7 @@ contract SwivelAdapter is IAdapter, Lender {
             }
         }
 
-        // get the amount of the orders
+        // Get the amount of the orders
         uint256 total;
         uint256 fee;
         {
@@ -86,19 +87,19 @@ contract SwivelAdapter is IAdapter, Lender {
                 }
             }
         }
-
-        // receive the underlying funds from the user
-        Safe.transferFrom(
-            IERC20(underlying_),
-            msg.sender,
-            address(this),
-            total + fee
-        );
-
-        // store amount of iPTs to be minted to user
+        if (internalBalance == false) {
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(underlying_),
+                msg.sender,
+                address(this),
+                total + fee
+            );
+        }
+        // Store amount of iPTs to be minted to user
         uint256 received = IERC20(pt).balanceOf(address(this));
 
-        // execute the orders
+        // Execute the orders
         uint256 premium = IERC20(underlying_).balanceOf(address(this));
         ISwivel(protocolRouters[0]).initiate(orders, amount, components);
         premium = IERC20(underlying_).balanceOf(address(this)) - premium;
