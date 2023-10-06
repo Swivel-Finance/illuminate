@@ -586,6 +586,7 @@ contract Lender {
                     }
                 }
                 spent = total;
+                require (msg.value >= total, 'Insufficient ETH');
                 (, uint256 slippageRatio) = SwapETH(lst, total, swapMinimum);
                 a = adjustSwivelAmounts(a, slippageRatio);
             }
@@ -594,6 +595,7 @@ contract Lender {
                 (uint256 lent, ) = SwapETH(lst, a[0], swapMinimum);
                 spent = a[0];
                 a[0] = lent;
+                require (msg.value >= spent, 'Insufficient ETH');
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
