@@ -75,15 +75,14 @@ contract MarketPlace is IMarketPlace {
     /// @dev we want this to return the ipt when the user passes 0 for p
     function markets(
         address u,
-        uint256 m,
-        uint256 p
-    ) external override returns (address) {
-        if (p == 0) {
-            iptCalled[u] = MarketsArgs(m, p);
-            return iptReturn;
-        }
-        marketsCalled[u] = MarketsArgs(m, p);
-        return marketsReturn;
+        uint256 m
+    ) external view override returns (Market memory) {
+        // if (p == 0) {
+        //     iptCalled[u] = MarketsArgs(m, p);
+        //     return iptReturn;
+        // }
+        // marketsCalled[u] = MarketsArgs(m, p);
+        // return marketsReturn;
     }
 
     function adapters(

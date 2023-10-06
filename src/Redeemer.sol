@@ -248,10 +248,10 @@ contract Redeemer {
         bytes calldata d
     ) external unpaused(u, m) returns (bool) {
         // Get the principal token that is being redeemed
-        address pt = IMarketPlace(marketPlace).markets(u, m, p);
+        address pt = IMarketPlace(marketPlace).markets(u, m).tokens[p];
 
         // Get the adapter for the protocol being redeemed
-        address adapter = IMarketPlace(marketPlace).adapters(u, m, p);
+        address adapter = IMarketPlace(marketPlace).markets(u, m).adapters[p];
 
         {
             // Verify that the PT has matured
@@ -315,12 +315,8 @@ contract Redeemer {
     function redeem(address u, uint256 m) external unpaused(u, m) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
-            IMarketPlace(marketPlace).markets(
-                u,
-                m,
-                uint8(MarketPlace.Principals.Illuminate)
-            )
-        );
+            IMarketPlace(marketPlace).markets(u, m).adapters[uint8(MarketPlace.Principals.Illuminate)]
+            );
 
         // Verify the token has matured
         if (block.timestamp < token.maturity()) {
@@ -360,12 +356,12 @@ contract Redeemer {
         uint256 a
     )
         external
-        authorized(IMarketPlace(marketPlace).markets(u, m, 0))
+        authorized(IMarketPlace(marketPlace).markets(u, m).tokens[0])
         unpaused(u, m)
         returns (uint256)
     {
         // Get the principal token for the given market
-        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m, 0));
+        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m).tokens[0]);
 
         // Make sure the market has matured
         uint256 maturity = pt.maturity();
@@ -401,7 +397,7 @@ contract Redeemer {
         address[] calldata f
     ) external unpaused(u, m) returns (uint256) {
         // Get the principal token for the given market
-        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m, 0));
+        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m).tokens[0]);
 
         // Make sure the market has matured
         if (block.timestamp < pt.maturity()) {

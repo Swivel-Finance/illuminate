@@ -7,6 +7,7 @@ import {ISwivel} from "src/interfaces/ISwivel.sol";
 import {IERC20} from "src/interfaces/IERC20.sol";
 import {IYield} from "src/interfaces/IYield.sol";
 import {IMarketPlace} from "src/interfaces/IMarketPlace.sol";
+import {IERC5095} from "src/interfaces/IERC5095.sol";
 import {Lender} from "src/Lender.sol";
 
 import {Swivel} from "src/lib/Swivel.sol";
@@ -23,11 +24,12 @@ contract SwivelAdapter is IAdapter, Lender {
     }
 
     function lend(
+        uint256[] memory amount,
+        bool internalBalance,
         bytes calldata d
     ) external authorized(lender) returns (uint256, uint256) {
         // Parse the calldata into the arguments
         (
-            uint256[] memory amounts,
             Swivel.Order[] memory orders,
             Swivel.Components[] memory components,
             address pool,
@@ -36,7 +38,6 @@ contract SwivelAdapter is IAdapter, Lender {
         ) = abi.decode(
                 d,
                 (
-                    uint256[],
                     Swivel.Order[],
                     Swivel.Components[],
                     address,
@@ -46,15 +47,15 @@ contract SwivelAdapter is IAdapter, Lender {
             );
 
         // Cache a couple oft-referenced variables
-        address underlying = orders[0].underlying;
+        address underlying_ = orders[0].underlying;
         uint256 maturity = orders[0].maturity;
-        address pt = IMarketPlace(marketPlace).markets(underlying, maturity, 1);
+        address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[1];
 
-        // verify orders are for the same underlying
+        // Verify orders are for the same underlying
         {
             for (uint256 i = 0; i < orders.length; ) {
                 if (
-                    underlying != orders[i].underlying ||
+                    underlying_ != orders[i].underlying ||
                     maturity != orders[i].maturity
                 ) {
                     revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception code
@@ -66,19 +67,19 @@ contract SwivelAdapter is IAdapter, Lender {
             }
         }
 
-        // get the amount of the orders
+        // Get the amount of the orders
         uint256 total;
         uint256 fee;
         {
-            for (uint256 i = 0; i < amounts.length; ) {
-                total += amounts[i];
+            for (uint256 i = 0; i < amount.length; ) {
+                total += amount[i];
 
                 // extract fee
-                if (i == amounts.length - 1) {
+                if (i == amount.length - 1) {
                     fee = total / feenominator;
-                    amounts[i] = amounts[i] - fee;
+                    amount[i] = amount[i] - fee;
                     total = total - fee;
-                    fees[underlying] += fee;
+                    fees[underlying_] += fee;
                 }
 
                 unchecked {
@@ -86,29 +87,29 @@ contract SwivelAdapter is IAdapter, Lender {
                 }
             }
         }
-
-        // receive the underlying funds from the user
-        Safe.transferFrom(
-            IERC20(underlying),
-            msg.sender,
-            address(this),
-            total + fee
-        );
-
-        // store amount of iPTs to be minted to user
+        if (internalBalance == false) {
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(underlying_),
+                msg.sender,
+                address(this),
+                total + fee
+            );
+        }
+        // Store amount of iPTs to be minted to user
         uint256 received = IERC20(pt).balanceOf(address(this));
 
-        // execute the orders
-        uint256 premium = IERC20(underlying).balanceOf(address(this));
-        ISwivel(protocolRouters[0]).initiate(orders, amounts, components);
-        premium = IERC20(underlying).balanceOf(address(this)) - premium;
+        // Execute the orders
+        uint256 premium = IERC20(underlying_).balanceOf(address(this));
+        ISwivel(protocolRouters[0]).initiate(orders, amount, components);
+        premium = IERC20(underlying_).balanceOf(address(this)) - premium;
         received = IERC20(pt).balanceOf(address(this)) - received;
 
         // Swap the premium for iPTs or return premium to the sender
         if (swapFlag) {
-            received += swap(pool, underlying, premium, slippage);
+            received += swap(pool, underlying_, premium, slippage);
         } else {
-            premiums[underlying][maturity] += premium;
+            premiums[underlying_][maturity] += premium;
             received += premium;
         }
 
