@@ -382,6 +382,11 @@ contract Lender {
         // Reset accumulated fees of the token to 0
         fees[e] = 0;
 
+        if (e == WETH) {
+            // transfer eth
+            payable(admin).transfer(address(this).balance);
+        }
+        
         // Transfer the accumulated fees to the admin
         Safe.transfer(token, admin, balance);
 
