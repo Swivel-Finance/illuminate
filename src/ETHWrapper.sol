@@ -57,9 +57,9 @@ contract ETHWrapper {
         address pool;
         // if input or output is eth
         if (input == stETH || output == stETH) {
-            pool == stETHPool;
+            pool = stETHPool;
         } else {
-            pool == frxETHPool;
+            pool = frxETHPool;
         }
         // Instantiate Curve and determine Curve pathing
         ICurve curve = ICurve(pool);
