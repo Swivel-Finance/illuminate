@@ -632,7 +632,7 @@ contract Lender {
     // @returns The adjusted amount array
     function adjustSwivelAmounts(uint256[] memory amounts, uint256 slippageRatio) internal pure returns (uint256[] memory) {
         for (uint256 i; i != amounts.length; ) {
-            amounts[i] = amounts[i] - amounts[i] * slippageRatio;
+            amounts[i] = amounts[i] - amounts[i] / slippageRatio;
             unchecked {
                 ++i;
             }
