@@ -36,6 +36,8 @@ contract Lender {
     bool public halted;
     /// @notice address on which ETH swaps are conducted to purchase LSTs
     address public ETHWrapper;
+    /// @notice WETH address
+    address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
@@ -380,6 +382,11 @@ contract Lender {
         // Reset accumulated fees of the token to 0
         fees[e] = 0;
 
+        if (e == WETH) {
+            // transfer eth
+            payable(admin).transfer(address(this).balance);
+        }
+        
         // Transfer the accumulated fees to the admin
         Safe.transfer(token, admin, balance);
 
@@ -567,7 +574,7 @@ contract Lender {
         bytes calldata d,
         address lst,
         uint256 swapMinimum
-    ) external returns (uint256) {
+    ) external payable returns (uint256) {
         IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
         uint256 spent;
         bool success;
@@ -592,6 +599,7 @@ contract Lender {
                     }
                 }
                 spent = total;
+                require (msg.value >= total, 'Insufficient ETH');
                 (, uint256 slippageRatio) = SwapETH(lst, total, swapMinimum);
                 a = adjustSwivelAmounts(a, slippageRatio);
             }
@@ -600,6 +608,7 @@ contract Lender {
                 (uint256 lent, ) = SwapETH(lst, a[0], swapMinimum);
                 spent = a[0];
                 a[0] = lent;
+                require (msg.value >= spent, 'Insufficient ETH');
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
@@ -631,7 +640,7 @@ contract Lender {
     // @returns The adjusted amount array
     function adjustSwivelAmounts(uint256[] memory amounts, uint256 slippageRatio) internal pure returns (uint256[] memory) {
         for (uint256 i; i != amounts.length; ) {
-            amounts[i] = amounts[i] - amounts[i] * slippageRatio;
+            amounts[i] = amounts[i] - amounts[i] / slippageRatio;
             unchecked {
                 ++i;
             }
@@ -646,9 +655,9 @@ contract Lender {
     // @returns lent: The amount of underlying to be lent
     // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
     function SwapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
-        // If the "lst" address is populated, a swap is required
+        payable(ETHWrapper).transfer(amount);
         if (lst != address(0)) {
-            (lent, slippageRatio)  = IETHWrapper(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).swap(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2, lst, amount, swapMinimum);
+            (lent, slippageRatio)  = IETHWrapper(ETHWrapper).swap(WETH, lst, amount, swapMinimum);
             return (lent, slippageRatio);
         }
         // If the `lst` address is blank, no swap is necessary
