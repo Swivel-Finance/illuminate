@@ -523,6 +523,7 @@ contract Lender {
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param u underlying asset address of the market's tuple
     /// @param m timestamp of maturity of the market's tuple
+    /// @param a amount of underlying to lend (an array is used for Swivel lends, [0] is the amount for other cases)
     /// @param d data to conduct the call
     function lend(
         uint8 p,
@@ -558,6 +559,13 @@ contract Lender {
 
     // An override lend method for all ETH lending with the additional lpt and swap parameters
     // This method is only used for lending to ETH markets
+    /// @param p principal value according to the MarketPlace's Principals Enum
+    /// @param u underlying asset address of the market's tuple
+    /// @param m timestamp of maturity of the market's tuple
+    /// @param a amount of underlying to lend (an array is used for Swivel lends, [0] is the amount for other cases)
+    /// @param d data to conduct the call
+    /// @param lst address of the token to swap to
+    /// @param swapMinimum minimum amount of lst to receive
     function lend(
         uint8 p,
         address u,
@@ -640,7 +648,7 @@ contract Lender {
         return (amounts);
     }
 
-    // @notice: Handles all lending to ETH markets and any swaps necessary
+    // @notice: Handles all necessary ETH swaps when lending
     // @param lst: The address of the token to swap to
     // @param amount: The amount of underlying to spend
     // @param swapMinimum: The minimum amount of lst to receive
