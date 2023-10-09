@@ -550,10 +550,12 @@ contract Lender {
         }
 
         // Get the amount of PTs (in protocol decimals) received
-        (uint256 obtained, uint256 spent) = abi.decode(
+        (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
             returndata,
-            (uint256, uint256)
+            (uint256, uint256, uint256)
         );
+
+        fees[u] += fee;
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
@@ -627,10 +629,12 @@ contract Lender {
         }
 
         // Get the amount of PTs (in protocol decimals) received
-        (uint256 obtained,) = abi.decode(
+        (uint256 obtained, ,uint256 fee) = abi.decode(
             returndata,
-            (uint256, uint256)
+            (uint256, uint256, uint256)
         );
+
+        fees[u] += fee;
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
