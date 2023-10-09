@@ -13,6 +13,13 @@ import "./interfaces/ICreator.sol";
 /// @notice This contract is in charge of managing the available principals for each loan market.
 /// @notice In addition, this contract routes swap orders between Illuminate PTs and their respective underlying to YieldSpace pools.
 contract MarketPlace {
+
+    address public lender; 
+
+    address public marketplace;
+
+    address public redeemer;
+
     /// @notice the available principals
     /// @dev the order of this enum is used to select principals from the markets
     /// mapping (e.g. Illuminate => 0, Swivel => 1, and so on)
@@ -38,10 +45,6 @@ contract MarketPlace {
     mapping(address => mapping(uint256 => Market)) public markets;
     /// @notice address that is allowed to create markets, set pools, etc. It is commonly used in the authorized modifier.
     address public admin;
-    /// @notice address of the deployed redeemer contract
-    address public immutable redeemer;
-    /// @notice address of the deployed lender contract
-    address public immutable lender;
     /// @notice address of the deployed creator contract
     address public immutable creator;
 

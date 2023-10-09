@@ -12,4 +12,6 @@ interface ILender {
     function paused(uint8) external returns (bool);
 
     function halted() external returns (bool);
+
+    function feenominator() external returns (uint256);
 }

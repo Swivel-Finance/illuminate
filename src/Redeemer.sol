@@ -288,7 +288,7 @@ contract Redeemer {
 
             // Conduct the redemption via the adapter
             (bool success, ) = adapter.delegatecall(
-                abi.encodeWithSignature('redeem()', d)
+                abi.encodeWithSignature('redeem(uint256 amount, bool internalBalance, bytes calldata inputdata)', amount, true, d)
             );
             if (!success) {
                 revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code

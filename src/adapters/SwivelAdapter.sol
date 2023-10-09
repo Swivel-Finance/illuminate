@@ -5,29 +5,35 @@ pragma solidity 0.8.20;
 import {IAdapter} from "src/interfaces/IAdapter.sol";
 import {ISwivel} from "src/interfaces/ISwivel.sol";
 import {IERC20} from "src/interfaces/IERC20.sol";
-import {IYield} from "src/interfaces/IYield.sol";
 import {IMarketPlace} from "src/interfaces/IMarketPlace.sol";
 import {IERC5095} from "src/interfaces/IERC5095.sol";
-import {Lender} from "src/Lender.sol";
 
 import {Swivel} from "src/lib/Swivel.sol";
 import {Exception} from "src/errors/Exception.sol";
 import {Safe} from "src/lib/Safe.sol";
 
-contract SwivelAdapter is IAdapter, Lender {
-    constructor() Lender(address(0), address(0), address(0)) {}
+contract SwivelAdapter is IAdapter {
+    constructor() {}
 
-    address public lender = address(0);
+    address public lender; 
+
+    address public marketplace;
+
+    address public redeemer;
 
     function underlying(address pt) public view returns (address) {
         return address(IERC5095(pt).underlying());
+    }
+
+    function maturity() public view returns (uint256) {
+        return IERC5095(pt).maturity();
     }
 
     function lend(
         uint256[] memory amount,
         bool internalBalance,
         bytes calldata d
-    ) external authorized(lender) returns (uint256, uint256) {
+    ) external returns (uint256, uint256, uint256) {
         // Parse the calldata into the arguments
         (
             Swivel.Order[] memory orders,
@@ -69,6 +75,7 @@ contract SwivelAdapter is IAdapter, Lender {
 
         // Get the amount of the orders
         uint256 total;
+        uint256 totalFee;
         uint256 fee;
         {
             for (uint256 i = 0; i < amount.length; ) {
@@ -79,7 +86,7 @@ contract SwivelAdapter is IAdapter, Lender {
                     fee = total / feenominator;
                     amount[i] = amount[i] - fee;
                     total = total - fee;
-                    fees[underlying_] += fee;
+                    totalFee += fee;
                 }
 
                 unchecked {
@@ -93,7 +100,7 @@ contract SwivelAdapter is IAdapter, Lender {
                 IERC20(underlying_),
                 msg.sender,
                 address(this),
-                total + fee
+                total + totalFee
             );
         }
         // Store amount of iPTs to be minted to user
@@ -113,29 +120,39 @@ contract SwivelAdapter is IAdapter, Lender {
             received += premium;
         }
 
-        return (received, total);
+        return (received, total, totalFee);
     }
 
-    /// @notice facilitates a swap for Illuminate's principal tokens
-    /// @param p Yield Space pool for the market
-    /// @param u underlying asset being sold for PTs
-    /// @param a amount of underlying to be swapped
-    /// @param m minimum number of tokens to receive
-    /// @return received amount of PTs received in swap
-    function swap(
-        address p,
-        address u,
-        uint256 a,
-        uint256 m
-    ) internal returns (uint256) {
-        // transfer funds to the pool
-        Safe.transfer(IERC20(u), p, a);
+    function redeem(
+        uint256 amount,
+        bool internalBalance,
+        bytes calldata d
+    ) external returns (uint256, uint256) {
+        // Parse the calldata
+        (
+            address underlying_,
+            uint256 maturity
+        ) = abi.decode(d, (address, uint256));
 
-        uint256 received = IYield(p).sellBase(address(this), uint128(a));
-        if (received < m) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add exception code
+        address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[0];
+        if (internalBalance == false){
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(pt),
+                msg.sender,
+                address(this),
+                amount
+            );
         }
 
-        return received;
+        uint256 starting = IERC20(underlying_).balanceOf(address(this));
+
+        IERC5095(pt).redeem(address(this), uint128(amount));
+
+        uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
+
+        Safe.transfer(IERC20(underlying_), msg.sender, received);
+
+        return (received, amount);
     }
 }

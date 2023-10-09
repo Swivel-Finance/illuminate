@@ -26,4 +26,6 @@ interface IYield {
     function buyFYToken(address, uint128, uint128) external returns (uint128);
 
     function buyFYTokenPreview(uint128) external view returns (uint128);
+
+    function redeem(address, uint128) external returns (uint128);
 }

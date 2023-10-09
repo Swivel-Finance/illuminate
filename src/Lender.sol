@@ -23,6 +23,13 @@ import "./interfaces/IETHWrapper.sol";
 /// @notice The lender contract executes loans on behalf of users
 /// @notice The contract holds the principal tokens and mints an ERC-5095 tokens to users to represent their loans
 contract Lender {
+
+    address public lender; 
+
+    address public marketplace;
+
+    address public redeemer;
+
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
     uint256 public constant HOLD = 3 days;
 
@@ -536,7 +543,7 @@ contract Lender {
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
-            abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+            abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
@@ -584,7 +591,7 @@ contract Lender {
         if (lst != address(0)) {
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
-                abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+                abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
         else {
@@ -612,7 +619,7 @@ contract Lender {
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
-                abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, true, d));
+                abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, true, d));
         }
         
         if (!success) {
