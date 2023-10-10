@@ -23,13 +23,18 @@ import "./interfaces/IETHWrapper.sol";
 /// @notice The lender contract executes loans on behalf of users
 /// @notice The contract holds the principal tokens and mints an ERC-5095 tokens to users to represent their loans
 contract Lender {
+
+    address public lender = address(this); 
+
+    address public marketplace;
+
+    address public redeemer;
+
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
     uint256 public constant HOLD = 3 days;
 
     /// @notice address that is allowed to set and withdraw fees, disable principals, etc. It is commonly used in the authorized modifier.
     address public admin;
-    /// @notice address of the MarketPlace contract, used to access the markets mapping
-    address public marketPlace;
     /// @notice mapping that determines if a principal has been paused by the admin
     mapping(uint8 => bool) public paused;
     /// @notice flag that allows admin to stop all lending and minting across the entire protocol
@@ -181,7 +186,7 @@ contract Lender {
         // approve the underlying for max per given principal
         for (uint8 i; i != 9; ) {
             // get the principal token's address
-            address token = IMarketPlace(marketPlace).markets(u, m).tokens[i];
+            address token = IMarketPlace(marketplace).markets(u, m).tokens[i];
             // check that the token is defined for this particular market
             if (token != address(0)) {
                 // max approve the token
@@ -258,16 +263,24 @@ contract Lender {
         return true;
     }
 
+    // @notice sets the redeemer address
+    // @param r address of a new redeemer
+    // @return bool true if successful
+    function setRedeemer(address r) external authorized(admin) returns (bool) {
+        redeemer = r;
+        return (true);
+    }
+
     /// @notice sets the address of the marketplace contract which contains the addresses of all the fixed rate markets
     /// @param m the address of the marketplace contract
     /// @return bool true if the address was set
     function setMarketPlace(
         address m
     ) external authorized(admin) returns (bool) {
-        if (marketPlace != address(0)) {
-            revert Exception(5, 0, 0, marketPlace, address(0));
+        if (marketplace != address(0)) {
+            revert Exception(5, 0, 0, marketplace, address(0));
         }
-        marketPlace = m;
+        marketplace = m;
         return true;
     }
 
@@ -431,9 +444,9 @@ contract Lender {
     function transferFYTs(
         address f,
         uint256 a
-    ) external authorized(IMarketPlace(marketPlace).redeemer()) {
+    ) external authorized(IMarketPlace(marketplace).redeemer()) {
         // Transfer the Lender's FYT tokens to the Redeemer
-        Safe.transfer(IERC20(f), IMarketPlace(marketPlace).redeemer(), a);
+        Safe.transfer(IERC20(f), IMarketPlace(marketplace).redeemer(), a);
     }
 
     /// @notice Transfers premium from the market to Redeemer (used specifically for Swivel redemptions)
@@ -442,10 +455,10 @@ contract Lender {
     function transferPremium(
         address u,
         uint256 m
-    ) external authorized(IMarketPlace(marketPlace).redeemer()) {
+    ) external authorized(IMarketPlace(marketplace).redeemer()) {
         Safe.transfer(
             IERC20(u),
-            IMarketPlace(marketPlace).redeemer(),
+            IMarketPlace(marketplace).redeemer(),
             premiums[u][m]
         );
 
@@ -464,7 +477,7 @@ contract Lender {
         uint256 a
     ) external nonReentrant unpaused(u, m, p) returns (bool) {
         // Fetch the desired principal token
-        address principal = IMarketPlace(marketPlace).markets(u, m).tokens[p];
+        address principal = IMarketPlace(marketplace).markets(u, m).tokens[p];
 
         // Disallow mints if market is not initialized
         if (principal == address(0)) {
@@ -532,21 +545,23 @@ contract Lender {
         uint256[] memory a,
         bytes calldata d
     ) external returns (uint256) {
-        IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
+        IMarketPlace.Market memory _Market = IMarketPlace(marketplace).markets(u, m);
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
-            abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+            abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
         }
 
         // Get the amount of PTs (in protocol decimals) received
-        (uint256 obtained, uint256 spent) = abi.decode(
+        (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
             returndata,
-            (uint256, uint256)
+            (uint256, uint256, uint256)
         );
+
+        fees[u] += fee;
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
@@ -575,7 +590,7 @@ contract Lender {
         address lst,
         uint256 swapMinimum
     ) external payable returns (uint256) {
-        IMarketPlace.Market memory _Market = IMarketPlace(marketPlace).markets(u, m);
+        IMarketPlace.Market memory _Market = IMarketPlace(marketplace).markets(u, m);
         uint256 spent;
         bool success;
         bytes memory returndata;
@@ -584,7 +599,7 @@ contract Lender {
         if (lst != address(0)) {
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
-                abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+                abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
         else {
@@ -612,7 +627,7 @@ contract Lender {
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
-                abi.encodeWithSignature('lend(uint256[] amount, bool internalBalance, bytes calldata inputdata)', a, true, d));
+                abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, true, d));
         }
         
         if (!success) {
@@ -620,10 +635,12 @@ contract Lender {
         }
 
         // Get the amount of PTs (in protocol decimals) received
-        (uint256 obtained,) = abi.decode(
+        (uint256 obtained, ,uint256 fee) = abi.decode(
             returndata,
-            (uint256, uint256)
+            (uint256, uint256, uint256)
         );
+
+        fees[u] += fee;
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
@@ -807,7 +824,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketPlace).markets(u, m).tokens[uint8(MarketPlace.Principals.Illuminate)];
+        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(MarketPlace.Principals.Illuminate)];
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
