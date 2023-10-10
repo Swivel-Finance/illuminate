@@ -263,6 +263,14 @@ contract Lender {
         return true;
     }
 
+    // @notice sets the redeemer address
+    // @param r address of a new redeemer
+    // @return bool true if successful
+    function setRedeemer(address r) external authorized(admin) returns (bool) {
+        redeemer = r;
+        return (true);
+    }
+
     /// @notice sets the address of the marketplace contract which contains the addresses of all the fixed rate markets
     /// @param m the address of the marketplace contract
     /// @return bool true if the address was set

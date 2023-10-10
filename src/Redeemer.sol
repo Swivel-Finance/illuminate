@@ -20,15 +20,18 @@ import "./interfaces/IConverter.sol";
 /// @notice The Redeemer contract is used to redeem the underlying lent capital of a loan.
 /// @notice Users may redeem their ERC-5095 tokens for the underlying asset represented by that token after maturity.
 contract Redeemer {
+
+    address public lender; 
+
+    address public marketplace;
+
+    address public redeemer = address(this);
+
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
     uint256 public constant HOLD = 3 days;
 
     /// @notice address that is allowed to set fees and contracts, etc. It is commonly used in the authorized modifier.
     address public admin;
-    /// @notice address of the MarketPlace contract, used to access the markets mapping
-    address public marketPlace;
-    /// @notice address that custodies principal tokens for all markets
-    address public lender;
     /// @notice address that converts compounding tokens to their underlying
     address public converter;
 
@@ -120,11 +123,11 @@ contract Redeemer {
         address m
     ) external authorized(admin) returns (bool) {
         // MarketPlace may only be set once
-        if (marketPlace != address(0)) {
-            revert Exception(5, 0, 0, marketPlace, address(0));
+        if (marketplace != address(0)) {
+            revert Exception(5, 0, 0, marketplace, address(0));
         }
 
-        marketPlace = m;
+        marketplace = m;
         return true;
     }
 
@@ -229,7 +232,7 @@ contract Redeemer {
 
     /// @notice approves the converter to spend the compounding asset
     /// @param i an interest bearing token that must be approved for conversion
-    function approve(address i) external authorized(marketPlace) {
+    function approve(address i) external authorized(marketplace) {
         if (i != address(0)) {
             Safe.approve(IERC20(i), address(converter), type(uint256).max);
         }
@@ -248,10 +251,10 @@ contract Redeemer {
         bytes calldata d
     ) external unpaused(u, m) returns (bool) {
         // Get the principal token that is being redeemed
-        address pt = IMarketPlace(marketPlace).markets(u, m).tokens[p];
+        address pt = IMarketPlace(marketplace).markets(u, m).tokens[p];
 
         // Get the adapter for the protocol being redeemed
-        address adapter = IMarketPlace(marketPlace).markets(u, m).adapters[p];
+        address adapter = IMarketPlace(marketplace).markets(u, m).adapters[p];
 
         {
             // Verify that the PT has matured
@@ -315,7 +318,7 @@ contract Redeemer {
     function redeem(address u, uint256 m) external unpaused(u, m) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
-            IMarketPlace(marketPlace).markets(u, m).adapters[uint8(MarketPlace.Principals.Illuminate)]
+            IMarketPlace(marketplace).markets(u, m).adapters[uint8(MarketPlace.Principals.Illuminate)]
             );
 
         // Verify the token has matured
@@ -356,12 +359,12 @@ contract Redeemer {
         uint256 a
     )
         external
-        authorized(IMarketPlace(marketPlace).markets(u, m).tokens[0])
+        authorized(IMarketPlace(marketplace).markets(u, m).tokens[0])
         unpaused(u, m)
         returns (uint256)
     {
         // Get the principal token for the given market
-        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m).tokens[0]);
+        IERC5095 pt = IERC5095(IMarketPlace(marketplace).markets(u, m).tokens[0]);
 
         // Make sure the market has matured
         uint256 maturity = pt.maturity();
@@ -397,7 +400,7 @@ contract Redeemer {
         address[] calldata f
     ) external unpaused(u, m) returns (uint256) {
         // Get the principal token for the given market
-        IERC5095 pt = IERC5095(IMarketPlace(marketPlace).markets(u, m).tokens[0]);
+        IERC5095 pt = IERC5095(IMarketPlace(marketplace).markets(u, m).tokens[0]);
 
         // Make sure the market has matured
         if (block.timestamp < pt.maturity()) {

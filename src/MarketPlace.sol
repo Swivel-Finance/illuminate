@@ -16,7 +16,7 @@ contract MarketPlace {
 
     address public lender; 
 
-    address public marketplace;
+    address public marketplace = address(this);
 
     address public redeemer;
 
@@ -207,6 +207,22 @@ contract MarketPlace {
         pt.approveMarketPlace();
 
         emit SetPool(u, m, a);
+        return true;
+    }
+
+    // @notice sets the address for the lender
+    // @param l address of the lender
+    // @return bool true if the lender set, false otherwise
+    function setLender(address l) external authorized(admin) returns (bool) {
+        lender = l;
+        return true;
+    }
+
+    // @notice sets the address for the redeemer
+    // @param r address of the redeemer
+    // @return bool true if the redeemer set, false otherwise
+    function setRedeemer(address r) external authorized(admin) returns (bool) {
+        redeemer = r;
         return true;
     }
 
