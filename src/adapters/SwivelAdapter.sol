@@ -39,7 +39,7 @@ contract SwivelAdapter is IAdapter {
             Swivel.Order[] memory orders,
             Swivel.Components[] memory components,
             address pool,
-            uint256 slippage,
+            uint256 swapMinimum,
             bool swapFlag
         ) = abi.decode(
                 d,
@@ -114,7 +114,7 @@ contract SwivelAdapter is IAdapter {
 
         // Swap the premium for iPTs or return premium to the sender
         if (swapFlag) {
-            received += swap(pool, underlying_, premium, slippage);
+            received += swap(pool, underlying_, premium, swapMinimum);
         } else {
             premiums[underlying_][maturity] += premium;
             received += premium;
