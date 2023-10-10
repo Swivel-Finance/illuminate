@@ -537,7 +537,7 @@ contract Lender {
     /// @param u underlying asset address of the market's tuple
     /// @param m timestamp of maturity of the market's tuple
     /// @param a amount of underlying to lend (an array is used for Swivel lends, [0] is the amount for other cases)
-    /// @param d data to conduct the call
+    /// @param d data to conduct the call -- For explicit information see a respective adapter's `lendABI` returns
     function lend(
         uint8 p,
         address u,
@@ -578,7 +578,7 @@ contract Lender {
     /// @param u underlying asset address of the market's tuple
     /// @param m timestamp of maturity of the market's tuple
     /// @param a amount of underlying to lend (an array is used for Swivel lends, [0] is the amount for other cases)
-    /// @param d data to conduct the call
+    /// @param d data to conduct the call -- For explicit information see a respective adapter's `lendABI` returns
     /// @param lst address of the token to swap to
     /// @param swapMinimum minimum amount of lst to receive
     function lend(
@@ -652,8 +652,8 @@ contract Lender {
     }
 
     // @notice: Adjusts all Swivel Amounts according to the slippageRatio
+    // @param amounts: The amounts to adjust
     // @param slippageRatio: The slippageRatio to adjust by
-    // @param d: The calldata for the lend (and potentially swap) operation
     // @returns The adjusted amount array
     function adjustSwivelAmounts(uint256[] memory amounts, uint256 slippageRatio) internal pure returns (uint256[] memory) {
         for (uint256 i; i != amounts.length; ) {
