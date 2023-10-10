@@ -700,65 +700,6 @@ contract Lender {
         }
     }
 
-    /// @notice swaps underlying premium via a Yield Space Pool
-    /// @dev this method is only used by the Yield, Illuminate and Swivel protocols
-    /// @param u address of an underlying asset
-    /// @param y Yield Space Pool for the principal token
-    /// @param a amount of underlying tokens to lend
-    /// @param r the receiving address for PTs
-    /// @param p the principal token in the Yield Space Pool
-    /// @param m the minimum amount to purchase
-    /// @return uint256 the amount of tokens sent to the Yield Space Pool
-    function yield(
-        address u,
-        address y,
-        uint256 a,
-        address r,
-        address p,
-        uint256 m
-    ) internal returns (uint256) {
-        // Get the starting balance (to verify receipt of tokens)
-        uint256 starting = IERC20(p).balanceOf(r);
-
-        // Get the amount of tokens received for swapping underlying
-        uint128 returned = IYield(y).sellBasePreview(Cast.u128(a));
-
-        // Send the remaining amount to the Yield pool
-        Safe.transfer(IERC20(u), y, a);
-
-        // Lend out the remaining tokens in the Yield pool
-        IYield(y).sellBase(r, returned);
-
-        // Get the ending balance of principal tokens (must be at least starting + returned)
-        uint256 received = IERC20(p).balanceOf(r) - starting;
-
-        // Verify receipt of PTs from Yield Space Pool
-        if (received < m) {
-            revert Exception(11, received, m, address(0), address(0));
-        }
-
-        return received;
-    }
-
-    /// @notice returns the amount of underlying tokens to be used in a Swivel lend
-    function swivelAmount(uint256[] memory a) internal pure returns (uint256) {
-        uint256 lent;
-
-        // Iterate through each order a calculate the total lent and returned
-        for (uint256 i; i != a.length; ) {
-            {
-                // Sum the total amount lent to Swivel
-                lent = lent + a[i];
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        return lent;
-    }
-
     /// @notice reverts if any orders are not for the market
     function swivelVerify(Swivel.Order[] memory o, address u) internal pure {
         for (uint256 i; i != o.length; ) {
@@ -770,36 +711,6 @@ contract Lender {
                 ++i;
             }
         }
-    }
-
-    /// @notice executes a swap for and verifies receipt of Element PTs
-    function elementSwap(
-        address e,
-        Element.SingleSwap memory s,
-        Element.FundManagement memory f,
-        uint256 r,
-        uint256 d
-    ) internal returns (uint256) {
-        // Get the principal token
-        address principal = address(s.assetOut);
-
-        // Get the intial balance
-        uint256 starting = IERC20(principal).balanceOf(address(this));
-
-        // Conduct the swap on Element
-        IElementVault(e).swap(s, f, r, d);
-
-        // Get how many PTs were purchased by the swap call
-        uint256 purchased = IERC20(principal).balanceOf(address(this)) -
-            starting;
-
-        // Verify that a minimum amount was received
-        if (purchased < r) {
-            revert Exception(11, 0, 0, address(0), address(0));
-        }
-
-        // Return the net amount of principal tokens acquired after the swap
-        return purchased;
     }
 
     /// @notice returns array token path required for APWine's swap method
