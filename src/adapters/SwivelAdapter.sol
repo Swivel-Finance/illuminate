@@ -7,6 +7,8 @@ import {ISwivel} from "src/interfaces/ISwivel.sol";
 import {IERC20} from "src/interfaces/IERC20.sol";
 import {IMarketPlace} from "src/interfaces/IMarketPlace.sol";
 import {IERC5095} from "src/interfaces/IERC5095.sol";
+import {ILender} from "src/interfaces/ILender.sol";
+import {IYield} from "src/interfaces/IYield.sol";
 
 import {Swivel} from "src/lib/Swivel.sol";
 import {Exception} from "src/errors/Exception.sol";
@@ -29,7 +31,7 @@ contract SwivelAdapter is IAdapter {
 
     // @notice returns the maturity of the underlying token for the PT
     // @param pt The address of the PT
-    function maturity() public view returns (uint256) {
+    function maturity(address pt) public view returns (uint256) {
         return IERC5095(pt).maturity();
     }
 
@@ -46,7 +48,7 @@ contract SwivelAdapter is IAdapter {
         uint256 swapMinimum,
         bool swapFlag) {
     }
-    
+
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
@@ -88,7 +90,7 @@ contract SwivelAdapter is IAdapter {
         // Cache a couple oft-referenced variables
         address underlying_ = orders[0].underlying;
         uint256 maturity = orders[0].maturity;
-        address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[1];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[1];
 
         // Verify orders are for the same underlying
         {
@@ -116,7 +118,7 @@ contract SwivelAdapter is IAdapter {
 
                 // extract fee
                 if (i == amount.length - 1) {
-                    fee = total / feenominator;
+                    fee = total / ILender(lender).feenominator();
                     amount[i] = amount[i] - fee;
                     total = total - fee;
                     totalFee += fee;
@@ -141,7 +143,7 @@ contract SwivelAdapter is IAdapter {
 
         // Execute the orders
         uint256 premium = IERC20(underlying_).balanceOf(address(this));
-        ISwivel(protocolRouters[0]).initiate(orders, amount, components);
+        ISwivel(ILender(lender).protocolRouters()[0]).initiate(orders, amount, components);
         premium = IERC20(underlying_).balanceOf(address(this)) - premium;
         received = IERC20(pt).balanceOf(address(this)) - received;
 
@@ -149,7 +151,6 @@ contract SwivelAdapter is IAdapter {
         if (swapFlag) {
             received += swap(pool, underlying_, premium, swapMinimum);
         } else {
-            premiums[underlying_][maturity] += premium;
             received += premium;
         }
 
@@ -171,7 +172,7 @@ contract SwivelAdapter is IAdapter {
             uint256 maturity
         ) = abi.decode(d, (address, uint256));
 
-        address pt = IMarketPlace(marketPlace).markets(underlying_, maturity).tokens[0];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0];
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
@@ -184,12 +185,35 @@ contract SwivelAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IERC5095(pt).redeem(address(this), uint128(amount));
+        IERC5095(pt).redeem( uint128(amount), address(this), address(this));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
         Safe.transfer(IERC20(underlying_), msg.sender, received);
 
         return (received, amount);
+    }
+
+    /// @notice facilitates a swap for Illuminate's principal tokens
+    /// @param p Yield Space pool for the market
+    /// @param u underlying asset being sold for PTs
+    /// @param a amount of underlying to be swapped
+    /// @param m minimum number of tokens to receive
+    /// @return received amount of PTs received in swap
+    function swap(
+        address p,
+        address u,
+        uint256 a,
+        uint256 m
+    ) internal returns (uint256) {
+        // transfer funds to the pool
+        Safe.transfer(IERC20(u), p, a);
+
+        uint256 received = IYield(p).sellBase(address(this), uint128(a));
+        if (received < m) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add exception code
+        }
+
+        return received;
     }
 }

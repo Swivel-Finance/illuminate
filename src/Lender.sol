@@ -48,9 +48,6 @@ contract Lender {
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
     address[] public protocolRouters;
 
-    /// @notice a mapping that tracks the amount of unswapped premium by market. This underlying is later transferred to the Redeemer during Swivel's redeem call
-    mapping(address => mapping(uint256 => uint256)) public premiums;
-
     /// @notice this value determines the amount of fees paid on loans
     uint256 public feenominator;
     /// @notice represents a point in time where the feenominator may change
@@ -459,10 +456,8 @@ contract Lender {
         Safe.transfer(
             IERC20(u),
             IMarketPlace(marketplace).redeemer(),
-            premiums[u][m]
+            IERC20(u).balanceOf(address(this))- fees[u]
         );
-
-        premiums[u][m] = 0;
     }
     /// @notice mint swaps the sender's principal tokens for Illuminate's ERC5095 tokens in effect, this opens a new fixed rate position for the sender on Illuminate
     /// @param p principal value according to the MarketPlace's Principals Enum
