@@ -20,14 +20,47 @@ contract YieldAdapter is IAdapter {
 
     address public redeemer;
 
+    // @notice returns the address of the underlying token for the PT
+    // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
         return address(IYield(pt).base());
     }
 
+    // @notice returns the maturity of the underlying token for the PT
+    // @param pt The address of the PT
     function maturity(address pt) public view returns (uint256) {
         return IYield(pt).maturity();
     }
 
+    // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
+    // @returns underlying_ The address of the underlying token
+    // @returns maturity The maturity of the underlying token
+    // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
+    // @returns pool The address of the pool to lend to (buy PTs from)
+    function lendABI(
+    ) public pure returns (
+        address underlying_,
+        uint256 maturity,
+        uint256 minimum,
+        address pool) {
+    }
+
+    // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
+    // @returns underlying_ The address of the underlying token
+    // @returns maturity The maturity of the underlying token
+    function redeemABI(
+    ) public pure returns (
+        address underlying_,
+        uint256 maturity) {
+    }
+
+    // @notice lends `amount` to yield protocol by spending `amount-fee` on PTs from `pool`
+    // @param amount The amount of the underlying token to lend (amount[0] is used for this adapter)
+    // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
+    // @param d The calldata for the lend function -- described above in lendABI
+    // @returns received The amount of the PTs received from the lend
+    // @returns spent The amount of the underlying token spent on the lend
+    // @returns fee The amount of the underlying token spent on the fee
     function lend(
         uint256[] memory amount,
         bool internalBalance,
@@ -63,6 +96,10 @@ contract YieldAdapter is IAdapter {
         return (received, amount[0], fee);
     }
 
+    // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
+    // @param amount The amount of the PTs to redeem
+    // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
+    // @param d The calldata for the redeem function -- described above in redeemABI
     function redeem(
         uint256 amount,
         bool internalBalance,
