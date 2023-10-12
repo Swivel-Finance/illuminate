@@ -591,7 +591,7 @@ contract Lender {
         bytes memory returndata;
 
         // If the lst parameter is not populated, a swap is not required
-        if (lst != address(0)) {
+        if (lst == address(0)) {
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
                 abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));

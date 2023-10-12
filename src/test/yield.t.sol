@@ -26,15 +26,23 @@ contract YieldTest is Test {
 
     uint256 startingBalance = 100000 ether;
 
+    Creator creator;
+    Converter converter;
+    ETHWrapper ethWrapper;
+    Lender lender;
+    Redeemer redeemer;
+    MarketPlace marketplace;
+
+
     function setUp() public {
 
         // Deploy all major contracts
-        Creator creator = new Creator();
-        Converter converter = new Converter();
-        ETHWrapper ethWrapper = new ETHWrapper();
-        Lender lender = new Lender(address(0), address(0), address(0));
-        Redeemer redeemer = new Redeemer(address(lender), address(0), address(0));
-        MarketPlace marketplace = new MarketPlace(address(redeemer), address(lender), address(creator));
+        creator = new Creator();
+        converter = new Converter();
+        ethWrapper = new ETHWrapper(); 
+        lender = new Lender(address(0), address(0), address(0));
+        redeemer = new Redeemer(address(lender), address(0), address(0));
+        marketplace = new MarketPlace(address(redeemer), address(lender), address(creator));
 
         // Set up connections
         creator.setMarketPlace(address(marketplace));
@@ -46,8 +54,8 @@ contract YieldTest is Test {
 
         address[] memory tokens;
         address[] memory adapters;
-        tokens[0] = yieldDecember;
-        adapters[0] = address(yieldAdapter);
+        tokens[1] = yieldDecember;
+        adapters[1] = address(yieldAdapter); 
         // Create market
         marketplace.createMarket(USDC, maturity, tokens, adapters, "iPT-DEC", "iPT-DEC-USDC");
 
@@ -67,12 +75,27 @@ contract YieldTest is Test {
         uint256 maturity,
         uint256 minimum,
         address pool
-    ) public returns (bytes memory d) {
-        abi.encodeWithSignature('address underlying_, uint256 maturity, uint256 minimum, address pool',
+    ) public pure returns (bytes memory d) {
+        return abi.encodeWithSignature('address underlying_, uint256 maturity, uint256 minimum, address pool',
             underlying_,
             maturity,
             minimum,
             pool
         );
+    }
+
+    // function testLendUSDC() public {
+    //     vm.startPrank(userPublicKey);
+    //     // Lend 100 USDC
+    //     uint256[] memory amount;
+    //     amount[0] = 100 * 10 ** 6;
+    //     bytes memory d = packD(USDC, maturity, 0, address(yieldDecember));
+    //     lender.lend(0, address(USDC), maturity, amount, d);
+
+    //     assertGt(IERC20(yieldDecember).balanceOf(userPublicKey), 100 * 10 ** 6);
+    // }
+
+    function testLendUSDC() public {
+        vm.startPrank(userPublicKey);
     }
 }

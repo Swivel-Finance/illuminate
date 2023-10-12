@@ -90,7 +90,7 @@ contract SwivelAdapter is IAdapter {
         // Cache a couple oft-referenced variables
         address underlying_ = orders[0].underlying;
         uint256 maturity = orders[0].maturity;
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[1];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[1]; // TODO: Get Swivel PT enum
 
         // Verify orders are for the same underlying
         {

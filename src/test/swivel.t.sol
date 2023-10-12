@@ -14,7 +14,7 @@ import "../Redeemer.sol";
 // import adapters
 import "../adapters/SwivelAdapter.sol"; 
 
-contract YieldTest is Test {
+contract SwivelTest is Test {
 
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
@@ -67,14 +67,18 @@ contract YieldTest is Test {
         address pool,
         uint256 swapMinimum,
         bool swapFlag
-    ) public returns (bytes memory d) {
-        abi.encodeWithSignature('Swivel.Order[] memory orders, Swivel.Components[] memory components, address pool, uint256 swapMinimum, bool swapFlag',
+    ) public pure returns (bytes memory d) {
+        return abi.encodeWithSignature('Swivel.Order[] memory orders, Swivel.Components[] memory components, address pool, uint256 swapMinimum, bool swapFlag',
             orders,
             components,
             pool,
             swapMinimum,
             swapFlag
         );
+    }
+    
+    function testLendUSDC() public {
+        vm.startPrank(userPublicKey);
     }
 
 
