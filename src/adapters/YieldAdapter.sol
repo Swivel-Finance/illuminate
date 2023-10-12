@@ -9,7 +9,6 @@ import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
 
 import {Safe} from "../lib/Safe.sol";
-import {Exception} from "src/errors/Exception.sol";
 
 contract YieldAdapter is IAdapter { 
     constructor() {}
@@ -74,7 +73,7 @@ contract YieldAdapter is IAdapter {
             address pool
         ) = abi.decode(d, (address, uint256, uint256, address));
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0]; // TODO: get yield PT enum
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
