@@ -44,8 +44,8 @@ contract SwivelTest is Test {
         // Deploy yield adapter
         SwivelAdapter swivelAdapter = new SwivelAdapter();
 
-        address[] memory tokens;
-        address[] memory adapters;
+        address[] memory tokens = new address[](1);
+        address[] memory adapters = new address[](1);
         tokens[0] = swivelDecember;
         adapters[0] = address(swivelAdapter);
         // Create market

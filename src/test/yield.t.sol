@@ -52,10 +52,10 @@ contract YieldTest is Test {
         // Deploy yield adapter
         YieldAdapter yieldAdapter = new YieldAdapter();
 
-        address[] memory tokens;
-        address[] memory adapters;
-        tokens[1] = yieldDecember;
-        adapters[1] = address(yieldAdapter); 
+        address[] memory tokens = new address[](1);
+        address[] memory adapters = new address[](1);
+        tokens[0] = yieldDecember;
+        adapters[0] = address(yieldAdapter);
         // Create market
         marketplace.createMarket(USDC, maturity, tokens, adapters, "iPT-DEC", "iPT-DEC-USDC");
 
