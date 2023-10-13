@@ -134,7 +134,7 @@ contract MarketPlace {
                 market.tokens[i + 1] = t[i];
                 market.adapters[i] = a[i]; 
                 // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
-                // While the rest are set in this loop
+                // While the rest (both adapters and tokens outside of the iPT) are set in this loop
             }
         }
 
