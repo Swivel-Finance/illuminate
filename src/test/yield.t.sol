@@ -46,8 +46,8 @@ contract YieldTest is Test {
 
         // Set up connections
         creator.setMarketPlace(address(marketplace));
-        marketplace.setLender(address(lender));
-        marketplace.setRedeemer(address(redeemer));
+        lender.setMarketPlace(address(marketplace));
+        lender.setRedeemer(address(redeemer));
 
         // Deploy yield adapter
         YieldAdapter yieldAdapter = new YieldAdapter();
@@ -67,7 +67,6 @@ contract YieldTest is Test {
         vm.startPrank(userPublicKey);
         IERC20(USDC).approve(address(lender), type(uint256).max-1);
         vm.stopPrank();
-
     }
 
     function packD(
@@ -76,7 +75,7 @@ contract YieldTest is Test {
         uint256 minimum,
         address pool
     ) public pure returns (bytes memory d) {
-        return abi.encodeWithSignature('address underlying_, uint256 maturity, uint256 minimum, address pool',
+        return abi.encode('address,uint256,uint256,address',
             underlying_,
             maturity,
             minimum,
@@ -84,18 +83,14 @@ contract YieldTest is Test {
         );
     }
 
-    // function testLendUSDC() public {
-    //     vm.startPrank(userPublicKey);
-    //     // Lend 100 USDC
-    //     uint256[] memory amount;
-    //     amount[0] = 100 * 10 ** 6;
-    //     bytes memory d = packD(USDC, maturity, 0, address(yieldDecember));
-    //     lender.lend(0, address(USDC), maturity, amount, d);
-
-    //     assertGt(IERC20(yieldDecember).balanceOf(userPublicKey), 100 * 10 ** 6);
-    // }
-
     function testLendUSDC() public {
         vm.startPrank(userPublicKey);
+        uint256[] memory amount = new uint256[](1);
+        amount[0] = 100 * 10 ** 6;
+        bytes memory d = packD(USDC, maturity, 0, address(yieldDecember));
+        lender.lend(1, address(USDC), maturity, amount, d);
+
+        assertGt(IERC20(yieldDecember).balanceOf(userPublicKey), 100 * 10 ** 6);
     }
+
 }

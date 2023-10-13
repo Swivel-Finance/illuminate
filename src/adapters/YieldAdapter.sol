@@ -19,6 +19,10 @@ contract YieldAdapter is IAdapter {
 
     address public redeemer;
 
+    event TestEvent(address, address, uint256, uint256, string);
+
+    error TestException(address, address, uint256, uint256, string);
+
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
@@ -73,26 +77,30 @@ contract YieldAdapter is IAdapter {
             address pool
         ) = abi.decode(d, (address, uint256, uint256, address));
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0]; // TODO: get yield PT enum
-        if (internalBalance == false){
-            // Receive underlying funds, extract fees
-            Safe.transferFrom(
-                IERC20(underlying_),
-                msg.sender,
-                address(this),
-                amount[0]
-            );
-        }
+        emit TestEvent(underlying_, pool, minimum, maturity, "test");
 
-        uint256 fee = amount[0] / ILender(lender).feenominator();
+        revert TestException(underlying_, pool, minimum, maturity, "test");
 
-        // Execute the order
-        uint256 starting = IERC20(pt).balanceOf(address(this));
-        Safe.transfer(IERC20(underlying_), pool, amount[0] - fee);
-        IYield(pool).sellBase(address(this), uint128(minimum));
-        uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
+        // address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0]; // TODO: get yield PT enum
+        // if (internalBalance == false){
+        //     // Receive underlying funds, extract fees
+        //     Safe.transferFrom(
+        //         IERC20(underlying_),
+        //         msg.sender,
+        //         address(this),
+        //         amount[0]
+        //     );
+        // }
 
-        return (received, amount[0], fee);
+        // uint256 fee = amount[0] / ILender(lender).feenominator();
+
+        // // Execute the order
+        // uint256 starting = IERC20(pt).balanceOf(address(this));
+        // Safe.transfer(IERC20(underlying_), pool, amount[0] - fee);
+        // IYield(pool).sellBase(address(this), uint128(minimum));
+        // uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
+
+        // return (received, amount[0], fee);
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
