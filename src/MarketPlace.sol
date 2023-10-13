@@ -130,7 +130,7 @@ contract MarketPlace {
         {   
             market.adapters = new address[](a.length + 1);
             // Assign values for the principal tokens and adapters array
-            for (uint i = 0; i < t.length; i++) {
+            for (uint i = 0; i < a.length; i++) {
                 market.tokens[i + 1] = t[i];
                 market.adapters[i] = a[i]; 
                 // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
