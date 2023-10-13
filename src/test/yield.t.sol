@@ -74,8 +74,8 @@ contract YieldTest is Test {
         uint256 maturity,
         uint256 minimum,
         address pool
-    ) public pure returns (bytes memory d) {
-        return abi.encode('address,uint256,uint256,address',
+    ) public  returns (bytes memory d) {
+        return abi.encode(
             underlying_,
             maturity,
             minimum,
@@ -83,11 +83,21 @@ contract YieldTest is Test {
         );
     }
 
+    // function testEncode() public {
+    //     bytes memory d = abi.encode(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48), uint256(1704975690), uint256(1704975691), address(0x9536C528d9e3f12586ea3E8f624dACb8150b22aa));
+    //     (address underlying_, uint256 maturity, uint256 minimum, address pool) = abi.decode(d, (address, uint256, uint256, address));
+    //     console.log(underlying_, "underlying");
+    //     console.log(maturity, "maturity");
+    //     console.log(minimum, "minimum");
+    //     console.log(pool, "pool");
+    //     assertEq(maturity,minimum);
+    // }
+
     function testLendUSDC() public {
         vm.startPrank(userPublicKey);
         uint256[] memory amount = new uint256[](1);
         amount[0] = 100 * 10 ** 6;
-        bytes memory d = packD(USDC, maturity, 0, address(yieldDecember));
+        bytes memory d = packD(address(USDC), maturity, uint256(0), address(yieldDecember));
         lender.lend(1, address(USDC), maturity, amount, d);
 
         assertGt(IERC20(yieldDecember).balanceOf(userPublicKey), 100 * 10 ** 6);

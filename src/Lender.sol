@@ -548,10 +548,11 @@ contract Lender {
         // Initialize _Market
         IMarketPlace.Market memory _Market = IMarketPlace(marketplace).markets(u, m);
 
-
+        // emit adapter test event
+        emit TestEvent(_Market.adapters[p], u, m, a[0], "adapter");
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
-            abi.encodeWithSignature('lend(uint256[] memory amount, bool internalBalance, bytes calldata d)', a, false, d));
+            abi.encodeWithSignature('lend(uint256[] calldata amount,bool internalBalance,bytes calldata d)', a, false, d));
 
         // if (!success) {
         //     revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
