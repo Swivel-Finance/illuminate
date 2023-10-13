@@ -128,7 +128,7 @@ contract MarketPlace {
         );
 
         {   
-            market.adapters = new address[](a.length + 1);
+            market.adapters = new address[](a.length);
             // Assign values for the principal tokens and adapters array
             for (uint i = 0; i < a.length; i++) {
                 market.tokens[i + 1] = t[i];
