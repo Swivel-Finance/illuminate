@@ -132,7 +132,7 @@ contract MarketPlace {
         {   
             market.adapters = new address[](a.length + 1);
             // The first adapter must be a Illuminate adapter (we could hardcode this so that the array lenghts are the same?)
-            market.adapters[0] = illumAdapter;
+            market.adapters[0] = illuminateAdapter;
             // Assign values for the principal tokens and adapters array
             for (uint i = 0; i < t.length; i++) {
                 market.tokens[i + 1] = t[i];
