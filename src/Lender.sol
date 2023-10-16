@@ -44,6 +44,8 @@ contract Lender {
     /// @notice WETH address
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    error TestException(address, address, uint256, uint256, string);
+
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
     address[] public protocolRouters;
@@ -527,6 +529,8 @@ contract Lender {
         return true;
     }
 
+    event TestEvent(address, address, uint256, uint256, string);
+
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param u underlying asset address of the market's tuple
@@ -540,31 +544,35 @@ contract Lender {
         uint256[] memory a,
         bytes calldata d
     ) external returns (uint256) {
+
+        // Initialize _Market
         IMarketPlace.Market memory _Market = IMarketPlace(marketplace).markets(u, m);
 
+        // emit adapter test event
+        // emit TestEvent(_Market.adapters[p], u, m, a[0], "adapter");
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
-            abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+            abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
 
-        if (!success) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
-        }
+        // if (!success) {
+        //     revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        // }
 
-        // Get the amount of PTs (in protocol decimals) received
-        (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
-            returndata,
-            (uint256, uint256, uint256)
-        );
+        // // Get the amount of PTs (in protocol decimals) received
+        // (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
+        //     returndata,
+        //     (uint256, uint256, uint256)
+        // );
 
-        fees[u] += fee;
+        // fees[u] += fee;
 
-        // Convert decimals from principal token to underlying
-        uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
+        // // Convert decimals from principal token to underlying
+        // uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
 
-        // Mint Illuminate PTs to msg.sender
-        IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
-        emit Lend(p, u, m, returned, spent, msg.sender);
-        return (returned);
+        // // Mint Illuminate PTs to msg.sender
+        // IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
+        // emit Lend(p, u, m, returned, spent, msg.sender);
+        // return (returned);
     }
 
     // An override lend method for all ETH lending with the additional lpt and swap parameters
@@ -594,7 +602,7 @@ contract Lender {
         if (lst == address(0)) {
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
-                abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, false, d));
+                abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
         else {
@@ -622,7 +630,7 @@ contract Lender {
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = _Market.adapters[p].delegatecall(
-                abi.encodeWithSignature('lend(uint256[] calldata amount, bool internalBalance, bytes calldata inputdata)', a, true, d));
+                abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, true, d));
         }
         
         if (!success) {

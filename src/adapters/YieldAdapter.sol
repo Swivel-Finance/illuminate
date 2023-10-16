@@ -19,6 +19,10 @@ contract YieldAdapter is IAdapter {
 
     address public redeemer;
 
+    event TestEvent(address, address, uint256, uint256, string);
+
+    error TestException(address, address, uint256, uint256, string);
+
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
@@ -61,10 +65,11 @@ contract YieldAdapter is IAdapter {
     // @returns spent The amount of the underlying token spent on the lend
     // @returns fee The amount of the underlying token spent on the fee
     function lend(
-        uint256[] memory amount,
+        uint256[] calldata amount,
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
+
         // Parse the calldata
         (
             address underlying_,
@@ -72,6 +77,10 @@ contract YieldAdapter is IAdapter {
             uint256 minimum,
             address pool
         ) = abi.decode(d, (address, uint256, uint256, address));
+
+        emit TestEvent(underlying_, pool, minimum, maturity, "test");
+
+        // revert TestException(underlying_, pool, minimum, maturity, "test");
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0]; // TODO: get yield PT enum
         if (internalBalance == false){

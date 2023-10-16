@@ -42,11 +42,15 @@ contract MarketPlace {
     }
 
     /// @notice markets are defined by a maturity and underlying tuple that points to an array of principal token addresses.
-    mapping(address => mapping(uint256 => Market)) public markets;
+    mapping(address => mapping(uint256 => Market)) public _markets;
     /// @notice address that is allowed to create markets, set pools, etc. It is commonly used in the authorized modifier.
     address public admin;
     /// @notice address of the deployed creator contract
     address public immutable creator;
+
+    function markets(address u, uint256 m) public view returns (Market memory) {
+        return _markets[u][m];
+    }
 
     /// @notice emitted upon the creation of a new market
     event CreateMarket(
@@ -108,9 +112,12 @@ contract MarketPlace {
         string calldata n,
         string calldata s
     ) external authorized(admin) returns (bool) {
-        // Create an Illuminate principal token for the new market
-        
-        markets[u][m].pool = ICreator(creator).create(
+
+        Market memory market;
+        market.tokens = new address[](t.length + 1);
+
+        // Create the iPT and set at index 0
+        market.tokens[0] = ICreator(creator).create(
             u,
             m,
             redeemer,
@@ -120,13 +127,21 @@ contract MarketPlace {
             s
         );
 
-        {
-            // assign values for the principal tokens and adapters array
+        {   
+            market.adapters = new address[](a.length);
+            // The first adapter must be a Illuminate adapter (we could hardcode this so that the array lenghts are the same?)
+            market.adapters[0] = a[0];
+            // Assign values for the principal tokens and adapters array
             for (uint i = 0; i < t.length; i++) {
-                markets[u][m].tokens[i + 1] = t[i];
-                markets[u][m].adapters[i + 1] = a[i];
+                market.tokens[i + 1] = t[i];
+                market.adapters[i + 1] = a[i + 1]; 
+                // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
+                // While the rest (both adapters and tokens outside of the iPT) are set in this loop
             }
         }
+
+        // Store market in the markets mapping
+        _markets[u][m] = market;
 
         {
             address underlying = u;
@@ -134,8 +149,8 @@ contract MarketPlace {
             emit CreateMarket(
                 underlying,
                 maturity,
-                markets[underlying][maturity].tokens,
-                markets[underlying][maturity].adapters
+                market.tokens,
+                market.adapters
             );
         }
         return true;
@@ -158,10 +173,10 @@ contract MarketPlace {
         bytes calldata approvalCalldata
     ) external authorized(admin) returns (bool) {
         // Set the principal token in the markets mapping
-        markets[u][m].tokens[p] = a;
+        _markets[u][m].tokens[p] = a;
 
         // Set the adapter contract in the adapters mapping
-        markets[u][m].adapters[p] = adapter;
+        _markets[u][m].adapters[p] = adapter;
 
         // Call any necessary approvals for the new adapter
         (bool success, ) = adapter.delegatecall(
@@ -195,10 +210,10 @@ contract MarketPlace {
         address a
     ) external authorized(admin) returns (bool) {
         // Set the pool
-        markets[u][m].pool = a;
+        _markets[u][m].pool = a;
 
         // Get the principal token
-        ERC5095 pt = ERC5095(markets[u][m].tokens[uint8(Principals.Illuminate)]);
+        ERC5095 pt = ERC5095(_markets[u][m].tokens[uint8(Principals.Illuminate)]);
 
         // Set the pool for the principal token
         pt.setPool(a);
@@ -238,7 +253,7 @@ contract MarketPlace {
         uint8 p,
         bytes calldata a
     ) external authorized(admin) returns (bool) {
-        address adapter = markets[u][m].adapters[p];
+        address adapter = _markets[u][m].adapters[p];
 
         if (adapter == address(0)) {
             revert Exception(0, 0, 0, address(0), address(0));
