@@ -6,9 +6,10 @@ interface IMarketPlace {
     
     function markets(address, uint256) external view returns (Market memory);
 
+    function adapters(uint8) external view returns (address);
+
     struct Market {
         address[] tokens;
-        address[] adapters;
         address pool;
     }
 

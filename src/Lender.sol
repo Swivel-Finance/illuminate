@@ -549,7 +549,7 @@ contract Lender {
         IMarketPlace.Market memory _Market = IMarketPlace(marketplace).markets(u, m);
 
         // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
+        (bool success, bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
             abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
 
         if (!success) {
@@ -599,7 +599,7 @@ contract Lender {
         // If the lst parameter is not populated, a swap is not required
         if (lst == address(0)) {
             // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = _Market.adapters[p].delegatecall(
+            (success, returndata) = MarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
@@ -627,7 +627,7 @@ contract Lender {
                 require (msg.value >= spent, 'Insufficient ETH');
             }
             // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = _Market.adapters[p].delegatecall(
+            (success, returndata) = MarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, true, d));
         }
         

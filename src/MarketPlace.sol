@@ -35,9 +35,17 @@ contract MarketPlace {
         Notional // 8
     }
 
+    mapping(uint8 => address) public adapters;
+
+    // method sets adapters using an array of uint8's and array of addresses
+    function setAdapters(address[] calldata a) external {
+        for (uint i = 0; i < a.length; i++) {
+            adapters[uint8(i)] = a[i];
+        }
+    }
+
     struct Market {
         address[] tokens;
-        address[] adapters;
         address pool;
     }
 
@@ -58,8 +66,7 @@ contract MarketPlace {
     event CreateMarket(
         address indexed underlying,
         uint256 indexed maturity,
-        address[] tokens,
-        address[] adapters
+        address[] tokens
     );
     /// @notice emitted upon setting a principal token
     event SetPrincipal(
@@ -102,7 +109,6 @@ contract MarketPlace {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param t principal token addresses for this market
-    /// @param a adapter addresses for this market
     /// @param n name for the Illuminate token
     /// @param s symbol for the Illuminate token
     /// @return bool true if successful
@@ -110,7 +116,6 @@ contract MarketPlace {
         address u,
         uint256 m,
         address[] calldata t,
-        address[] calldata a,
         string calldata n,
         string calldata s
     ) external authorized(admin) returns (bool) {
@@ -130,13 +135,9 @@ contract MarketPlace {
         );
 
         {   
-            market.adapters = new address[](a.length + 1);
-            // The first adapter must be a Illuminate adapter (we could hardcode this so that the array lenghts are the same?)
-            market.adapters[0] = illuminateAdapter;
             // Assign values for the principal tokens and adapters array
             for (uint i = 0; i < t.length; i++) {
                 market.tokens[i + 1] = t[i];
-                market.adapters[i + 1] = a[i]; 
                 // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
                 // While the rest (both adapters and tokens outside of the iPT) are set in this loop
             }
@@ -151,8 +152,7 @@ contract MarketPlace {
             emit CreateMarket(
                 underlying,
                 maturity,
-                market.tokens,
-                market.adapters
+                market.tokens
             );
         }
         return true;
@@ -176,9 +176,6 @@ contract MarketPlace {
     ) external authorized(admin) returns (bool) {
         // Set the principal token in the markets mapping
         _markets[u][m].tokens[p] = a;
-
-        // Set the adapter contract in the adapters mapping
-        _markets[u][m].adapters[p] = adapter;
 
         // Call any necessary approvals for the new adapter
         (bool success, ) = adapter.delegatecall(
@@ -260,7 +257,7 @@ contract MarketPlace {
         uint8 p,
         bytes calldata a
     ) external authorized(admin) returns (bool) {
-        address adapter = _markets[u][m].adapters[p];
+        address adapter = adapters[p];
 
         if (adapter == address(0)) {
             revert Exception(0, 0, 0, address(0), address(0));
