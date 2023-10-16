@@ -48,6 +48,8 @@ contract MarketPlace {
     /// @notice address of the deployed creator contract
     address public immutable creator;
 
+    address illumAdapter;
+
     function markets(address u, uint256 m) public view returns (Market memory) {
         return _markets[u][m];
     }
@@ -130,11 +132,11 @@ contract MarketPlace {
         {   
             market.adapters = new address[](a.length);
             // The first adapter must be a Illuminate adapter (we could hardcode this so that the array lenghts are the same?)
-            market.adapters[0] = a[0];
+            market.adapters[0] = illumAdapter;
             // Assign values for the principal tokens and adapters array
             for (uint i = 0; i < t.length; i++) {
-                market.tokens[i + 1] = t[i];
-                market.adapters[i + 1] = a[i + 1]; 
+                market.tokens[i] = t[i];
+                market.adapters[i] = a[i]; 
                 // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
                 // While the rest (both adapters and tokens outside of the iPT) are set in this loop
             }
@@ -238,6 +240,11 @@ contract MarketPlace {
     // @return bool true if the redeemer set, false otherwise
     function setRedeemer(address r) external authorized(admin) returns (bool) {
         redeemer = r;
+        return true;
+    }
+
+    function setIllumAdapter(address i) external authorized(admin) returns (bool) {
+        illumAdapter = i;
         return true;
     }
 
