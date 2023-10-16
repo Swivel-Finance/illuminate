@@ -20,7 +20,9 @@ contract YieldTest is Test {
 
     uint256 maturity = 1704975690;
 
-    address yieldDecember = 0x9536C528d9e3f12586ea3E8f624dACb8150b22aa;
+    address yieldDecemberPT = 0x9536C528d9e3f12586ea3E8f624dACb8150b22aa;
+
+    address yieldDecemberPool = 0x3667362C4B666B952383eDBE12fC9cC108D09cD7;
 
     address userPublicKey = 0x3f60008Dfd0EfC03F476D9B489D6C5B13B3eBF2C;
 
@@ -54,7 +56,7 @@ contract YieldTest is Test {
 
         address[] memory tokens = new address[](1);
         address[] memory adapters = new address[](2);
-        tokens[0] = yieldDecember;
+        tokens[0] = yieldDecemberPT;
         adapters[0] = address(yieldAdapter);
         adapters[1] = address(yieldAdapter);
         // Create market
@@ -84,28 +86,27 @@ contract YieldTest is Test {
         );
     }
 
-    // function testEncode() public {
-    //     bytes memory d = abi.encode(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48), uint256(1704975690), uint256(1704975691), address(0x9536C528d9e3f12586ea3E8f624dACb8150b22aa));
-    //     (address underlying_, uint256 maturity, uint256 minimum, address pool) = abi.decode(d, (address, uint256, uint256, address));
-    //     console.log(underlying_, "underlying");
-    //     console.log(maturity, "maturity");
-    //     console.log(minimum, "minimum");
-    //     console.log(pool, "pool");
-    //     assertEq(maturity,minimum);
-    // }
+    function testEncode() public {
+        bytes memory d = abi.encode(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48), uint256(1704975690), uint256(1704975691), address(0x9536C528d9e3f12586ea3E8f624dACb8150b22aa));
+        (address underlying_, uint256 maturity, uint256 minimum, address pool) = abi.decode(d, (address, uint256, uint256, address));
+        assertEq(maturity,minimum);
+    }
 
     function testLendUSDC() public {
         vm.startPrank(userPublicKey);
         uint256[] memory amount = new uint256[](1);
-        amount[0] = 100 * 10 ** 6;
+        amount[0] = 10000000;
         // check approval
         assertEq(IERC20(USDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
         // ensure balance is enough for amount
         assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
-        bytes memory d = packD(address(USDC), maturity, uint256(1), address(yieldDecember));
+        bytes memory d = packD(address(USDC), maturity, uint256(1), address(yieldDecemberPool));
         lender.lend(1, address(USDC), maturity, amount, d);
 
-        // assertGt(IERC20(yieldDecember).balanceOf(userPublicKey), 100 * 10 ** 6);
+        assertEq(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), 
+                 IERC20(marketplace.markets(USDC, maturity).tokens[1]).balanceOf(address(lender)));
+
+        assertGt(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
     }
 
 }
