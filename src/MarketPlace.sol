@@ -47,8 +47,8 @@ contract MarketPlace {
     address public admin;
     /// @notice address of the deployed creator contract
     address public immutable creator;
-
-    address illumAdapter;
+    // @notice address of the deployed illuminate adapter contract
+    address public illuminateAdapter;
 
     function markets(address u, uint256 m) public view returns (Market memory) {
         return _markets[u][m];
@@ -243,8 +243,8 @@ contract MarketPlace {
         return true;
     }
 
-    function setIllumAdapter(address i) external authorized(admin) returns (bool) {
-        illumAdapter = i;
+    function setIlluminateAdapter(address i) external authorized(admin) returns (bool) {
+        illuminateAdapter = i;
         return true;
     }
 

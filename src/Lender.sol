@@ -31,7 +31,7 @@ contract Lender {
     address public redeemer;
 
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
-    uint256 public constant HOLD = 3 days;
+    uint256 public constant hold = 3 days;
 
     /// @notice address that is allowed to set and withdraw fees, disable principals, etc. It is commonly used in the authorized modifier.
     address public admin;
@@ -55,7 +55,7 @@ contract Lender {
     /// @notice represents a point in time where the feenominator may change
     uint256 public feeChange;
     /// @notice represents a minimum that the feenominator must exceed
-    uint256 public constant MIN_FEENOMINATOR = 500;
+    uint256 public constant minimumFeenominator = 500;
 
     /// @notice maps underlying tokens to the amount of fees accumulated for that token
     mapping(address => uint256) public fees;
@@ -253,7 +253,7 @@ contract Lender {
                 address(0),
                 address(0)
             );
-        } else if (f < MIN_FEENOMINATOR) {
+        } else if (f < minimumFeenominator) {
             revert Exception(25, 0, 0, address(0), address(0));
         }
         feenominator = f;
@@ -308,7 +308,7 @@ contract Lender {
         address e
     ) external authorized(admin) returns (bool) {
         // Calculate the timestamp that must be passed prior to withdrawal
-        uint256 when = block.timestamp + HOLD;
+        uint256 when = block.timestamp + hold;
 
         // Set the timestamp threshold for the token being withdrawn
         withdrawals[e] = when;
@@ -333,7 +333,7 @@ contract Lender {
     /// @notice allows the admin to schedule a change to the fee denominators
     function scheduleFeeChange() external authorized(admin) returns (bool) {
         // Calculate the timestamp that must be passed prior to setting thew new fee
-        uint256 when = block.timestamp + HOLD;
+        uint256 when = block.timestamp + hold;
 
         // Store the timestamp that must be passed to update the fee rate
         feeChange = when;
@@ -616,12 +616,12 @@ contract Lender {
                 }
                 spent = total;
                 require (msg.value >= total, 'Insufficient ETH');
-                (, uint256 slippageRatio) = SwapETH(lst, total, swapMinimum);
+                (, uint256 slippageRatio) = swapETH(lst, total, swapMinimum);
                 a = adjustSwivelAmounts(a, slippageRatio);
             }
             // If the protocol is not Swivel, swap the input `a[0]` and overwrite a[0] with the returned lend amount
             else {
-                (uint256 lent, ) = SwapETH(lst, a[0], swapMinimum);
+                (uint256 lent, ) = swapETH(lst, a[0], swapMinimum);
                 spent = a[0];
                 a[0] = lent;
                 require (msg.value >= spent, 'Insufficient ETH');
@@ -672,7 +672,7 @@ contract Lender {
     // @param swapMinimum: The minimum amount of lst to receive
     // @returns lent: The amount of underlying to be lent
     // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
-    function SwapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
+    function swapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
         payable(ETHWrapper).transfer(amount);
         if (lst != address(0)) {
             (lent, slippageRatio)  = IETHWrapper(ETHWrapper).swap(WETH, lst, amount, swapMinimum);
