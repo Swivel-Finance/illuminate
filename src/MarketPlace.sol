@@ -130,13 +130,13 @@ contract MarketPlace {
         );
 
         {   
-            market.adapters = new address[](a.length);
+            market.adapters = new address[](a.length + 1);
             // The first adapter must be a Illuminate adapter (we could hardcode this so that the array lenghts are the same?)
             market.adapters[0] = illumAdapter;
             // Assign values for the principal tokens and adapters array
             for (uint i = 0; i < t.length; i++) {
-                market.tokens[i] = t[i];
-                market.adapters[i] = a[i]; 
+                market.tokens[i + 1] = t[i];
+                market.adapters[i + 1] = a[i]; 
                 // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
                 // While the rest (both adapters and tokens outside of the iPT) are set in this loop
             }

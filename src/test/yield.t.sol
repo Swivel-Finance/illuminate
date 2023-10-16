@@ -53,12 +53,12 @@ contract YieldTest is Test {
 
         // Deploy yield adapter
         YieldAdapter yieldAdapter = new YieldAdapter();
+        marketplace.setIllumAdapter(address(yieldAdapter));
 
         address[] memory tokens = new address[](1);
-        address[] memory adapters = new address[](2);
+        address[] memory adapters = new address[](1);
         tokens[0] = yieldDecemberPT;
         adapters[0] = address(yieldAdapter);
-        adapters[1] = address(yieldAdapter);
         // Create market
         marketplace.createMarket(USDC, maturity, tokens, adapters, "iPT-DEC", "iPT-DEC-USDC");
 
@@ -87,7 +87,7 @@ contract YieldTest is Test {
     }
 
     function testEncode() public {
-        bytes memory d = abi.encode(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48), uint256(1704975690), uint256(1704975691), address(0x9536C528d9e3f12586ea3E8f624dACb8150b22aa));
+        bytes memory d = abi.encode(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48), uint256(1704975691), uint256(1704975691), address(0x9536C528d9e3f12586ea3E8f624dACb8150b22aa));
         (address underlying_, uint256 maturity, uint256 minimum, address pool) = abi.decode(d, (address, uint256, uint256, address));
         assertEq(maturity,minimum);
     }
