@@ -78,7 +78,7 @@ contract YieldAdapter is IAdapter {
             address pool
         ) = abi.decode(d, (address, uint256, uint256, address));
 
-        // emit TestEvent(underlying_, pool, minimum, maturity, "test");
+        emit TestEvent(underlying_, pool, minimum, maturity, "test");
 
         // revert TestException(underlying_, pool, minimum, maturity, "test");
 
