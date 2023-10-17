@@ -53,7 +53,6 @@ contract YieldTest is Test {
 
         // Deploy yield adapter
         YieldAdapter yieldAdapter = new YieldAdapter();
-        marketplace.setIlluminateAdapter(address(yieldAdapter));
 
         address[] memory tokens = new address[](1);
         address[] memory adapters = new address[](2);
