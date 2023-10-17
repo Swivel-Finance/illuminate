@@ -254,7 +254,7 @@ contract Redeemer {
         address pt = IMarketPlace(marketplace).markets(u, m).tokens[p];
 
         // Get the adapter for the protocol being redeemed
-        address adapter = IMarketPlace(marketplace).markets(u, m).adapters[p];
+        address adapter = IMarketPlace(marketplace).adapters(p);
 
         {
             // Verify that the PT has matured
@@ -318,7 +318,7 @@ contract Redeemer {
     function redeem(address u, uint256 m) external unpaused(u, m) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
-            IMarketPlace(marketplace).markets(u, m).adapters[uint8(MarketPlace.Principals.Illuminate)]
+            IMarketPlace(marketplace).adapters(uint8(MarketPlace.Principals.Illuminate))
             );
 
         // Verify the token has matured
