@@ -4,13 +4,27 @@ pragma solidity 0.8.20;
 
 interface IMarketPlace {
     
-    function markets(address, uint256) external view returns (Market memory);
-
+    enum Principals {
+        Illuminate, // 0
+        Swivel, // 1
+        Yield, // 2
+        Element, // 3
+        Pendle, // 4
+        Tempus, // 5
+        Sense, // 6
+        Apwine, // 7
+        Notional // 8
+    }
+    
     struct Market {
         address[] tokens;
-        address[] adapters;
         address pool;
     }
+
+
+    function markets(address, uint256) external view returns (Market memory);
+
+    function adapters(uint8) external view returns (address);
 
     function sellPrincipalToken(
         address,

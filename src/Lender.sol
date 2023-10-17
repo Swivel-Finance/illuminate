@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.20;
 
-import "./MarketPlace.sol";
 import "./lib/Swivel.sol";
 import "./lib/Pendle.sol";
 import "./lib/Element.sol";
@@ -17,6 +16,7 @@ import "./interfaces/IERC5095.sol";
 import "./interfaces/IYield.sol";
 import "./interfaces/IElementVault.sol";
 import "./interfaces/IETHWrapper.sol";
+import "./interfaces/IMarketPlace.sol";
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -197,7 +197,7 @@ contract Lender {
         }
         // approve the redeemer to receive underlying from the lender
         Safe.approve(IERC20(u), r, type(uint256).max);
-        return true;
+        return (true);
     }
 
     /// @notice bulk approves the usage of addresses at the given ERC20 addresses.
@@ -218,7 +218,7 @@ contract Lender {
                 ++i;
             }
         }
-        return true;
+        return (true);
     }
 
     /// @notice sets the ETHWrapper address
@@ -235,7 +235,7 @@ contract Lender {
     function setAdmin(address a) external authorized(admin) returns (bool) {
         admin = a;
         emit SetAdmin(a);
-        return true;
+        return (true);
     }
 
     /// @notice sets the feenominator to the given value
@@ -259,7 +259,7 @@ contract Lender {
         feenominator = f;
         delete feeChange;
         emit SetFee(f);
-        return true;
+        return (true);
     }
 
     // @notice sets the redeemer address
@@ -280,7 +280,7 @@ contract Lender {
             revert Exception(5, 0, 0, marketplace, address(0));
         }
         marketplace = m;
-        return true;
+        return (true);
     }
 
     /// @notice sets the ethereum price which is used in rate limiting
@@ -290,7 +290,7 @@ contract Lender {
         uint256 p
     ) external authorized(admin) returns (bool) {
         etherPrice = p;
-        return true;
+        return (true);
     }
 
     /// @notice sets the maximum value that can flow through a protocol
@@ -298,7 +298,7 @@ contract Lender {
     /// @return bool true if the price was set
     function setMaxValue(uint256 m) external authorized(admin) returns (bool) {
         maximumValue = m;
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to schedule the withdrawal of tokens
@@ -314,7 +314,7 @@ contract Lender {
         withdrawals[e] = when;
 
         emit ScheduleWithdrawal(e, when);
-        return true;
+        return (true);
     }
 
     /// @notice emergency function to block unplanned withdrawals
@@ -327,7 +327,7 @@ contract Lender {
         delete withdrawals[e];
 
         emit BlockWithdrawal(e);
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to schedule a change to the fee denominators
@@ -339,7 +339,7 @@ contract Lender {
         feeChange = when;
 
         emit ScheduleFeeChange(when);
-        return true;
+        return (true);
     }
 
     /// @notice Emergency function to block unplanned changes to fee structure
@@ -348,7 +348,7 @@ contract Lender {
         delete feeChange;
 
         emit BlockFeeChange();
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to withdraw the given token, provided the holding period has been observed
@@ -378,7 +378,7 @@ contract Lender {
         IERC20 token = IERC20(e);
         Safe.transfer(token, admin, token.balanceOf(address(this)));
 
-        return true;
+        return (true);
     }
 
     /// @notice withdraws accumulated lending fees of the underlying token
@@ -402,7 +402,7 @@ contract Lender {
         // Transfer the accumulated fees to the admin
         Safe.transfer(token, admin, balance);
 
-        return true;
+        return (true);
     }
 
     /// @notice pauses a market and prevents execution of all lending for that principal
@@ -423,7 +423,7 @@ contract Lender {
     function pauseIlluminate(bool b) external authorized(admin) returns (bool) {
         halted = b;
         emit PauseIlluminate(b);
-        return true;
+        return (true);
     }
 
     /// @notice allows admin to add a protocol contract for reference by adapters
@@ -483,21 +483,21 @@ contract Lender {
 
         // Get the maturity of the principal token
         uint256 maturity;
-        if (p == uint8(MarketPlace.Principals.Illuminate)) {
+        if (p == uint8(IMarketPlace.Principals.Illuminate)) {
             revert Exception(32, 0, 0, address(0), address(0));
-        } else if (p == uint8(MarketPlace.Principals.Swivel)) {
+        } else if (p == uint8(IMarketPlace.Principals.Swivel)) {
             maturity = Maturities.swivel(principal);
-        } else if (p == uint8(MarketPlace.Principals.Yield)) {
+        } else if (p == uint8(IMarketPlace.Principals.Yield)) {
             maturity = Maturities.yield(principal);
-        } else if (p == uint8(MarketPlace.Principals.Element)) {
+        } else if (p == uint8(IMarketPlace.Principals.Element)) {
             maturity = Maturities.element(principal);
-        } else if (p == uint8(MarketPlace.Principals.Pendle)) {
+        } else if (p == uint8(IMarketPlace.Principals.Pendle)) {
             maturity = Maturities.pendle(principal);
-        } else if (p == uint8(MarketPlace.Principals.Tempus)) {
+        } else if (p == uint8(IMarketPlace.Principals.Tempus)) {
             maturity = Maturities.tempus(principal);
-        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
+        } else if (p == uint8(IMarketPlace.Principals.Apwine)) {
             maturity = Maturities.apwine(principal);
-        } else if (p == uint8(MarketPlace.Principals.Notional)) {
+        } else if (p == uint8(IMarketPlace.Principals.Notional)) {
             maturity = Maturities.notional(principal);
         }
 
@@ -526,10 +526,8 @@ contract Lender {
 
         emit Mint(p, u, m, mintable);
 
-        return true;
+        return (true);
     }
-
-    event TestEvent(address, address, uint256, uint256, string);
 
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
     /// @param p principal value according to the MarketPlace's Principals Enum
@@ -549,7 +547,7 @@ contract Lender {
         IMarketPlace.Market memory _Market = IMarketPlace(marketplace).markets(u, m);
 
         // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = _Market.adapters[p].delegatecall(
+        (bool success, bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
             abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
 
         if (!success) {
@@ -599,13 +597,13 @@ contract Lender {
         // If the lst parameter is not populated, a swap is not required
         if (lst == address(0)) {
             // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = _Market.adapters[p].delegatecall(
+            (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
         else {
             // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
-            if (p == uint8(MarketPlace.Principals.Swivel)) {
+            if (p == uint8(IMarketPlace.Principals.Swivel)) {
                 // Sum the amounts to be spent
                 uint256 total;
                 for (uint256 i; i != a.length; ) {
@@ -627,7 +625,7 @@ contract Lender {
                 require (msg.value >= spent, 'Insufficient ETH');
             }
             // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = _Market.adapters[p].delegatecall(
+            (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, true, d));
         }
         
@@ -720,7 +718,7 @@ contract Lender {
         uint256[] memory tokenPath = new uint256[](2);
         tokenPath[0] = 1;
         tokenPath[1] = 0;
-        return tokenPath;
+        return (tokenPath);
     }
 
     /// @notice returns array pair path required for APWine's swap method
@@ -728,7 +726,7 @@ contract Lender {
     function apwinePairPath() internal pure returns (uint256[] memory) {
         uint256[] memory pairPath = new uint256[](1);
         pairPath[0] = 0;
-        return pairPath;
+        return (pairPath);
     }
 
     /// @notice retrieves the ERC5095 token for the given market
@@ -736,7 +734,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(MarketPlace.Principals.Illuminate)];
+        return (IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace.Principals.Illuminate)]);
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
@@ -760,7 +758,7 @@ contract Lender {
             // Shift decimals accordingly
             return a * 10 ** (underlyingDecimals - principalDecimals);
         }
-        return a / 10 ** (principalDecimals - underlyingDecimals);
+        return (a / 10 ** (principalDecimals - underlyingDecimals));
     }
 
     /// @notice limits the amount of funds (in USD value) that can flow through a principal in a day
@@ -808,6 +806,6 @@ contract Lender {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
 
-        return true;
+        return (true);
     }
 }

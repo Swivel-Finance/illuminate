@@ -58,7 +58,7 @@ contract Creator {
             );
         }
 
-        return illuminateToken;
+        return (illuminateToken);
     }
 
     /// @notice sets the address of the marketplace contract
@@ -71,6 +71,6 @@ contract Creator {
             revert Exception(5, 0, 0, marketPlace, address(0));
         }
         marketPlace = m;
-        return true;
+        return (true);
     }
 }

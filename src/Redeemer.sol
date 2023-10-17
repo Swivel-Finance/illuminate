@@ -113,7 +113,7 @@ contract Redeemer {
     function setAdmin(address a) external authorized(admin) returns (bool) {
         admin = a;
         emit SetAdmin(a);
-        return true;
+        return (true);
     }
 
     /// @notice sets the address of the marketplace contract which contains the addresses of all the fixed rate markets
@@ -128,7 +128,7 @@ contract Redeemer {
         }
 
         marketplace = m;
-        return true;
+        return (true);
     }
 
     /// @notice sets the converter address
@@ -153,7 +153,7 @@ contract Redeemer {
         }
 
         emit SetConverter(c);
-        return true;
+        return (true);
     }
 
     /// @notice sets the address of the lender contract which contains the addresses of all the fixed rate markets
@@ -166,7 +166,7 @@ contract Redeemer {
         }
 
         lender = l;
-        return true;
+        return (true);
     }
 
     /// @notice sets the feenominator to the given value
@@ -201,7 +201,7 @@ contract Redeemer {
         delete feeChange;
 
         emit SetFee(f);
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to schedule a change to the fee denominators
@@ -214,7 +214,7 @@ contract Redeemer {
 
         emit ScheduleFeeChange(when);
 
-        return true;
+        return (true);
     }
 
     /// @notice allows admin to stop redemptions of Illuminate PTs for a given market
@@ -254,7 +254,7 @@ contract Redeemer {
         address pt = IMarketPlace(marketplace).markets(u, m).tokens[p];
 
         // Get the adapter for the protocol being redeemed
-        address adapter = IMarketPlace(marketplace).markets(u, m).adapters[p];
+        address adapter = IMarketPlace(marketplace).adapters(p);
 
         {
             // Verify that the PT has matured
@@ -309,7 +309,7 @@ contract Redeemer {
         }
 
         emit Redeem(p, u, m, redeemed, amount, msg.sender);
-        return true;
+        return (true);
     }
 
     /// @notice burns Illuminate principal tokens and sends underlying to user
@@ -318,7 +318,7 @@ contract Redeemer {
     function redeem(address u, uint256 m) external unpaused(u, m) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
-            IMarketPlace(marketplace).markets(u, m).adapters[uint8(MarketPlace.Principals.Illuminate)]
+            IMarketPlace(marketplace).adapters(uint8(MarketPlace.Principals.Illuminate))
             );
 
         // Verify the token has matured
@@ -385,7 +385,7 @@ contract Redeemer {
         Safe.transfer(IERC20(u), t, redeemed);
 
         emit Redeem(0, u, m, redeemed, a, msg.sender);
-        return a;
+        return (a);
     }
 
     /// @notice implements a redeem method to enable third-party redemptions
@@ -454,7 +454,7 @@ contract Redeemer {
         // Transfer the fee to the caller
         Safe.transfer(IERC20(u), msg.sender, incentiveFee);
 
-        return incentiveFee;
+        return (incentiveFee);
     }
 
     /// @notice Allows for external deposit of underlying for a market
