@@ -483,21 +483,21 @@ contract Lender {
 
         // Get the maturity of the principal token
         uint256 maturity;
-        if (p == uint8(IMarketPlace(marketplace).Principals.Illuminate)) {
+        if (p == uint8(IMarketPlace.Principals.Illuminate)) {
             revert Exception(32, 0, 0, address(0), address(0));
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Swivel)) {
+        } else if (p == uint8(IMarketPlace.Principals.Swivel)) {
             maturity = Maturities.swivel(principal);
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Yield)) {
+        } else if (p == uint8(IMarketPlace.Principals.Yield)) {
             maturity = Maturities.yield(principal);
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Element)) {
+        } else if (p == uint8(IMarketPlace.Principals.Element)) {
             maturity = Maturities.element(principal);
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Pendle)) {
+        } else if (p == uint8(IMarketPlace.Principals.Pendle)) {
             maturity = Maturities.pendle(principal);
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Tempus)) {
+        } else if (p == uint8(IMarketPlace.Principals.Tempus)) {
             maturity = Maturities.tempus(principal);
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Apwine)) {
+        } else if (p == uint8(IMarketPlace.Principals.Apwine)) {
             maturity = Maturities.apwine(principal);
-        } else if (p == uint8(IMarketPlace(marketplace).Principals.Notional)) {
+        } else if (p == uint8(IMarketPlace.Principals.Notional)) {
             maturity = Maturities.notional(principal);
         }
 
@@ -528,8 +528,6 @@ contract Lender {
 
         return true;
     }
-
-    event TestEvent(address, address, uint256, uint256, string);
 
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
     /// @param p principal value according to the MarketPlace's Principals Enum
@@ -605,7 +603,7 @@ contract Lender {
         // If the lst parameter is populated, swap into the requested lst
         else {
             // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
-            if (p == uint8(IMarketPlace(marketplace).Principals.Swivel)) {
+            if (p == uint8(IMarketPlace.Principals.Swivel)) {
                 // Sum the amounts to be spent
                 uint256 total;
                 for (uint256 i; i != a.length; ) {
@@ -736,7 +734,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace(marketplace).Principals.Illuminate)];
+        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace.Principals.Illuminate)];
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
