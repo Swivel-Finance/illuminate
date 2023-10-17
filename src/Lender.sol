@@ -2,7 +2,6 @@
 
 pragma solidity 0.8.20;
 
-import "./MarketPlace.sol";
 import "./lib/Swivel.sol";
 import "./lib/Pendle.sol";
 import "./lib/Element.sol";
@@ -17,6 +16,7 @@ import "./interfaces/IERC5095.sol";
 import "./interfaces/IYield.sol";
 import "./interfaces/IElementVault.sol";
 import "./interfaces/IETHWrapper.sol";
+import "./interfaces/IMarketPlace.sol";
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -483,21 +483,21 @@ contract Lender {
 
         // Get the maturity of the principal token
         uint256 maturity;
-        if (p == uint8(MarketPlace.Principals.Illuminate)) {
+        if (p == uint8(IMarketPlace(marketplace).Principals.Illuminate)) {
             revert Exception(32, 0, 0, address(0), address(0));
-        } else if (p == uint8(MarketPlace.Principals.Swivel)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Swivel)) {
             maturity = Maturities.swivel(principal);
-        } else if (p == uint8(MarketPlace.Principals.Yield)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Yield)) {
             maturity = Maturities.yield(principal);
-        } else if (p == uint8(MarketPlace.Principals.Element)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Element)) {
             maturity = Maturities.element(principal);
-        } else if (p == uint8(MarketPlace.Principals.Pendle)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Pendle)) {
             maturity = Maturities.pendle(principal);
-        } else if (p == uint8(MarketPlace.Principals.Tempus)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Tempus)) {
             maturity = Maturities.tempus(principal);
-        } else if (p == uint8(MarketPlace.Principals.Apwine)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Apwine)) {
             maturity = Maturities.apwine(principal);
-        } else if (p == uint8(MarketPlace.Principals.Notional)) {
+        } else if (p == uint8(IMarketPlace(marketplace).Principals.Notional)) {
             maturity = Maturities.notional(principal);
         }
 
@@ -599,13 +599,13 @@ contract Lender {
         // If the lst parameter is not populated, a swap is not required
         if (lst == address(0)) {
             // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = MarketPlace(marketplace).adapters(p).delegatecall(
+            (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
         else {
             // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
-            if (p == uint8(MarketPlace.Principals.Swivel)) {
+            if (p == uint8(IMarketPlace(marketplace).Principals.Swivel)) {
                 // Sum the amounts to be spent
                 uint256 total;
                 for (uint256 i; i != a.length; ) {
@@ -627,7 +627,7 @@ contract Lender {
                 require (msg.value >= spent, 'Insufficient ETH');
             }
             // Conduct the lend operation to acquire principal tokens
-            (success, returndata) = MarketPlace(marketplace).adapters(p).delegatecall(
+            (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, true, d));
         }
         
@@ -736,7 +736,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(MarketPlace.Principals.Illuminate)];
+        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace(marketplace).Principals.Illuminate)];
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
