@@ -78,11 +78,9 @@ contract YieldAdapter is IAdapter {
             address pool
         ) = abi.decode(d, (address, uint256, uint256, address));
 
-        emit TestEvent(underlying_, pool, minimum, maturity, "test");
-
         // revert TestException(underlying_, pool, minimum, maturity, "test");
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0]; // TODO: get yield PT enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[1]; // TODO: get yield PT enum
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
