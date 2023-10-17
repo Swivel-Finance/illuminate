@@ -35,28 +35,19 @@ contract MarketPlace {
         Notional // 8
     }
 
-    mapping(uint8 => address) public adapters;
-
-    // method sets adapters using an array of uint8's and array of addresses
-    function setAdapters(address[] calldata a) external {
-        for (uint i = 0; i < a.length; i++) {
-            adapters[uint8(i)] = a[i];
-        }
-    }
-
     struct Market {
         address[] tokens;
         address pool;
     }
 
+    /// @notice uint8 Principal enum mapped to an address of a deployed adapter.
+    mapping(uint8 => address) public adapters;
     /// @notice markets are defined by a maturity and underlying tuple that points to an array of principal token addresses.
     mapping(address => mapping(uint256 => Market)) public _markets;
     /// @notice address that is allowed to create markets, set pools, etc. It is commonly used in the authorized modifier.
     address public admin;
     /// @notice address of the deployed creator contract
     address public immutable creator;
-    // @notice address of the deployed illuminate adapter contract
-    address public illuminateAdapter;
 
     function markets(address u, uint256 m) public view returns (Market memory) {
         return _markets[u][m];
@@ -155,7 +146,7 @@ contract MarketPlace {
                 market.tokens
             );
         }
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to set an individual market
@@ -186,7 +177,7 @@ contract MarketPlace {
         );
 
         emit SetPrincipal(u, m, a, adapter, p);
-        return success;
+        return (success);
     }
 
     /// @notice sets the admin address
@@ -195,7 +186,7 @@ contract MarketPlace {
     function setAdmin(address a) external authorized(admin) returns (bool) {
         admin = a;
         emit SetAdmin(a);
-        return true;
+        return (true);
     }
 
     /// @notice sets the address for a pool
@@ -221,7 +212,7 @@ contract MarketPlace {
         pt.approveMarketPlace();
 
         emit SetPool(u, m, a);
-        return true;
+        return (true);
     }
 
     // @notice sets the address for the lender
@@ -229,7 +220,7 @@ contract MarketPlace {
     // @return bool true if the lender set, false otherwise
     function setLender(address l) external authorized(admin) returns (bool) {
         lender = l;
-        return true;
+        return (true);
     }
 
     // @notice sets the address for the redeemer
@@ -237,12 +228,16 @@ contract MarketPlace {
     // @return bool true if the redeemer set, false otherwise
     function setRedeemer(address r) external authorized(admin) returns (bool) {
         redeemer = r;
-        return true;
+        return (true);
     }
 
-    function setIlluminateAdapter(address i) external authorized(admin) returns (bool) {
-        illuminateAdapter = i;
-        return true;
+    // @notice sets adapters using a sorted (per Principal) array of addresses
+    // @param a array of addresses for the adapters
+    function setAdapters(address[] calldata a) external returns (bool) {
+        for (uint i = 0; i < a.length; i++) {
+            adapters[uint8(i)] = a[i];
+        }
+        return (true);
     }
 
     /// @notice approves any necessary addresses for a protocol via its adapter
@@ -267,7 +262,7 @@ contract MarketPlace {
             abi.encodeWithSignature('approve(address[] calldata)', a)
         );
 
-        return success;
+        return (success);
     }
 
     /// @notice Allows batched call to self (this contract).

@@ -197,7 +197,7 @@ contract Lender {
         }
         // approve the redeemer to receive underlying from the lender
         Safe.approve(IERC20(u), r, type(uint256).max);
-        return true;
+        return (true);
     }
 
     /// @notice bulk approves the usage of addresses at the given ERC20 addresses.
@@ -218,7 +218,7 @@ contract Lender {
                 ++i;
             }
         }
-        return true;
+        return (true);
     }
 
     /// @notice sets the ETHWrapper address
@@ -235,7 +235,7 @@ contract Lender {
     function setAdmin(address a) external authorized(admin) returns (bool) {
         admin = a;
         emit SetAdmin(a);
-        return true;
+        return (true);
     }
 
     /// @notice sets the feenominator to the given value
@@ -259,7 +259,7 @@ contract Lender {
         feenominator = f;
         delete feeChange;
         emit SetFee(f);
-        return true;
+        return (true);
     }
 
     // @notice sets the redeemer address
@@ -280,7 +280,7 @@ contract Lender {
             revert Exception(5, 0, 0, marketplace, address(0));
         }
         marketplace = m;
-        return true;
+        return (true);
     }
 
     /// @notice sets the ethereum price which is used in rate limiting
@@ -290,7 +290,7 @@ contract Lender {
         uint256 p
     ) external authorized(admin) returns (bool) {
         etherPrice = p;
-        return true;
+        return (true);
     }
 
     /// @notice sets the maximum value that can flow through a protocol
@@ -298,7 +298,7 @@ contract Lender {
     /// @return bool true if the price was set
     function setMaxValue(uint256 m) external authorized(admin) returns (bool) {
         maximumValue = m;
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to schedule the withdrawal of tokens
@@ -314,7 +314,7 @@ contract Lender {
         withdrawals[e] = when;
 
         emit ScheduleWithdrawal(e, when);
-        return true;
+        return (true);
     }
 
     /// @notice emergency function to block unplanned withdrawals
@@ -327,7 +327,7 @@ contract Lender {
         delete withdrawals[e];
 
         emit BlockWithdrawal(e);
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to schedule a change to the fee denominators
@@ -339,7 +339,7 @@ contract Lender {
         feeChange = when;
 
         emit ScheduleFeeChange(when);
-        return true;
+        return (true);
     }
 
     /// @notice Emergency function to block unplanned changes to fee structure
@@ -348,7 +348,7 @@ contract Lender {
         delete feeChange;
 
         emit BlockFeeChange();
-        return true;
+        return (true);
     }
 
     /// @notice allows the admin to withdraw the given token, provided the holding period has been observed
@@ -378,7 +378,7 @@ contract Lender {
         IERC20 token = IERC20(e);
         Safe.transfer(token, admin, token.balanceOf(address(this)));
 
-        return true;
+        return (true);
     }
 
     /// @notice withdraws accumulated lending fees of the underlying token
@@ -402,7 +402,7 @@ contract Lender {
         // Transfer the accumulated fees to the admin
         Safe.transfer(token, admin, balance);
 
-        return true;
+        return (true);
     }
 
     /// @notice pauses a market and prevents execution of all lending for that principal
@@ -423,7 +423,7 @@ contract Lender {
     function pauseIlluminate(bool b) external authorized(admin) returns (bool) {
         halted = b;
         emit PauseIlluminate(b);
-        return true;
+        return (true);
     }
 
     /// @notice allows admin to add a protocol contract for reference by adapters
@@ -526,7 +526,7 @@ contract Lender {
 
         emit Mint(p, u, m, mintable);
 
-        return true;
+        return (true);
     }
 
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
@@ -718,7 +718,7 @@ contract Lender {
         uint256[] memory tokenPath = new uint256[](2);
         tokenPath[0] = 1;
         tokenPath[1] = 0;
-        return tokenPath;
+        return (tokenPath);
     }
 
     /// @notice returns array pair path required for APWine's swap method
@@ -726,7 +726,7 @@ contract Lender {
     function apwinePairPath() internal pure returns (uint256[] memory) {
         uint256[] memory pairPath = new uint256[](1);
         pairPath[0] = 0;
-        return pairPath;
+        return (pairPath);
     }
 
     /// @notice retrieves the ERC5095 token for the given market
@@ -734,7 +734,7 @@ contract Lender {
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
     function principalToken(address u, uint256 m) internal returns (address) {
-        return IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace.Principals.Illuminate)];
+        return (IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace.Principals.Illuminate)]);
     }
 
     /// @notice converts principal decimal amount to underlying's decimal amount
@@ -758,7 +758,7 @@ contract Lender {
             // Shift decimals accordingly
             return a * 10 ** (underlyingDecimals - principalDecimals);
         }
-        return a / 10 ** (principalDecimals - underlyingDecimals);
+        return (a / 10 ** (principalDecimals - underlyingDecimals));
     }
 
     /// @notice limits the amount of funds (in USD value) that can flow through a principal in a day
@@ -806,6 +806,6 @@ contract Lender {
             revert Exception(31, protocolFlow[p], p, address(0), address(0));
         }
 
-        return true;
+        return (true);
     }
 }
