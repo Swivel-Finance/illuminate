@@ -167,6 +167,70 @@ contract SwivelTest is Test {
             d
         );
     }
+
+        function testLendUSDCSwapFlag() public {
+        // setup user 1 
+        deal(USDC, user1_pk, startingBalance, true);
+        vm.startPrank(user1_pk);
+        IERC20(USDC).approve(address(swivel), startingBalance);
+        IERC20(USDC).approve(address(lender), startingBalance);
+        vm.stopPrank();
+
+        vm.startPrank(userPublicKey);
+
+        Swivel.Order[] memory orders = new Swivel.Order[](1);
+        Swivel.Components[] memory signatures = new Swivel.Components[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        bytes32 key;
+        orders[0] = Swivel.Order(
+            key, // key
+            1, // protocol
+            user1_pk, // maker
+            USDC, // underlying
+            true, // vault
+            false, // exit
+            50000000, // principal
+            500000, // premium
+            1703840400, // maturity
+            1703840400 // expiry
+        );
+
+        Hash.Order memory ord = Hash.Order(
+            orders[0].key,
+            orders[0].protocol,
+            orders[0].maker,
+            orders[0].underlying,
+            orders[0].vault,
+            orders[0].exit,
+            orders[0].principal,
+            orders[0].premium,
+            orders[0].maturity,
+            orders[0].expiry
+        );
+
+        bytes32 messageDigest = Hash.message(
+            Hash.DOMAIN_TYPEHASH,
+            Hash.order(ord)
+        );
+
+        {
+            (uint8 v, bytes32 r1, bytes32 s) = vm.sign(user1_sk, messageDigest);
+            signatures[0] = Swivel.Components(v, r1, s);
+        }
+
+        amounts[0] = 50000000;
+
+        bytes memory d = packD(orders, signatures, 0x3667362C4B666B952383eDBE12fC9cC108D09cD7, uint256(1), true);
+
+        uint256 returned = lender.lend(
+            1,
+            USDC,
+            maturity,
+            amounts,
+            d
+        );
+    }
 }
 
 

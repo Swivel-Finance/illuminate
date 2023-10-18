@@ -147,7 +147,6 @@ contract SwivelAdapter is IAdapter {
         // Store amount of external PTs before minting
         uint256 received = IERC20(pt).balanceOf(address(this));
         // Execute the orders
-        emit TestEvent(ILender(lender).protocolRouters(0), 0, pool, swapMinimum, swapFlag, "swivel router");
         ISwivel(ILender(lender).protocolRouters(0)).initiate(orders, amount, components);
         // Calculate premium & recieved using diffs
         premium = IERC20(underlying_).balanceOf(address(this)) - premium - fee;
