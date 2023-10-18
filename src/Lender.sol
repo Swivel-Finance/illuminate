@@ -550,9 +550,9 @@ contract Lender {
         (bool success, bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
             abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, false, d));
 
-        // if (!success) {
-        //     revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
-        // }
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        }
 
         // Get the amount of PTs (in protocol decimals) received
         (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
