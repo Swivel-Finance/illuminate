@@ -550,25 +550,25 @@ contract Lender {
         (bool success, bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
             abi.encodeWithSignature('lend(uint256[],bool,bytes)', a, false, d));
 
-        // if (!success) {
-        //     revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
-        // }
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        }
 
-        // // Get the amount of PTs (in protocol decimals) received
-        // (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
-        //     returndata,
-        //     (uint256, uint256, uint256)
-        // );
+        // Get the amount of PTs (in protocol decimals) received
+        (uint256 obtained, uint256 spent, uint256 fee) = abi.decode(
+            returndata,
+            (uint256, uint256, uint256)
+        );
 
-        // fees[u] += fee;
+        fees[u] += fee;
 
-        // // Convert decimals from principal token to underlying
-        // uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
+        // Convert decimals from principal token to underlying
+        uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
 
-        // // Mint Illuminate PTs to msg.sender
-        // IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
-        // emit Lend(p, u, m, returned, spent, msg.sender);
-        // return (returned);
+        // Mint Illuminate PTs to msg.sender
+        IERC5095(principalToken(u, m)).authMint(msg.sender, returned);
+        emit Lend(p, u, m, returned, spent, msg.sender);
+        return (returned);
     }
 
     // An override lend method for all ETH lending with the additional lpt and swap parameters
