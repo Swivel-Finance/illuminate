@@ -68,14 +68,14 @@ contract SwivelAdapter is IAdapter {
     // @returns spent The amount of the underlying token spent on the lend
     // @returns fee The amount of the underlying token spent on the fee
     function lend(
+        address underlying_,
+        uint256 maturity_,
         uint256[] memory amount,
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
         // Parse the calldata into the arguments
         (   
-            address underlying_,
-            uint256 maturity_,
             Swivel.Order[] memory orders,
             Swivel.Components[] memory components,
             address pool,
@@ -84,8 +84,6 @@ contract SwivelAdapter is IAdapter {
         ) = abi.decode(
                 d,
                 (
-                    address,
-                    uint256,
                     Swivel.Order[],
                     Swivel.Components[],
                     address,

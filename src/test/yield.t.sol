@@ -74,14 +74,10 @@ contract YieldTest is Test {
     }
 
     function packD(
-        address underlying_,
-        uint256 maturity,
         uint256 minimum,
         address pool
     ) public  returns (bytes memory d) {
         return abi.encode(
-            underlying_,
-            maturity,
             minimum,
             pool
         );
@@ -101,7 +97,7 @@ contract YieldTest is Test {
         assertEq(IERC20(USDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
         // ensure balance is enough for amount
         assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
-        bytes memory d = packD(address(USDC), maturity, uint256(1), address(yieldDecemberPool));
+        bytes memory d = packD(uint256(1), address(yieldDecemberPool));
         lender.lend(1, address(USDC), maturity, amount, d);
 
         assertEq(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), 

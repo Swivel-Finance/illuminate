@@ -89,8 +89,6 @@ contract SwivelTest is Test {
     }
 
     function packD(
-        address underlying_,
-        uint256 maturity,
         Swivel.Order[] memory orders,
         Swivel.Components[] memory components,
         address pool,
@@ -98,8 +96,6 @@ contract SwivelTest is Test {
         bool swapFlag
     ) public pure returns (bytes memory d) {
         return abi.encode(
-            underlying_,
-            maturity,
             orders,
             components,
             pool,
@@ -161,7 +157,7 @@ contract SwivelTest is Test {
 
         amounts[0] = 50000000;
 
-        bytes memory d = packD(address(USDC), maturity, orders, signatures, 0x3667362C4B666B952383eDBE12fC9cC108D09cD7, uint256(1), false);
+        bytes memory d = packD(orders, signatures, 0x3667362C4B666B952383eDBE12fC9cC108D09cD7, uint256(1), false);
 
         uint256 returned = lender.lend(
             1,
