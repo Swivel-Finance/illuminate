@@ -110,9 +110,6 @@ contract SwivelTest is Test {
         vm.startPrank(user1_pk);
         IERC20(USDC).approve(address(swivel), startingBalance);
         IERC20(USDC).approve(address(lender), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(userPublicKey);
 
         Swivel.Order[] memory orders = new Swivel.Order[](1);
         Swivel.Components[] memory signatures = new Swivel.Components[](1);
@@ -154,6 +151,10 @@ contract SwivelTest is Test {
             (uint8 v, bytes32 r1, bytes32 s) = vm.sign(user1_sk, messageDigest);
             signatures[0] = Swivel.Components(v, r1, s);
         }
+
+        vm.stopPrank();
+        
+        vm.startPrank(userPublicKey);
 
         amounts[0] = 50000000;
 
@@ -174,9 +175,6 @@ contract SwivelTest is Test {
         vm.startPrank(user1_pk);
         IERC20(USDC).approve(address(swivel), startingBalance);
         IERC20(USDC).approve(address(lender), startingBalance);
-        vm.stopPrank();
-
-        vm.startPrank(userPublicKey);
 
         Swivel.Order[] memory orders = new Swivel.Order[](1);
         Swivel.Components[] memory signatures = new Swivel.Components[](1);
@@ -218,6 +216,10 @@ contract SwivelTest is Test {
             (uint8 v, bytes32 r1, bytes32 s) = vm.sign(user1_sk, messageDigest);
             signatures[0] = Swivel.Components(v, r1, s);
         }
+
+        vm.stopPrank();
+        
+        vm.startPrank(userPublicKey);
 
         amounts[0] = 50000000;
 
