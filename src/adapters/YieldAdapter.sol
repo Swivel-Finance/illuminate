@@ -42,8 +42,6 @@ contract YieldAdapter is IAdapter {
     // @returns pool The address of the pool to lend to (buy PTs from)
     function lendABI(
     ) public pure returns (
-        address underlying_,
-        uint256 maturity,
         uint256 minimum,
         address pool) {
     }
@@ -65,6 +63,8 @@ contract YieldAdapter is IAdapter {
     // @returns spent The amount of the underlying token spent on the lend
     // @returns fee The amount of the underlying token spent on the fee
     function lend(
+        address underlying_,
+        uint256 maturity_,
         uint256[] calldata amount,
         bool internalBalance,
         bytes calldata d
@@ -72,15 +72,11 @@ contract YieldAdapter is IAdapter {
 
         // Parse the calldata
         (
-            address underlying_,
-            uint256 maturity,
             uint256 minimum,
             address pool
-        ) = abi.decode(d, (address, uint256, uint256, address));
+        ) = abi.decode(d, (uint256, address));
 
-        // revert TestException(underlying_, pool, minimum, maturity, "test");
-
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[1]; // TODO: get yield PT enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1]; // TODO: get yield PT enum
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
@@ -114,10 +110,10 @@ contract YieldAdapter is IAdapter {
         // Parse the calldata
         (
             address underlying_,
-            uint256 maturity
+            uint256 maturity_
         ) = abi.decode(d, (address, uint256));
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(

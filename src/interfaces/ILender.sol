@@ -15,5 +15,5 @@ interface ILender {
 
     function feenominator() external returns (uint256);
 
-    function protocolRouters() external returns (address[] memory);
+    function protocolRouters(uint256) external returns (address);
 }

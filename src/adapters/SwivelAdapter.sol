@@ -23,6 +23,9 @@ contract SwivelAdapter is IAdapter {
 
     address public redeemer;
 
+    // An event that can emit most params from the lend function
+    event TestEvent(address, uint256, address, uint256, bool, string);
+
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
@@ -65,12 +68,14 @@ contract SwivelAdapter is IAdapter {
     // @returns spent The amount of the underlying token spent on the lend
     // @returns fee The amount of the underlying token spent on the fee
     function lend(
+        address underlying_,
+        uint256 maturity_,
         uint256[] memory amount,
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
         // Parse the calldata into the arguments
-        (
+        (   
             Swivel.Order[] memory orders,
             Swivel.Components[] memory components,
             address pool,
@@ -87,19 +92,20 @@ contract SwivelAdapter is IAdapter {
                 )
             );
 
-        // Cache a couple oft-referenced variables
-        address underlying_ = orders[0].underlying;
-        uint256 maturity = orders[0].maturity;
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[1]; // TODO: Get Swivel PT enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1]; // TODO: Get Swivel PT enum
+
+        address _underlying = IERC5095(pt).underlying();
+
+        uint256 _maturity = IERC5095(pt).maturity();
 
         // Verify orders are for the same underlying
         {
             for (uint256 i = 0; i < orders.length; ) {
                 if (
-                    underlying_ != orders[i].underlying ||
-                    maturity != orders[i].maturity
+                    _underlying != orders[i].underlying ||
+                    _maturity != orders[i].maturity
                 ) {
-                    revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception code
+                    revert Exception(0, orders[i].maturity, _maturity, orders[i].underlying, _underlying); // TODO: assign exception code
                 }
 
                 unchecked {
@@ -110,41 +116,40 @@ contract SwivelAdapter is IAdapter {
 
         // Get the amount of the orders
         uint256 total;
-        uint256 totalFee;
         uint256 fee;
         {
             for (uint256 i = 0; i < amount.length; ) {
                 total += amount[i];
 
-                // extract fee
+                // Extract fee from the "last" (assuming the least optimal) order
                 if (i == amount.length - 1) {
                     fee = total / ILender(lender).feenominator();
                     amount[i] = amount[i] - fee;
-                    total = total - fee;
-                    totalFee += fee;
                 }
-
                 unchecked {
                     i++;
                 }
             }
         }
+        // Store amount of starting Underlying before transfers
+        uint256 premium = IERC20(underlying_).balanceOf(address(this));
+
         if (internalBalance == false) {
-            // Receive underlying funds, extract fees
+            // Receive underlying funds
             Safe.transferFrom(
                 IERC20(underlying_),
                 msg.sender,
                 address(this),
-                total + totalFee
+                total
             );
         }
-        // Store amount of iPTs to be minted to user
+        
+        // Store amount of external PTs before minting
         uint256 received = IERC20(pt).balanceOf(address(this));
-
         // Execute the orders
-        uint256 premium = IERC20(underlying_).balanceOf(address(this));
-        ISwivel(ILender(lender).protocolRouters()[0]).initiate(orders, amount, components);
-        premium = IERC20(underlying_).balanceOf(address(this)) - premium;
+        ISwivel(ILender(lender).protocolRouters(0)).initiate(orders, amount, components);
+        // Calculate premium & recieved using diffs
+        premium = IERC20(underlying_).balanceOf(address(this)) - premium - fee;
         received = IERC20(pt).balanceOf(address(this)) - received;
 
         // Swap the premium for iPTs or return premium to the sender
@@ -154,7 +159,7 @@ contract SwivelAdapter is IAdapter {
             received += premium;
         }
 
-        return (received, total, totalFee);
+        return (received, total, fee);
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the Swivel protocol
