@@ -56,7 +56,9 @@ contract SwivelAdapter is IAdapter {
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure {
+    ) public pure returns (
+        address underlying_,
+        uint256 maturity) {
     }
     // @notice lends `amount` to Swivel protocol by spending `Sum(amount)-Totalfee` on PTs
     // @param amount The amount of the underlying token to lend (an array of amounts that corrosponds with the array of orders in `d`)
