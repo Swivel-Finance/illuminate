@@ -50,9 +50,7 @@ contract YieldAdapter is IAdapter {
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure returns (
-        address underlying_,
-        uint256 maturity) {
+    ) public pure {
     }
 
     // @notice lends `amount` to yield protocol by spending `amount-fee` on PTs from `pool`
