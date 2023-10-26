@@ -7,6 +7,7 @@ import "./lib/RevertMsgExtractor.sol";
 import "./errors/Exception.sol";
 
 import "./interfaces/ICreator.sol";
+import "./interfaces/IPool.sol";
 
 /// @title MarketPlace
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -75,7 +76,34 @@ contract MarketPlace {
         uint256 indexed maturity,
         address indexed pool
     );
-
+    /// @notice emitted upon swapping with the pool
+    event Swap(
+        address indexed underlying,
+        uint256 indexed maturity,
+        address sold,
+        address bought,
+        uint256 received,
+        uint256 spent,
+        address spender
+    );
+    /// @notice emitted upon minting tokens with the pool
+    event Mint(
+        address indexed underlying,
+        uint256 indexed maturity,
+        uint256 underlyingIn,
+        uint256 principalTokensIn,
+        uint256 minted,
+        address minter
+    );
+    /// @notice emitted upon burning tokens with the pool
+    event Burn(
+        address indexed underlying,
+        uint256 indexed maturity,
+        uint256 tokensBurned,
+        uint256 underlyingReceived,
+        uint256 principalTokensReceived,
+        address burner
+    );
     /// @notice ensures that only a certain address can call the function
     /// @param a address that msg.sender must be to be authorized
     modifier authorized(address a) {
@@ -263,6 +291,307 @@ contract MarketPlace {
         );
 
         return (success);
+    }
+
+    /// @notice sells the PT for the underlying via the pool
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param a amount of PTs to sell
+    /// @param s slippage cap, minimum amount of underlying that must be received
+    /// @return uint128 amount of underlying bought
+    function sellPrincipalToken(
+        address u,
+        uint256 m,
+        uint128 a,
+        uint128 s
+    ) external returns (uint128) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Preview amount of underlying received by selling `a` PTs
+        uint256 expected = pool.sellFYTokenPreview(a);
+
+        // Verify that the amount needed does not exceed the slippage parameter
+        if (expected < s) {
+            revert Exception(16, expected, s, address(0), address(0));
+        }
+
+        // Transfer the principal tokens to the pool
+        Safe.transferFrom(
+            IERC20(address(pool.fyToken())),
+            msg.sender,
+            address(pool),
+            a
+        );
+
+        // Execute the swap
+        uint128 received = pool.sellFYToken(msg.sender, s);
+        emit Swap(u, m, address(pool.fyToken()), u, received, a, msg.sender);
+
+        return received;
+    }
+
+    /// @notice buys the PT for the underlying via the pool
+    /// @notice determines how many underlying to sell by using the preview
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param a amount of PTs to be purchased
+    /// @param s slippage cap, maximum number of underlying that can be sold
+    /// @return uint128 amount of underlying sold
+    function buyPrincipalToken(
+        address u,
+        uint256 m,
+        uint128 a,
+        uint128 s
+    ) external returns (uint128) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Get the amount of base hypothetically required to purchase `a` PTs
+        uint128 expected = pool.buyFYTokenPreview(a);
+
+        // Verify that the amount needed does not exceed the slippage parameter
+        if (expected > s) {
+            revert Exception(16, expected, 0, address(0), address(0));
+        }
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(
+            IERC20(pool.base()),
+            msg.sender,
+            address(pool),
+            expected
+        );
+
+        // Execute the swap to purchase `a` base tokens
+        uint128 spent = pool.buyFYToken(msg.sender, a, s);
+
+        emit Swap(u, m, u, address(pool.fyToken()), a, spent, msg.sender);
+        return spent;
+    }
+
+    /// @notice sells the underlying for the PT via the pool
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param a amount of underlying to sell
+    /// @param s slippage cap, minimum number of PTs that must be received
+    /// @return uint128 amount of PT purchased
+    function sellUnderlying(
+        address u,
+        uint256 m,
+        uint128 a,
+        uint128 s
+    ) external returns (uint128) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Get the number of PTs received for selling `a` underlying tokens
+        uint128 expected = pool.sellBasePreview(a);
+
+        // Verify slippage does not exceed the one set by the user
+        if (expected < s) {
+            revert Exception(16, expected, 0, address(0), address(0));
+        }
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
+
+        // Execute the swap
+        uint128 received = pool.sellBase(msg.sender, s);
+
+        emit Swap(u, m, u, address(pool.fyToken()), received, a, msg.sender);
+        return received;
+    }
+
+    /// @notice buys the underlying for the PT via the pool
+    /// @notice determines how many PTs to sell by using the preview
+    /// @param u address of an underlying asset
+    /// @param m maturity (timestamp) of the market
+    /// @param a amount of underlying to be purchased
+    /// @param s slippage cap, maximum number of PTs that can be sold
+    /// @return uint128 amount of PTs sold
+    function buyUnderlying(
+        address u,
+        uint256 m,
+        uint128 a,
+        uint128 s
+    ) external returns (uint128) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Get the amount of PTs hypothetically required to purchase `a` underlying
+        uint256 expected = pool.buyBasePreview(a);
+
+        // Verify that the amount needed does not exceed the slippage parameter
+        if (expected > s) {
+            revert Exception(16, expected, 0, address(0), address(0));
+        }
+
+        // Transfer the principal tokens to the pool
+        Safe.transferFrom(
+            IERC20(address(pool.fyToken())),
+            msg.sender,
+            address(pool),
+            expected
+        );
+
+        // Execute the swap to purchase `a` underlying tokens
+        uint128 spent = pool.buyBase(msg.sender, a, s);
+
+        emit Swap(u, m, address(pool.fyToken()), u, a, spent, msg.sender);
+        return spent;
+    }
+
+    /// @notice mint liquidity tokens in exchange for adding underlying and PT
+    /// @dev amount of liquidity tokens to mint is calculated from the amount of unaccounted for PT in this contract.
+    /// @dev A proportional amount of underlying tokens need to be present in this contract, also unaccounted for.
+    /// @param u the address of the underlying token
+    /// @param m the maturity of the principal token
+    /// @param b number of base tokens
+    /// @param p the principal token amount being sent
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
+    /// @param maxRatio maximum ratio of LP tokens to PT in the pool.
+    /// @return uint256 number of base tokens passed to the method
+    /// @return uint256 number of yield tokens passed to the method
+    /// @return uint256 the amount of tokens minted.
+    function mint(
+        address u,
+        uint256 m,
+        uint256 b,
+        uint256 p,
+        uint256 minRatio,
+        uint256 maxRatio
+    ) external returns (uint256, uint256, uint256) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), b);
+
+        // Transfer the principal tokens to the pool
+        Safe.transferFrom(
+            IERC20(address(pool.fyToken())),
+            msg.sender,
+            address(pool),
+            p
+        );
+
+        // Mint the tokens and return the leftover assets to the caller
+        (uint256 underlyingIn, uint256 principalTokensIn, uint256 minted) = pool
+            .mint(msg.sender, msg.sender, minRatio, maxRatio);
+
+        emit Mint(u, m, underlyingIn, principalTokensIn, minted, msg.sender);
+        return (underlyingIn, principalTokensIn, minted);
+    }
+
+    /// @notice Mint liquidity tokens in exchange for adding only underlying
+    /// @dev amount of liquidity tokens is calculated from the amount of PT to buy from the pool,
+    /// plus the amount of unaccounted for PT in this contract.
+    /// @param u the address of the underlying token
+    /// @param m the maturity of the principal token
+    /// @param a the underlying amount being sent
+    /// @param p amount of `PT` being bought in the Pool, from this we calculate how much underlying it will be taken in.
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
+    /// @param maxRatio maximum ratio of LP tokens to PT in the pool.
+    /// @return uint256 number of base tokens passed to the method
+    /// @return uint256 number of yield tokens passed to the method
+    /// @return uint256 the amount of tokens minted.
+    function mintWithUnderlying(
+        address u,
+        uint256 m,
+        uint256 a,
+        uint256 p,
+        uint256 minRatio,
+        uint256 maxRatio
+    ) external returns (uint256, uint256, uint256) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(pool.base()), msg.sender, address(pool), a);
+
+        // Mint the tokens to the user
+        (uint256 underlyingIn, , uint256 minted) = pool.mintWithBase(
+            msg.sender,
+            msg.sender,
+            p,
+            minRatio,
+            maxRatio
+        );
+
+        emit Mint(u, m, underlyingIn, 0, minted, msg.sender);
+        return (underlyingIn, 0, minted);
+    }
+
+    /// @notice burn liquidity tokens in exchange for underlying and PT.
+    /// @param u the address of the underlying token
+    /// @param m the maturity of the principal token
+    /// @param a the amount of liquidity tokens to burn
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool
+    /// @param maxRatio maximum ratio of LP tokens to PT in the pool
+    /// @return uint256 amount of LP tokens burned
+    /// @return uint256 amount of base tokens received
+    /// @return uint256 amount of fyTokens received
+    function burn(
+        address u,
+        uint256 m,
+        uint256 a,
+        uint256 minRatio,
+        uint256 maxRatio
+    ) external returns (uint256, uint256, uint256) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(address(pool)), msg.sender, address(pool), a);
+
+        // Burn the tokens
+        (
+            uint256 tokensBurned,
+            uint256 underlyingReceived,
+            uint256 principalTokensReceived
+        ) = pool.burn(msg.sender, msg.sender, minRatio, maxRatio);
+
+        emit Burn(
+            u,
+            m,
+            tokensBurned,
+            underlyingReceived,
+            principalTokensReceived,
+            msg.sender
+        );
+        return (tokensBurned, underlyingReceived, principalTokensReceived);
+    }
+
+    /// @notice burn liquidity tokens in exchange for underlying.
+    /// @param u the address of the underlying token
+    /// @param m the maturity of the principal token
+    /// @param a the amount of liquidity tokens to burn
+    /// @param minRatio minimum ratio of LP tokens to PT in the pool.
+    /// @param maxRatio minimum ratio of LP tokens to PT in the pool.
+    /// @return uint256 amount of PT tokens sent to the pool
+    /// @return uint256 amount of underlying tokens returned
+    function burnForUnderlying(
+        address u,
+        uint256 m,
+        uint256 a,
+        uint256 minRatio,
+        uint256 maxRatio
+    ) external returns (uint256, uint256) {
+        // Get the pool for the market
+        IPool pool = IPool(_markets[u][m].pool);
+
+        // Transfer the underlying tokens to the pool
+        Safe.transferFrom(IERC20(address(pool)), msg.sender, address(pool), a);
+        // Burn the tokens in exchange for underlying tokens
+        (uint256 tokensBurned, uint256 underlyingReceived) = pool.burnForBase(
+            msg.sender,
+            minRatio,
+            maxRatio
+        );
+
+        emit Burn(u, m, tokensBurned, underlyingReceived, 0, msg.sender);
+        return (tokensBurned, underlyingReceived);
     }
 
     /// @notice Allows batched call to self (this contract).
