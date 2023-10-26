@@ -33,9 +33,6 @@ contract Redeemer {
     /// @notice address that is allowed to set fees and contracts, etc. It is commonly used in the authorized modifier.
     address public admin;
 
-    /// @notice third party contract needed to redeem Swivel PTs
-    address public immutable swivelAddr;
-
     /// @notice this value determines the amount of fees paid on auto redemptions
     uint256 public feenominator;
     /// @notice represents a point in time where the feenominator may change
@@ -93,11 +90,9 @@ contract Redeemer {
 
     /// @notice Initializes the Redeemer contract
     /// @param l the lender contract
-    /// @param s the Swivel contract
-    constructor(address l, address s) {
+    constructor(address l) {
         admin = msg.sender;
         lender = l;
-        swivelAddr = s;
         feenominator = 4000;
     }
 
