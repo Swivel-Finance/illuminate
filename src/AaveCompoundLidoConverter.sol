@@ -13,16 +13,18 @@ import "./interfaces/ILido.sol";
 import "./interfaces/IERC20.sol";
 
 contract Converter is IConverter {
-    /// @notice converts the compounding asset to the underlying asset for msg.sender
+    /// @notice converts the intermediate asset to the underlying asset for msg.sender
     /// @dev currently supports Compound, Aave v2 and Lido conversions
     /// @param d bytes object containing (d - the address of the compounding token, u - the address of the underlying token, a - the amount of tokens to convert)
     function convert(bytes memory d) external returns (uint256) {
 
         // Get the addresses of the underlying and compounding tokens
+        // i - intermediate token, 
+        // u - underlying token
         (address i, address u) = abi.decode(d, (address, address));
 
         // First get the balance of intermediate tokens of the caller
-        uint256 amount = IERC20(i).balanceOf(msg.sender);
+        uint256 amount = IERC20(i).balanceOf(address(this));
         // Get Aave pool
         try IAaveAToken(i).POOL() returns (address pool) {
             // Withdraw from Aave
