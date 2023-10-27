@@ -23,14 +23,14 @@ contract Converter is IConverter {
 
         // First get the balance of intermediate tokens of the caller
         uint256 amount = IERC20(i).balanceOf(msg.sender);
-        // Get the balance of underlying assets redeemed
-        uint256 balance = IERC20(u).balanceOf(address(this));
         // Get Aave pool
         try IAaveAToken(i).POOL() returns (address pool) {
             // Withdraw from Aave
             IAaveLendingPool(pool).withdraw(u, amount, msg.sender);
             return (amount);
         } catch {
+            // Get the balance of underlying assets redeemed
+            uint256 balance = IERC20(u).balanceOf(address(this));
             // Attempt to redeem compound tokens to the underlying asset
             try ICompoundToken(i).redeem(amount) returns (uint256 err) {
                 // Error if `redeem` returns non-zero value
