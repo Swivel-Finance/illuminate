@@ -107,11 +107,6 @@ contract YieldAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
-        // Parse the calldata if necessary
-        // (
-        //     address underlying_,
-        //     uint256 maturity_
-        // ) = abi.decode(d, (address, uint256));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
         if (internalBalance == false){
