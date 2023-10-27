@@ -56,9 +56,7 @@ contract SwivelAdapter is IAdapter {
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure returns (
-        address underlying_,
-        uint256 maturity) {
+    ) public pure {
     }
     // @notice lends `amount` to Swivel protocol by spending `Sum(amount)-Totalfee` on PTs
     // @param amount The amount of the underlying token to lend (an array of amounts that corrosponds with the array of orders in `d`)
@@ -167,15 +165,17 @@ contract SwivelAdapter is IAdapter {
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI
     function redeem(
+        address underlying_,
+        uint256 maturity_,
         uint256 amount,
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
-        // Parse the calldata
-        (
-            address underlying_,
-            uint256 maturity
-        ) = abi.decode(d, (address, uint256));
+        // Parse the calldata if necessary
+        // (
+        //     address underlying_,
+        //     uint256 maturity
+        // ) = abi.decode(d, (address, uint256));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0];
         if (internalBalance == false){

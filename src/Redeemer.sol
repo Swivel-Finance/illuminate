@@ -32,13 +32,6 @@ contract Redeemer {
 
     /// @notice address that is allowed to set fees and contracts, etc. It is commonly used in the authorized modifier.
     address public admin;
-    /// @notice address that converts compounding tokens to their underlying
-    address public converter;
-
-    /// @notice third party contract needed to redeem Swivel PTs
-    address public immutable swivelAddr;
-    /// @notice third party contract needed to redeem Tempus PTs
-    address public immutable tempusAddr;
 
     /// @notice this value determines the amount of fees paid on auto redemptions
     uint256 public feenominator;
@@ -97,13 +90,9 @@ contract Redeemer {
 
     /// @notice Initializes the Redeemer contract
     /// @param l the lender contract
-    /// @param s the Swivel contract
-    /// @param t the Tempus contract
-    constructor(address l, address s, address t) {
+    constructor(address l) {
         admin = msg.sender;
         lender = l;
-        swivelAddr = s;
-        tempusAddr = t;
         feenominator = 4000;
     }
 
@@ -128,31 +117,6 @@ contract Redeemer {
         }
 
         marketplace = m;
-        return (true);
-    }
-
-    /// @notice sets the converter address
-    /// @param c address of the new converter
-    /// @param i a list of interest bearing tokens the redeemer will approve
-    /// @return bool true if successful
-    function setConverter(
-        address c,
-        address[] memory i
-    ) external authorized(admin) returns (bool) {
-        // Set the new converter
-        converter = c;
-
-        // Have the redeemer approve the new converter
-        for (uint256 x; x != i.length; ) {
-            // Approve the new converter to transfer the relevant tokens
-            Safe.approve(IERC20(i[x]), c, type(uint256).max);
-
-            unchecked {
-                x++;
-            }
-        }
-
-        emit SetConverter(c);
         return (true);
     }
 
@@ -230,12 +194,25 @@ contract Redeemer {
         emit PauseRedemptions(u, m, b);
     }
 
-    /// @notice approves the converter to spend the compounding asset
-    /// @param i an interest bearing token that must be approved for conversion
-    function approve(address i) external authorized(marketplace) {
-        if (i != address(0)) {
-            Safe.approve(IERC20(i), address(converter), type(uint256).max);
+    /// @notice bulk approves the usage of addresses at the given ERC20 addresses.
+    /// @dev the lengths of the inputs must match because the arrays are paired by index
+    /// @param u array of ERC20 token addresses that will be approved on
+    /// @param a array of addresses that will be approved
+    /// @return true if successful
+    function approve(
+        address[] calldata u,
+        address[] calldata a
+    ) external authorized(admin) returns (bool) {
+        for (uint256 i; i != u.length; ) {
+            IERC20 uToken = IERC20(u[i]);
+            if (address(0) != (address(uToken))) {
+                Safe.approve(uToken, a[i], type(uint256).max);
+            }
+            unchecked {
+                ++i;
+            }
         }
+        return (true);
     }
 
     /// @notice redeems principal tokens held by the Lender contract via its adapter
@@ -243,13 +220,13 @@ contract Redeemer {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param d calldata necessary to conduct the protocol's redemption
-    /// @return true if successful, false otherwise
+    /// @return amount of the underlying asset returned
     function redeem(
         uint8 p,
         address u,
         uint256 m,
         bytes calldata d
-    ) external unpaused(u, m) returns (bool) {
+    ) external unpaused(u, m) returns (uint256) {
         // Get the principal token that is being redeemed
         address pt = IMarketPlace(marketplace).markets(u, m).tokens[p];
 
@@ -291,7 +268,7 @@ contract Redeemer {
 
             // Conduct the redemption via the adapter
             (bool success, ) = adapter.delegatecall(
-                abi.encodeWithSignature('redeem(uint256 amount, bool internalBalance, bytes calldata inputdata)', amount, true, d)
+                abi.encodeWithSignature('redeem(uint256,address,uint256,bool,bytes)', u, m, amount, true, d)
             );
             if (!success) {
                 revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
@@ -309,13 +286,15 @@ contract Redeemer {
         }
 
         emit Redeem(p, u, m, redeemed, amount, msg.sender);
-        return (true);
+
+        return (redeemed);
     }
 
     /// @notice burns Illuminate principal tokens and sends underlying to user
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
-    function redeem(address u, uint256 m) external unpaused(u, m) {
+    /// @return uint256 amount of the underlying asset returned
+    function redeem(address u, uint256 m) external unpaused(u, m) returns (uint256) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
             IMarketPlace(marketplace).adapters(uint8(MarketPlace.Principals.Illuminate))
@@ -342,6 +321,8 @@ contract Redeemer {
         Safe.transfer(IERC20(u), msg.sender, redeemed);
 
         emit Redeem(0, u, m, redeemed, amount, msg.sender);
+
+        return (redeemed);
     }
 
     /// @notice implements the redeem method for the contract to fulfill the ERC-5095 interface
@@ -385,6 +366,7 @@ contract Redeemer {
         Safe.transfer(IERC20(u), t, redeemed);
 
         emit Redeem(0, u, m, redeemed, a, msg.sender);
+
         return (a);
     }
 
@@ -468,46 +450,5 @@ contract Redeemer {
 
         // Update the holdings
         holdings[u][m] += a;
-    }
-
-    /// @notice Execute the business logic for conducting an APWine redemption
-    function apwineWithdraw(address p, address u, uint256 a) internal {
-        // TODO: revisit the need for this method in v2
-        // Retrieve the vault which executes the redemption in APWine
-        address futureVault = IAPWineToken(p).futureVault();
-
-        // Retrieve the controller that will execute the withdrawal
-        address controller = IAPWineFutureVault(futureVault)
-            .getControllerAddress();
-
-        // Retrieve the next period index
-        uint256 index = IAPWineFutureVault(futureVault).getCurrentPeriodIndex();
-
-        // Get the FYT address for the current period
-        address fyt = IAPWineFutureVault(futureVault).getFYTofPeriod(index);
-
-        // Ensure there are sufficient FYTs to execute the redemption
-        uint256 amount = IERC20(fyt).balanceOf(address(lender));
-
-        // Get the minimum between the FYT and PT balance to redeem
-        if (amount > a) {
-            amount = a;
-        }
-
-        // Trigger claim to FYTs by executing transfer
-        ILender(lender).transferFYTs(fyt, amount);
-
-        // Redeem the underlying token from APWine to Illuminate
-        IAPWineController(controller).withdraw(futureVault, amount);
-
-        // Retrieve the interest bearing token
-        address ibt = IAPWineFutureVault(futureVault).getIBTAddress();
-
-        // Convert the interest bearing token to underlying
-        IConverter(converter).convert(
-            IAPWineFutureVault(futureVault).getIBTAddress(),
-            u,
-            IERC20(ibt).balanceOf(address(this))
-        );
     }
 }
