@@ -220,6 +220,10 @@ contract Redeemer {
     // @param d bytes data necessary to conduct the conversion
     // @return received amount of underlying received
     function convert(address c, bytes memory d) public returns (uint256) {
+        // TODO think of risks -- worst case we create a mapping for the converter contract to ensure you cant use a malicious one
+        // TODO #2: Think of whether I can include the ETHWrapper in this -- 
+        // The options are 1. separate method, 2. Include a param here to call it 3. Create a passthrough converter that calls it usind `d`
+        
         // Get the converter contract
         IConverter converter = IConverter(c);
 
