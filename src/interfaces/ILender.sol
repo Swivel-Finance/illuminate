@@ -16,8 +16,4 @@ interface ILender {
     function feenominator() external returns (uint256);
 
     function protocolRouters(uint256) external returns (address);
-
-    function ETHWrapper() external returns (address);
-
-    function WETH() external returns (address);
 }
