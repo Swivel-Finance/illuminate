@@ -14,6 +14,7 @@ import "./interfaces/IAPWineFutureVault.sol";
 import "./interfaces/IAPWineToken.sol";
 import "./interfaces/ILender.sol";
 import "./interfaces/IConverter.sol";
+import "./interfaces/IETHWrapper.sol";
 
 /// @title Redeemer
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -231,9 +232,6 @@ contract Redeemer {
     // @param d bytes data necessary to conduct the conversion
     // @return received amount of underlying received
     function convert(uint8 c, bytes memory d) public returns (uint256) {
-        // TODO think of risks -- worst case we create a mapping for the converter contract to ensure you cant use a malicious one
-        // TODO #2: Think of whether I can include the ETHWrapper in this -- 
-        // The options are 1. separate method, 2. Include a param here to call it 3. Create a passthrough converter that calls it usind `d`
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = converters[c].delegatecall(
@@ -248,6 +246,25 @@ contract Redeemer {
         return (returned);
     }
 
+    // @notice: Handles all necessary ETH conversion when redeeming a LST rather than direct ETH
+    // @param lst: The address of the token to swap to
+    // @param amount: The amount of underlying to spend
+    // @param swapMinimum: The minimum amount of lst to receive
+    // @returns lent: The amount of underlying to be lent
+    // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
+    function convert(address lst, uint256 amount, uint256 swapMinimum) external authorized(admin) returns (uint256 lent, uint256 slippageRatio) {
+        // TODO: convert ETHWrapper to stateless proxy calls
+        address ETHWrapper = ILender(lender).ETHWrapper();
+        Safe.transferFrom(IERC20(lst), ETHWrapper, address(this), amount);
+        if (lst != address(0)) {
+            (lent, slippageRatio)  = IETHWrapper(ETHWrapper).swap(lst, ILender(lender).WETH(), amount, swapMinimum);
+            return (lent, slippageRatio);
+        }
+        // If the `lst` address is blank, no swap is necessary
+        else {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
+        }
+    }
 
     /// @notice redeems principal tokens held by the Lender contract via its adapter
     /// @param p enum value of the protocol being redeemed in the market
