@@ -171,11 +171,6 @@ contract SwivelAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
-        // Parse the calldata if necessary
-        // (
-        //     address underlying_,
-        //     uint256 maturity
-        // ) = abi.decode(d, (address, uint256));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0];
         if (internalBalance == false){
@@ -187,13 +182,12 @@ contract SwivelAdapter is IAdapter {
                 amount
             );
         }
-
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
         IERC5095(pt).redeem( uint128(amount), address(this), address(this));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
-
+        
         Safe.transfer(IERC20(underlying_), msg.sender, received);
 
         return (received, amount);

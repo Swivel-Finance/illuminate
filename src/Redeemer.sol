@@ -215,6 +215,32 @@ contract Redeemer {
         return (true);
     }
 
+    // @notice converts a given token into a given underlying for further redemption
+    // @param c address of the converter contract
+    // @param d bytes data necessary to conduct the conversion
+    // @return received amount of underlying received
+    function convert(address c, bytes memory d) public returns (uint256) {
+        // TODO think of risks -- worst case we create a mapping for the converter contract to ensure you cant use a malicious one
+        // TODO #2: Think of whether I can include the ETHWrapper in this -- 
+        // The options are 1. separate method, 2. Include a param here to call it 3. Create a passthrough converter that calls it usind `d`
+        
+        // Get the converter contract
+        IConverter converter = IConverter(c);
+
+        // Conduct the lend operation to acquire principal tokens
+        (bool success, bytes memory returndata) = c.delegatecall(
+            abi.encodeWithSignature('bytes', d));
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+        }
+
+        // Get the amount of PTs (in protocol decimals) received
+        (uint256 returned) = abi.decode(returndata,(uint256));
+
+        return (returned);
+    }
+
+
     /// @notice redeems principal tokens held by the Lender contract via its adapter
     /// @param p enum value of the protocol being redeemed in the market
     /// @param u address of an underlying asset
@@ -273,7 +299,6 @@ contract Redeemer {
             if (!success) {
                 revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
             }
-
             // Calculate how much underlying was redeemed
             redeemed = IERC20(u).balanceOf(address(this)) - starting;
 
