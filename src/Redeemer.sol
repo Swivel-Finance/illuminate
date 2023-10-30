@@ -44,6 +44,8 @@ contract Redeemer {
     mapping(address => mapping(uint256 => uint256)) public holdings;
     /// @notice mapping that determines if a market's iPT can be redeemed
     mapping(address => mapping(uint256 => bool)) public paused;
+    // @notice mapping that provides the address of the converter contract for a given uint8
+    mapping(uint8 => address) public converters;
 
     /// @notice emitted upon redemption of a loan
     event Redeem(
@@ -216,19 +218,16 @@ contract Redeemer {
     }
 
     // @notice converts a given token into a given underlying for further redemption
-    // @param c address of the converter contract
+    // @param c uint8 that maps to an address of the converter contract
     // @param d bytes data necessary to conduct the conversion
     // @return received amount of underlying received
-    function convert(address c, bytes memory d) public returns (uint256) {
+    function convert(uint8 c, bytes memory d) public returns (uint256) {
         // TODO think of risks -- worst case we create a mapping for the converter contract to ensure you cant use a malicious one
         // TODO #2: Think of whether I can include the ETHWrapper in this -- 
         // The options are 1. separate method, 2. Include a param here to call it 3. Create a passthrough converter that calls it usind `d`
-        
-        // Get the converter contract
-        IConverter converter = IConverter(c);
 
         // Conduct the lend operation to acquire principal tokens
-        (bool success, bytes memory returndata) = c.delegatecall(
+        (bool success, bytes memory returndata) = converters[c].delegatecall(
             abi.encodeWithSignature('bytes', d));
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
