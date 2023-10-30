@@ -135,6 +135,15 @@ contract Redeemer {
         return (true);
     }
 
+    // @notice sets the address of a given converter contract
+    // @param c uint8 that maps to an address of the converter contract
+    // @param a address of the converter contract
+    // @return bool true if the address was set
+    function setConverter(uint8 c, address a) external authorized(admin) returns (bool) {
+        converters[c] = a;
+        return (true);
+    }
+
     /// @notice sets the feenominator to the given value
     /// @param f the new value of the feenominator, fees are not collected when the feenominator is 0
     /// @return bool true if successful
