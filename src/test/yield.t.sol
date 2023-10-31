@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 // import all major contracts
-import "../Converter.sol";
 import "../Lender.sol";
 import "../Creator.sol";
 import "../ETHWrapper.sol";
@@ -29,7 +28,6 @@ contract YieldTest is Test {
     uint256 startingBalance = 100000 ether;
 
     Creator creator;
-    Converter converter;
     ETHWrapper ethWrapper;
     Lender lender;
     Redeemer redeemer;
@@ -40,10 +38,9 @@ contract YieldTest is Test {
 
         // Deploy all major contracts
         creator = new Creator();
-        converter = new Converter();
         ethWrapper = new ETHWrapper(); 
         lender = new Lender(address(0), address(0), address(0));
-        redeemer = new Redeemer(address(lender), address(0), address(0));
+        redeemer = new Redeemer(address(lender));
         marketplace = new MarketPlace(address(redeemer), address(lender), address(creator));
 
         // Set up connections

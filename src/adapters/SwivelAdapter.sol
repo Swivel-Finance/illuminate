@@ -58,6 +58,7 @@ contract SwivelAdapter is IAdapter {
     function redeemABI(
     ) public pure {
     }
+    
     // @notice lends `amount` to Swivel protocol by spending `Sum(amount)-Totalfee` on PTs
     // @param amount The amount of the underlying token to lend (an array of amounts that corrosponds with the array of orders in `d`)
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
@@ -172,7 +173,7 @@ contract SwivelAdapter is IAdapter {
         bytes calldata d
     ) external returns (uint256, uint256) {
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity).tokens[0];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(

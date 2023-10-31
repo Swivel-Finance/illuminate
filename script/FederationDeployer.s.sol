@@ -6,7 +6,6 @@ import 'forge-std/Script.sol';
 import {Lender} from 'src/Lender.sol';
 import {MarketPlace} from 'src/MarketPlace.sol';
 import {Redeemer} from 'src/Redeemer.sol';
-import {Converter} from 'src/Converter.sol';
 import {Creator} from 'src/Creator.sol';
 
 contract IlluminateFederationDeployer is Script {
@@ -26,19 +25,17 @@ contract IlluminateFederationDeployer is Script {
         // Deploy contracts
         Creator creator = new Creator();
         Lender lender = new Lender(swivel, pendle, apwine);
-        Redeemer redeemer = new Redeemer(address(lender), swivel, tempus);
+        Redeemer redeemer = new Redeemer(address(lender));
         MarketPlace marketplace = new MarketPlace(
             address(redeemer),
             address(lender),
             address(creator)
-        );
-        Converter converter = new Converter();
+        ); 
 
         // Call basic setters
         creator.setMarketPlace(address(marketplace));
         lender.setMarketPlace(address(marketplace));
         redeemer.setMarketPlace(address(marketplace));
-        redeemer.setConverter(address(converter), new address[](0));
 
         // Set the admin
         if (admin != address(0)) {
