@@ -578,6 +578,7 @@ contract Lender {
     /// @param m timestamp of maturity of the market's tuple
     /// @param a amount of underlying to lend (an array is used for Swivel lends, [0] is the amount for other cases)
     /// @param d data to conduct the call -- For explicit information see a respective adapter's `lendABI` returns
+    /// @param pool address of the pool to swap against
     /// @param lst address of the token to swap to
     /// @param swapMinimum minimum amount of lst to receive
     function lend(
@@ -586,6 +587,7 @@ contract Lender {
         uint256 m,
         uint256[] memory a,
         bytes calldata d,
+        address pool,
         address lst,
         uint256 swapMinimum
     ) external payable returns (uint256) {
@@ -614,12 +616,12 @@ contract Lender {
                 }
                 spent = total;
                 require (msg.value >= total, 'Insufficient ETH');
-                (, uint256 slippageRatio) = swapETH(lst, total, swapMinimum);
+                (, uint256 slippageRatio) = swapETH(pool, lst, total, swapMinimum);
                 a = adjustSwivelAmounts(a, slippageRatio);
             }
             // If the protocol is not Swivel, swap the input `a[0]` and overwrite a[0] with the returned lend amount
             else {
-                (uint256 lent, ) = swapETH(lst, a[0], swapMinimum);
+                (uint256 lent, ) = swapETH(pool, lst, a[0], swapMinimum);
                 spent = a[0];
                 a[0] = lent;
                 require (msg.value >= spent, 'Insufficient ETH');
@@ -670,16 +672,19 @@ contract Lender {
     // @param swapMinimum: The minimum amount of lst to receive
     // @returns lent: The amount of underlying to be lent
     // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
-    function swapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
-        payable(ETHWrapper).transfer(amount);
-        if (lst != address(0)) {
-            (lent, slippageRatio)  = IETHWrapper(ETHWrapper).swap(WETH, lst, amount, swapMinimum);
-            return (lent, slippageRatio);
+    function swapETH(address pool, address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
+        // Conduct the lend operation to acquire principal tokens
+        (bool success, bytes memory returndata) = ETHWrapper.delegatecall(
+            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', pool, "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", lst, amount, swapMinimum));
+
+        if (!success) {
+            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
         }
-        // If the `lst` address is blank, no swap is necessary
-        else {
-            return (amount, 1);
-        }
+
+        // Get the amount of PTs (in protocol decimals) received
+        (lent, slippageRatio) = abi.decode(returndata,(uint256, uint256));
+
+        return (lent, slippageRatio);
     }
 
     /// @notice Allows batched call to self (this contract).
