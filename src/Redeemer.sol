@@ -247,18 +247,17 @@ contract Redeemer {
     }
 
     // @notice: Handles all necessary ETH conversion when redeeming a LST rather than direct ETH
-    // @param pool: The address of the pool to swap to
     // @param lst: The address of the token to swap to
     // @param amount: The amount of underlying to spend
     // @param swapMinimum: The minimum amount of lst to receive
     // @returns lent: The amount of underlying to be lent
     // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
-    function convert(address pool, address lst, uint256 amount, uint256 swapMinimum) external authorized(admin) returns (uint256 returned, uint256 slippageRatio) {
+    function convert(address lst, uint256 amount, uint256 swapMinimum) external authorized(admin) returns (uint256 returned, uint256 slippageRatio) {
         address ETHWrapper = ILender(lender).ETHWrapper();
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = ETHWrapper.delegatecall(
-            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', pool, lst, "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", amount, swapMinimum));
+            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', ILender(lender).curvePools(lst), lst, ILender(lender).WETH(), amount, swapMinimum));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
