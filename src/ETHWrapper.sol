@@ -15,31 +15,7 @@ import "./interfaces/ICurve.sol";
 /// @notice The contract that wraps ETH into a given lst using curve
 contract ETHWrapper {
 
-    address public eth = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-    address public stETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
-    address public stETHPool = 0xDC24316b9AE028F1497c275EB9192a3Ea0f67022;
-    address public frxETH = 0x5E8422345238F34275888049021821E8E08CAa1f;
-    address public frxETHPool = 0xa1F8A6807c402E4A15ef4EBa36528A3FED24E577;
-    address public admin;
-
-    // authorized modifier
-    modifier authorized(address a) {
-        require(msg.sender == a, 'Only an authorized address can call this function');
-        _;
-    }
-
     constructor() {
-        admin = msg.sender;
-    }
-
-    // Generically approve a contract to spend tokens
-    function approveCurve(address token, address spender) external authorized(admin) {
-        IERC20(token).approve(spender, type(uint256).max);
-    }
-
-    // Sets admin
-    function setAdmin(address a) external authorized(admin) {
-        admin = a;
     }
 
     /// @notice convert using Curve Finance
@@ -49,20 +25,21 @@ contract ETHWrapper {
     /// @param amount amount of input to be spent on Curve
     /// @param minimum minimum amount of output to be recieved from Curve
     function swap(
+        address pool,
         address input,
         address output,
         uint256 amount,
         uint256 minimum
     ) external payable returns (uint256, uint256) {
-        address pool;
-        // if input or output is eth
-        if (input == stETH || output == stETH) {
-            pool = stETHPool;
-        } else {
-            pool = frxETHPool;
-        }
+
         // Instantiate Curve and determine Curve pathing
-        ICurve curve = ICurve(pool);
+        ICurve curve = ICurve(pool);  
+        if (curve.coins(0) != input || curve.coins(1) != input) {
+            revert('Input token is not supported by provided Curve Pool');
+        }
+        if (curve.coins(0) != output || curve.coins(1) != output) {
+            revert('Output token is not supported by provided Curve Pool');
+        }
 
         int128 _input;
         int128 _output;

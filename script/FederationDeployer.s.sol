@@ -25,18 +25,17 @@ contract IlluminateFederationDeployer is Script {
         // Deploy contracts
         Creator creator = new Creator();
         Lender lender = new Lender(swivel, pendle, apwine);
-        Redeemer redeemer = new Redeemer(address(lender), swivel, tempus);
+        Redeemer redeemer = new Redeemer(address(lender));
         MarketPlace marketplace = new MarketPlace(
             address(redeemer),
             address(lender),
             address(creator)
-        );
+        ); 
 
         // Call basic setters
         creator.setMarketPlace(address(marketplace));
         lender.setMarketPlace(address(marketplace));
         redeemer.setMarketPlace(address(marketplace));
-        redeemer.setConverter(address(converter), new address[](0));
 
         // Set the admin
         if (admin != address(0)) {

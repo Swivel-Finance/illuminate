@@ -38,10 +38,9 @@ contract YieldTest is Test {
 
         // Deploy all major contracts
         creator = new Creator();
-        converter = new Converter();
         ethWrapper = new ETHWrapper(); 
         lender = new Lender(address(0), address(0), address(0));
-        redeemer = new Redeemer(address(lender), address(0), address(0));
+        redeemer = new Redeemer(address(lender));
         marketplace = new MarketPlace(address(redeemer), address(lender), address(creator));
 
         // Set up connections
