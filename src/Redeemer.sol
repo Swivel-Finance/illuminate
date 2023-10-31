@@ -257,7 +257,7 @@ contract Redeemer {
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = ETHWrapper.delegatecall(
-            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', ILender(lender).curvePools(lst), lst, "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE", amount, swapMinimum));
+            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', ILender(lender).curvePools(lst), lst, ILender(lender).WETH(), amount, swapMinimum));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
