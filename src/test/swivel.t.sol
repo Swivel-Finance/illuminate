@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 // import all major contracts
-import "../Converter.sol";
 import "../Lender.sol";
 import "../Creator.sol";
 import "../ETHWrapper.sol";
@@ -35,7 +34,6 @@ contract SwivelTest is Test {
     uint256 startingBalance = 100000 ether;
 
     Creator creator;
-    Converter converter;
     ETHWrapper ethWrapper;
     Lender lender;
     Redeemer redeemer;

@@ -6,7 +6,6 @@ import 'forge-std/Script.sol';
 import {Lender} from 'src/Lender.sol';
 import {MarketPlace} from 'src/MarketPlace.sol';
 import {Redeemer} from 'src/Redeemer.sol';
-import {Converter} from 'src/Converter.sol';
 import {Creator} from 'src/Creator.sol';
 
 contract IlluminateFederationDeployer is Script {
@@ -32,7 +31,6 @@ contract IlluminateFederationDeployer is Script {
             address(lender),
             address(creator)
         );
-        Converter converter = new Converter();
 
         // Call basic setters
         creator.setMarketPlace(address(marketplace));
