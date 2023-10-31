@@ -20,4 +20,6 @@ interface ILender {
     function ETHWrapper() external returns (address);
 
     function WETH() external returns (address);
+
+    function curvePools(address) external returns (address);
 }
