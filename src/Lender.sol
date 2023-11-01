@@ -49,7 +49,7 @@ contract Lender {
 
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
-    address[] public protocolRouters;
+    address[] public protocolRouters; // 1 = Swivel | 2 = Pendle | 3 = APWine | 4+ = Unused as of 11/1/23
 
     /// @notice this value determines the amount of fees paid on loans
     uint256 public feenominator;

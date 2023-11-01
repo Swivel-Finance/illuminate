@@ -48,7 +48,6 @@ contract PendleAdapter is IAdapter {
     ) public pure returns (
         uint256 minimum,
         address market,
-        address router,
         Pendle.ApproxParams approxParams,
         Pendle.TokenInput tokenInput) {
     }
@@ -58,7 +57,6 @@ contract PendleAdapter is IAdapter {
     // @returns maturity The maturity of the underlying token
     function redeemABI(
     ) public pure returns (
-        address router,
         Pendle.TokenOutput tokenOutput) {
     }
 
@@ -83,7 +81,6 @@ contract PendleAdapter is IAdapter {
         (
             uint256 minimum,
             address market,
-            address router,
             Pendle.ApproxParams approxParams,
             Pendle.TokenInput tokenInput,
         ) = abi.decode(d, (uint256, address, address, Pendle.ApproxParams, Pendle.TokenInput));
@@ -105,9 +102,9 @@ contract PendleAdapter is IAdapter {
         // Execute the order
         uint256 starting = IERC20(pt).balanceOf(address(this));
 
-        IPendle(router).swapExactTokenForPt(
-            underlying_,
-            pt,
+        IPendle(ILender(lender).protocolRouters(1)).swapExactTokenForPt(
+            address(this),
+            market,
             minimum,
             approxParams,
             tokenInput
@@ -132,7 +129,6 @@ contract PendleAdapter is IAdapter {
 
         // Parse the calldata
         (
-            address router,
             Pendle.TokenOutput tokenOutput,
         ) = abi.decode(d, (address, Pendle.TokenOutut));
 
@@ -150,7 +146,7 @@ contract PendleAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IPendle(router).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
+        IPendle(ILender(lender).protocolRouters(1)).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
