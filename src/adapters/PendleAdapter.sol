@@ -13,7 +13,7 @@ import {ILender} from "../interfaces/ILender.sol";
 import {Pendle} from "../lib/Pendle.sol";
 import {Safe} from "../lib/Safe.sol";
 
-contract YieldAdapter is IAdapter { 
+contract PendleAdapter is IAdapter { 
     constructor() {}
 
     address public lender; 
@@ -47,7 +47,10 @@ contract YieldAdapter is IAdapter {
     function lendABI(
     ) public pure returns (
         uint256 minimum,
-        address pool) {
+        address market,
+        address router,
+        Pendle.ApproxParams approxParams,
+        Pendle.TokenInput tokenInput) {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
