@@ -36,15 +36,15 @@ library Pendle {
         // ETH_WETH not used in Aggregator
         ETH_WETH
     }
-    
+
     struct TokenOutput {
-    // Token/Sy data
-    address tokenOut;
-    uint256 minTokenOut;
-    address tokenRedeemSy;
-    address bulk;
-    // aggregator data
-    address pendleSwap;
-    SwapData swapData;
-}
+        // Token/Sy data
+        address tokenOut;
+        uint256 minTokenOut;
+        address tokenRedeemSy;
+        address bulk;
+        // aggregator data
+        address pendleSwap;
+        SwapData swapData;
+    }
 }
