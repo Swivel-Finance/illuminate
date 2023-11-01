@@ -54,7 +54,9 @@ contract YieldAdapter is IAdapter {
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure {
+    ) public pure returns (
+        address router,
+        Pendle.TokenOutput tokenOutput) {
     }
 
     // @notice lends `amount` to pendle protocol
@@ -132,7 +134,7 @@ contract YieldAdapter is IAdapter {
         ) = abi.decode(d, (address, Pendle.TokenOutut));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
-        
+
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
