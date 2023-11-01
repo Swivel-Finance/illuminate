@@ -9,6 +9,7 @@ import {IPendleSYToken} from "../interfaces/IPendleSYToken.sol";
 import {IPendleToken}   from "../interfaces/IPendleToken.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
+import {Pendle} from "../lib/Pendle.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
@@ -76,10 +77,14 @@ contract YieldAdapter is IAdapter {
         // Parse the calldata
         (
             uint256 minimum,
-            address pool
-        ) = abi.decode(d, (uint256, address));
+            address market,
+            address router,
+            Pendle.ApproxParams approxParams,
+            Pendle.TokenInput tokenInput,
+        ) = abi.decode(d, (uint256, address, address, Pendle.ApproxParams, Pendle.TokenInput));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1]; // TODO: get yield PT enum
+
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
@@ -94,8 +99,15 @@ contract YieldAdapter is IAdapter {
 
         // Execute the order
         uint256 starting = IERC20(pt).balanceOf(address(this));
-        Safe.transfer(IERC20(underlying_), pool, amount[0] - fee);
-        IYield(pool).sellBase(address(this), uint128(minimum));
+
+        IPendle(router).swapExactTokenForPt(
+            underlying_,
+            pt,
+            minimum,
+            approxParams,
+            tokenInput
+        );
+
         uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
 
         return (received, amount[0], fee);
@@ -113,7 +125,14 @@ contract YieldAdapter is IAdapter {
         bytes calldata d
     ) external returns (uint256, uint256) {
 
+        // Parse the calldata
+        (
+            address router,
+            Pendle.TokenOutput tokenOutput,
+        ) = abi.decode(d, (address, Pendle.TokenOutut));
+
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
@@ -126,7 +145,7 @@ contract YieldAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IYield(pt).redeem(address(this), uint128(amount));
+        IPendle(router).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
