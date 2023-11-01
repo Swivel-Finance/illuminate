@@ -9,8 +9,8 @@ import {IPendleSYToken} from "../interfaces/IPendleSYToken.sol";
 import {IPendleToken}   from "../interfaces/IPendleToken.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
-import {Pendle} from "../lib/Pendle.sol";
 
+import {Pendle} from "../lib/Pendle.sol";
 import {Safe} from "../lib/Safe.sol";
 
 contract YieldAdapter is IAdapter { 
