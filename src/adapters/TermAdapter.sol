@@ -82,8 +82,8 @@ contract TermAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
-
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        // TODO: Double check protocol enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
