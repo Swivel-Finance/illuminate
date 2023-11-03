@@ -48,8 +48,8 @@ contract PendleAdapter is IAdapter {
     ) public pure returns (
         uint256 minimum,
         address market,
-        Pendle.ApproxParams approxParams,
-        Pendle.TokenInput tokenInput) {
+        Pendle.ApproxParams memory approxParams,
+        Pendle.TokenInput memory tokenInput) {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
@@ -57,7 +57,7 @@ contract PendleAdapter is IAdapter {
     // @returns maturity The maturity of the underlying token
     function redeemABI(
     ) public pure returns (
-        Pendle.TokenOutput tokenOutput) {
+        Pendle.TokenOutput memory tokenOutput) {
     }
 
     // @notice lends `amount` to pendle protocol
@@ -81,8 +81,8 @@ contract PendleAdapter is IAdapter {
         (
             uint256 minimum,
             address market,
-            Pendle.ApproxParams approxParams,
-            Pendle.TokenInput tokenInput,
+            Pendle.ApproxParams memory approxParams,
+            Pendle.TokenInput memory tokenInput,
         ) = abi.decode(d, (uint256, address, address, Pendle.ApproxParams, Pendle.TokenInput));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0]; // TODO: get yield PT enum
@@ -129,7 +129,7 @@ contract PendleAdapter is IAdapter {
 
         // Parse the calldata
         (
-            Pendle.TokenOutput tokenOutput,
+            Pendle.TokenOutput memory tokenOutput,
         ) = abi.decode(d, (address, Pendle.TokenOutut));
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];

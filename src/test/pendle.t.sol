@@ -14,6 +14,7 @@ import "../lib/Pendle.sol";
  
 // import adapters
 import "../adapters/PendleAdapter.sol"; 
+import "../adapters/YieldAdapter.sol";
 
 contract YieldTest is Test {
 
@@ -52,7 +53,8 @@ contract YieldTest is Test {
         lender.setMarketPlace(address(marketplace));
         lender.setRedeemer(address(redeemer));
 
-        // Deploy yield adapter
+        // Deploy yield adapter and Pendle Adapter
+        PendleAdapter pendleAdapter = new PendleAdapter();
         YieldAdapter yieldAdapter = new YieldAdapter();
 
         address[] memory tokens = new address[](1);
