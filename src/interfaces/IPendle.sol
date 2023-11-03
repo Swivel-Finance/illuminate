@@ -16,6 +16,6 @@ interface IPendle {
         address receiver,
         address YT,
         uint256 netPyIn,
-        TokenOutput calldata output
-    ) external returns (uint256 netTokenOut) {
+        Pendle.TokenOutput calldata output
+    ) external returns (uint256 netTokenOut);
 }

@@ -85,7 +85,7 @@ contract PendleAdapter is IAdapter {
             Pendle.TokenInput tokenInput,
         ) = abi.decode(d, (uint256, address, address, Pendle.ApproxParams, Pendle.TokenInput));
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1]; // TODO: get yield PT enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0]; // TODO: get yield PT enum
 
         if (internalBalance == false){
             // Receive underlying funds, extract fees
