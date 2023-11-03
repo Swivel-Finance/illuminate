@@ -18,5 +18,5 @@ interface IPendleSYToken {
         bool
     ) external returns (uint256);
 
-    function assetInfo() external returns(AssetType assetType, address assetAddress, uint8 assetDecimals);
+    function assetInfo() external view returns(AssetType assetType, address assetAddress, uint8 assetDecimals);
 }

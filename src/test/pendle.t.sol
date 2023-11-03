@@ -16,7 +16,7 @@ import "../lib/Pendle.sol";
 import "../adapters/PendleAdapter.sol"; 
 import "../adapters/YieldAdapter.sol";
 
-contract YieldTest is Test {
+contract PendleTest is Test {
 
     address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
 
@@ -38,13 +38,12 @@ contract YieldTest is Test {
     Redeemer redeemer;
     MarketPlace marketplace;
 
-
     function setUp() public {
 
         // Deploy all major contracts
         creator = new Creator();
         ethWrapper = new ETHWrapper(); 
-        lender = new Lender(address(0), address(0), address(0));
+        lender = new Lender(address(0), pendleRouter, address(0));
         redeemer = new Redeemer(address(lender));
         marketplace = new MarketPlace(address(redeemer), address(lender), address(creator));
 
@@ -71,20 +70,30 @@ contract YieldTest is Test {
         deal(userPublicKey, 10000 ether);
 
         // Set approval
+        address[] memory _USDC = new address[](1);
+        _USDC[0] = USDC;
+        address[] memory _pendle = new address[](1);
+        _pendle[0] = pendleRouter;
+
+        lender.approve(_USDC,_pendle);
         vm.startPrank(userPublicKey);
         IERC20(USDC).approve(address(lender), type(uint256).max-1);
         vm.stopPrank();
     }
 
-    // function packD(
-    //     uint256 minimum,
-    //     address pool
-    // ) public  returns (bytes memory d) {
-    //     return abi.encode(
-    //         minimum,
-    //         pool
-    //     );
-    // }
+    function packD(
+        uint256 minimum,
+        address market,
+        Pendle.ApproxParams memory approxParams,
+        Pendle.TokenInput memory tokenInput
+    ) public  returns (bytes memory d) {
+        return abi.encode(
+            minimum,
+            market,
+            approxParams,
+            tokenInput
+        );
+    }
 
     // function testEncode() public {
     //     bytes memory d = abi.encode(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48), uint256(1704975691), uint256(1704975691), address(0x9536C528d9e3f12586ea3E8f624dACb8150b22aa));
@@ -92,21 +101,46 @@ contract YieldTest is Test {
     //     assertEq(maturity,minimum);
     // }
 
-    // function testLendUSDC() public {
-    //     vm.startPrank(userPublicKey);
-    //     uint256[] memory amount = new uint256[](1);
-    //     amount[0] = 10000000;
-    //     // check approval
-    //     assertEq(IERC20(USDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
-    //     // ensure balance is enough for amount
-    //     assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
-    //     bytes memory d = packD(uint256(1), address(yieldDecemberPool));
-    //     lender.lend(1, address(USDC), maturity, amount, d);
+    function testLendUSDC() public {
+        vm.startPrank(userPublicKey);
+        uint256[] memory amount = new uint256[](1);
+        amount[0] = 10000000;
 
-    //     assertEq(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), 
-    //              IERC20(marketplace.markets(USDC, maturity).tokens[1]).balanceOf(address(lender)));
+        Pendle.ApproxParams memory approxParamsStatic = Pendle.ApproxParams({
+                guessMin: 0,
+                guessMax: type(uint256).max,
+                guessOffchain: 0,
+                maxIteration: 256,
+                eps: (1e15)
+        });
 
-    //     assertGt(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
-    // }
+        Pendle.TokenInput memory tokenInputStatic = Pendle.TokenInput({
+            tokenIn: USDC,
+            netTokenIn: amount[0],
+            tokenMintSy: USDC,
+            bulk: address(0),
+            pendleSwap: address(0),
+            swapData: Pendle.SwapData({
+                swapType: Pendle.SwapType.NONE,
+                extRouter: address(0),
+                extCalldata: bytes(""),
+                needScale: false
+            })
+        });
+
+        // check approval
+        assertEq(IERC20(USDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
+        // ensure balance is enough for amount
+        assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
+
+        bytes memory d = packD(uint256(1), pendleDec24Market, approxParamsStatic, tokenInputStatic);
+
+        lender.lend(1, address(USDC), maturity, amount, d);
+
+        assertEq(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), 
+                 IERC20(marketplace.markets(USDC, maturity).tokens[1]).balanceOf(address(lender)));
+
+        assertGt(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
+    }
 
 }
