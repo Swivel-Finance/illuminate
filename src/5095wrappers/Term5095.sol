@@ -238,9 +238,11 @@ contract Term5095 is ERC20Permit {
 
         // Receive the funds from the sender
 
-        // Wrap the PTs into the ERC5095 at a 1-1 basis
+        // Ensure maturity is < 5095 maturity
+
+        // Mint at a 1-1 ratio
         uint256 returned;
-        
+
         // Pass the received shares onto the intended receiver
         _transfer(address(this), r, returned);
 
@@ -259,29 +261,18 @@ contract Term5095 is ERC20Permit {
             );
         }
 
-        // Determine how many underlying tokens are needed to mint the shares
-        uint256 required = IYield(pool).buyFYTokenPreview(Cast.u128(s));
+        // Receive the funds from the sender
 
-        // Transfer the underlying to the token
-        Safe.transferFrom(
-            IERC20(underlying),
-            msg.sender,
-            address(this),
-            required
-        );
+        // Ensure maturity is < 5095 maturity
 
-        // Swap the underlying for principal tokens via the pool
-        uint128 sold = IMarketPlace(marketplace).buyPrincipalToken(
-            underlying,
-            maturity,
-            Cast.u128(s),
-            Cast.u128(m)
-        );
-
+        // Mint at a 1-1 ratio
+        uint256 returned;
+        
         // Transfer the principal tokens to the desired receiver
+        // TODO: consider just minting?
         _transfer(address(this), r, s);
 
-        return sold;
+        return returned;
     }
 
     function _withdraw(
@@ -296,6 +287,7 @@ contract Term5095 is ERC20Permit {
         // Pre maturity
         if (block.timestamp < maturity) {
             // Receive the shares from the caller
+            // TODO: consider just burning?
             _transfer(o, address(this), needed);
 
             // If owner is the sender, sell PT without allowance check
