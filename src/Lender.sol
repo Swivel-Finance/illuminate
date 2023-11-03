@@ -49,7 +49,7 @@ contract Lender {
 
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
-    address[] public protocolRouters;
+    address[] public protocolRouters; // 1 = Swivel | 2 = Pendle | 3 = APWine | 4+ = Unused as of 11/1/23
 
     /// @notice this value determines the amount of fees paid on loans
     uint256 public feenominator;
@@ -564,7 +564,7 @@ contract Lender {
             abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, false, d));
 
         if (!success) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+            revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
         }
 
         // Get the amount of PTs (in protocol decimals) received
@@ -643,7 +643,7 @@ contract Lender {
         }
         
         if (!success) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+            revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
         }
 
         // Get the amount of PTs (in protocol decimals) received
@@ -689,7 +689,7 @@ contract Lender {
             abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', curvePools[lst], WETH, lst, amount, swapMinimum));
 
         if (!success) {
-            revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
+            revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
         }
 
         // Get the amount of PTs (in protocol decimals) received
@@ -749,7 +749,7 @@ contract Lender {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @return address of the ERC5095 token for the market
-    function principalToken(address u, uint256 m) internal returns (address) {
+    function principalToken(address u, uint256 m) internal view returns (address) {
         return (IMarketPlace(marketplace).markets(u, m).tokens[uint8(IMarketPlace.Principals.Illuminate)]);
     }
 

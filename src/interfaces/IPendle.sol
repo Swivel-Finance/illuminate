@@ -11,4 +11,11 @@ interface IPendle {
         Pendle.ApproxParams calldata,
         Pendle.TokenInput calldata
     ) external returns (uint256, uint256);
+    
+    function redeemPyToToken(
+        address receiver,
+        address YT,
+        uint256 netPyIn,
+        Pendle.TokenOutput calldata output
+    ) external returns (uint256 netTokenOut);
 }

@@ -12,13 +12,39 @@ library Pendle {
     }
 
     struct TokenInput {
-        // Token/Sy data
+        // token/Sy data
         address tokenIn;
         uint256 netTokenIn;
         address tokenMintSy;
         address bulk;
-        // Kyber data
-        address kyberRouter;
-        bytes kybercall;
+        // aggregator data
+        address pendleSwap;
+        SwapData swapData;
+    }
+
+    struct SwapData {
+        SwapType swapType;
+        address extRouter;
+        bytes extCalldata;
+        bool needScale;
+    }
+
+    enum SwapType {
+        NONE,
+        KYBERSWAP,
+        ONE_INCH,
+        // ETH_WETH not used in Aggregator
+        ETH_WETH
+    }
+
+    struct TokenOutput {
+        // Token/Sy data
+        address tokenOut;
+        uint256 minTokenOut;
+        address tokenRedeemSy;
+        address bulk;
+        // aggregator data
+        address pendleSwap;
+        SwapData swapData;
     }
 }
