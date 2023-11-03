@@ -100,15 +100,15 @@ contract PendleTest is Test {
         uint256[] memory amount = new uint256[](1);
         amount[0] = 10000000;
 
-        Pendle.ApproxParams memory approxParamsStatic = Pendle.ApproxParams({
+        Pendle.ApproxParams memory approxParams = Pendle.ApproxParams({
                 guessMin: 0,
-                guessMax: type(uint256).max,
+                guessMax: amount[0],
                 guessOffchain: 0,
                 maxIteration: 256,
                 eps: (1e15)
         });
 
-        Pendle.TokenInput memory tokenInputStatic = Pendle.TokenInput({
+        Pendle.TokenInput memory tokenInput = Pendle.TokenInput({
             tokenIn: USDC,
             netTokenIn: amount[0],
             tokenMintSy: USDC,
@@ -127,7 +127,7 @@ contract PendleTest is Test {
         // ensure balance is enough for amount
         assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
 
-        bytes memory d = packD(uint256(1), pendleDec24Market, approxParamsStatic, tokenInputStatic);
+        bytes memory d = packD(uint256(1), pendleDec24Market, approxParams, tokenInput);
 
         lender.lend(1, address(USDC), maturity, amount, d);
 
