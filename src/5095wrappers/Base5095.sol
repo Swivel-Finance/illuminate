@@ -222,8 +222,6 @@ contract Term5095 is ERC20Permit {
             _allowance[o][msg.sender] = allowance - s;
 
             // Execute the redemption through Term
-
-            // Return funds to user
             return (1);
         }
     }
