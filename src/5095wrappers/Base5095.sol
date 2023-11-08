@@ -66,17 +66,17 @@ contract Term5095 is ERC20Permit {
         return _balanceOf[o];
     }
 
-    /// @notice Post or at maturity, returns user's PT balance. Prior to maturity, returns a previewRedeem for owner's PT balance.
+    /// @notice Post or at maturity, returns user's PT balance. Prior to maturity, returns 0.
     /// @param  o The address of the owner for which withdrawal is calculated
     /// @return uint256 maximum amount of underlying tokens that `owner` can withdraw.
     function maxWithdraw(address o) external view returns (uint256) {
         if (block.timestamp < maturity) {
-            return previewRedeem(_balanceOf[o]);
+            return 0;
         }
         return _balanceOf[o];
     }
 
-    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `shares` when spending `a` in underlying on a YieldSpace AMM.
+    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `shares` when depositing `a` of an external protocol's PTs
     /// @param a The amount of underlying spent
     /// @return uint256 The amount of PT purchased by spending `a` of underlying
     function previewDeposit(uint256 a) public view returns (uint256) {
@@ -86,7 +86,7 @@ contract Term5095 is ERC20Permit {
         return 0;
     }
 
-    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on a purchase of `s` in PT on a YieldSpace AMM.
+    /// @notice After maturity, returns 0. Prior to maturity, returns the amount of `assets` in underlying spent on acquiring `s` of the wrapped PTs
     /// @param s The amount of principal tokens bought in the simulation
     /// @return uint256 The amount of underlying required to purchase `s` of PT
     function previewMint(uint256 s) public view returns (uint256) {
@@ -96,28 +96,26 @@ contract Term5095 is ERC20Permit {
         return 0;
     }
 
-    /// @notice Post or at maturity, simulates the effects of redemption. Prior to maturity, returns the amount of `assets` from a sale of `s` PTs on a YieldSpace AMM.
+    /// @notice Post or at maturity, simulates the effects of redemption. Prior to maturity, returns 0
     /// @param s The amount of principal tokens redeemed in the simulation
     /// @return uint256 The amount of underlying returned by `s` of PT redemption
     function previewRedeem(uint256 s) public view returns (uint256) {
         if (block.timestamp >= maturity) {
-            // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
+            // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying TODO: implement this feature? Its not in v1
             return 1;
         }
-
-        // Prior to maturity, return a a preview of a swap on the pool
+        // Prior to maturity, return 0
         return 0;
     }
 
-    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, simulates the amount of PTs necessary to receive `a` in underlying from the sale of PTs on a YieldSpace AMM.
+    /// @notice Post or at maturity, simulates the effects of withdrawal at the current block. Prior to maturity, returns 0
     /// @param a The amount of underlying tokens withdrawn in the simulation
     /// @return uint256 The amount of principal tokens required for the withdrawal of `a`
     function previewWithdraw(uint256 a) public view returns (uint256) {
         if (block.timestamp >= maturity) {
-            // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying
+            // After maturity, the amount redeemed is based on the Redeemer contract's holdings of the underlying TODO: implement this feature? Its not in v1
             return 1;
         }
-
         // Prior to maturity, return a a preview of a swap on the pool
         return 0;
     }
@@ -152,7 +150,7 @@ contract Term5095 is ERC20Permit {
         return returned;
     }
 
-    /// @notice At or after maturity, burns PTs from owner and sends `a` underlying to `r`. Before maturity, sends `a` by selling shares of PT on a YieldSpace AMM.
+    /// @notice At or after maturity, burns PTs from owner and sends `a` underlying to `r`.
     /// @param a The amount of underlying tokens withdrawn
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param o The owner of the underlying tokens
@@ -195,7 +193,7 @@ contract Term5095 is ERC20Permit {
         }
     }
 
-    /// @notice At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`. Before maturity, sells `s` of PT on a YieldSpace AMM.
+    /// @notice At or after maturity, burns exactly `shares` of Principal Tokens from `owner` and sends `assets` of underlying tokens to `receiver`.
     /// @param s The number of shares to be burned in exchange for the underlying asset
     /// @param r The receiver of the underlying tokens being withdrawn
     /// @param o Address of the owner of the shares being burned
@@ -222,6 +220,8 @@ contract Term5095 is ERC20Permit {
             _allowance[o][msg.sender] = allowance - s;
 
             // Execute the redemption through Term
+
+            // Return funds to user
             return (1);
         }
     }

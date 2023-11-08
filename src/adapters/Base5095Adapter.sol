@@ -71,7 +71,7 @@ contract TermAdapter is IAdapter {
         return (0,0,0);
     }
 
-    // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
+    // @notice After maturity, redeem `amount` of the underlying token from the X protocol
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI
