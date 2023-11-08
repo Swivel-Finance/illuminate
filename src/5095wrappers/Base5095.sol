@@ -120,6 +120,35 @@ contract Term5095 is ERC20Permit {
         return 0;
     }
 
+    function deposit(
+        address r,
+        uint256 a,
+        uint256 m
+    ) external returns (uint256) {
+        // Revert if called at or after maturity
+        if (block.timestamp >= maturity) {
+            revert Exception(
+                21,
+                block.timestamp,
+                maturity,
+                address(0),
+                address(0)
+            );
+        }
+
+        // Receive the funds from the sender
+
+        // Ensure maturity is < 5095 maturity
+
+        // Mint at a 1-1 ratio
+        uint256 returned;
+
+        // Pass the received shares onto the intended receiver
+        _transfer(address(this), r, returned);
+
+        return returned;
+    }
+
     /// @notice Before maturity mints `shares` of PTs to `receiver` by spending underlying. Post or at maturity, reverts.
     /// @param s The amount of shares being minted
     /// @param r The receiver of the underlying tokens being withdrawn
