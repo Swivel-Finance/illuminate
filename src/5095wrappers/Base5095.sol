@@ -140,6 +140,8 @@ contract Term5095 is ERC20Permit {
 
         // Ensure maturity is < 5095 maturity
 
+        // Ensure currency matches
+
         // Mint at a 1-1 ratio
         uint256 returned;
 
@@ -168,6 +170,8 @@ contract Term5095 is ERC20Permit {
         // Receive the funds from the sender (depends on ERC v NFT)
 
         // Ensure maturity is < 5095 maturity
+
+        // Ensure currency matches
 
         // Mint into iPT at a 1-1 ratio or TODO: create a wrap + mint method?
         uint256 returned;
