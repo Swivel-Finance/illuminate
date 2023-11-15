@@ -4,16 +4,14 @@ pragma solidity 0.8.20;
 
 import {IAdapter} from "../interfaces/IAdapter.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
-import {IPendle} from "../interfaces/IPendle.sol";
-import {IPendleSYToken} from "../interfaces/IPendleSYToken.sol";
-import {IPendleToken}   from "../interfaces/IPendleToken.sol";
+import {IERC5095} from "../interfaces/IERC5095.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
+import {IExactly} from "../interfaces/IExactly.sol";
 
-import {Pendle} from "../lib/Pendle.sol";
 import {Safe} from "../lib/Safe.sol";
 
-contract PendleAdapter  { 
+contract ExactlyAdapter is IAdapter { 
     constructor() {}
 
     address public lender; 
@@ -29,14 +27,13 @@ contract PendleAdapter  {
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
-        (, address underlying_, ) = IPendleSYToken(IPendleToken(pt).SY()).assetInfo();
-        return (underlying_);
+        return address(IERC5095(pt).underlying());
     }
 
     // @notice returns the maturity of the underlying token for the PT
     // @param pt The address of the PT
     function maturity(address pt) public view returns (uint256) {
-        return IPendleToken(pt).expiry();
+        return IERC5095(pt).maturity();
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
@@ -47,22 +44,17 @@ contract PendleAdapter  {
     function lendABI(
     ) public pure returns (
         uint256 minimum,
-        address market,
-        Pendle.ApproxParams memory approxParams,
-        Pendle.TokenInput memory tokenInput) {
+        address pool) {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure returns (
-        Pendle.TokenOutput memory tokenOutput) {
+    ) public pure {
     }
 
-    // @notice lends `amount` to pendle protocol
-    // @param underlying_ The address of the underlying token
-    // @param maturity_ The maturity of the underlying token
+    // @notice lends `amount` to yield protocol by spending `amount-fee` on PTs from `pool`
     // @param amount The amount of the underlying token to lend (amount[0] is used for this adapter)
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the lend function -- described above in lendABI
@@ -76,14 +68,12 @@ contract PendleAdapter  {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
-
         // Parse the calldata
         (
-            uint256 minimum,
-            address market,
-            Pendle.ApproxParams memory approxParams,
-            Pendle.TokenInput memory tokenInput
-        ) = abi.decode(d, (uint256, address, Pendle.ApproxParams, Pendle.TokenInput));
+            uint256 exactlyMaturity,
+            address exactlyToken,
+            uint256 minimumAssets,
+        ) = abi.decode(d, (uint256, address, uint256));
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
@@ -95,54 +85,45 @@ contract PendleAdapter  {
             );
         }
 
-        (uint256 returned, ) = IPendle(ILender(lender).protocolRouters(1)).swapExactTokenForPt(
-            address(this),
-            market,
-            minimum,
-            approxParams,
-            tokenInput
-        );
+        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+
+        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], amount[0]-(amount[0]/1000), address(this));
 
         return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }
 
-    // // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
-    // // @param amount The amount of the PTs to redeem
-    // // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
-    // // @param d The calldata for the redeem function -- described above in redeemABI
-    // function redeem(
-    //     address underlying_,
-    //     uint256 maturity_,
-    //     uint256 amount,
-    //     bool internalBalance,
-    //     bytes calldata d
-    // ) external returns (uint256, uint256) {
+    // @notice After maturity, redeem `amount` of the underlying token from the X protocol
+    // @param amount The amount of the PTs to redeem
+    // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
+    // @param d The calldata for the redeem function -- described above in redeemABI
+    function redeem(
+        address underlying_,
+        uint256 maturity_,
+        uint256 amount,
+        bool internalBalance,
+        bytes calldata d
+    ) external returns (uint256, uint256) {
+        // TODO: Double check protocol enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
+        
+        if (internalBalance == false){
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(pt),
+                msg.sender,
+                address(this),
+                amount
+            );
+        }
 
-    //     // Parse the calldata
-    //     (
-    //         Pendle.TokenOutput memory tokenOutput
-    //     ) = abi.decode(d, (Pendle.TokenOutput));
+        uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-    //     address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        IERC5095(pt).redeem(amount, address(this), address(this));
 
-    //     if (internalBalance == false){
-    //         // Receive underlying funds, extract fees
-    //         Safe.transferFrom(
-    //             IERC20(pt),
-    //             msg.sender,
-    //             address(this),
-    //             amount
-    //         );
-    //     }
+        uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
-    //     uint256 starting = IERC20(underlying_).balanceOf(address(this));
+        Safe.transfer(IERC20(underlying_), msg.sender, received);
 
-    //     IPendle(ILender(lender).protocolRouters(1)).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
-
-    //     uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
-
-    //     Safe.transfer(IERC20(underlying_), msg.sender, received);
-
-    //     return (received, amount);
-    // }
+        return (received, amount);
+    }
 }
