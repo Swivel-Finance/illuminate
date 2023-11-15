@@ -106,43 +106,43 @@ contract PendleAdapter  {
         return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }
 
-    // // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
-    // // @param amount The amount of the PTs to redeem
-    // // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
-    // // @param d The calldata for the redeem function -- described above in redeemABI
-    // function redeem(
-    //     address underlying_,
-    //     uint256 maturity_,
-    //     uint256 amount,
-    //     bool internalBalance,
-    //     bytes calldata d
-    // ) external returns (uint256, uint256) {
+    // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
+    // @param amount The amount of the PTs to redeem
+    // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
+    // @param d The calldata for the redeem function -- described above in redeemABI
+    function redeem(
+        address underlying_,
+        uint256 maturity_,
+        uint256 amount,
+        bool internalBalance,
+        bytes calldata d
+    ) external returns (uint256, uint256) {
 
-    //     // Parse the calldata
-    //     (
-    //         Pendle.TokenOutput memory tokenOutput
-    //     ) = abi.decode(d, (Pendle.TokenOutput));
+        // Parse the calldata
+        (
+            Pendle.TokenOutput memory tokenOutput
+        ) = abi.decode(d, (Pendle.TokenOutput));
 
-    //     address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
 
-    //     if (internalBalance == false){
-    //         // Receive underlying funds, extract fees
-    //         Safe.transferFrom(
-    //             IERC20(pt),
-    //             msg.sender,
-    //             address(this),
-    //             amount
-    //         );
-    //     }
+        if (internalBalance == false){
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(pt),
+                msg.sender,
+                address(this),
+                amount
+            );
+        }
 
-    //     uint256 starting = IERC20(underlying_).balanceOf(address(this));
+        uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-    //     IPendle(ILender(lender).protocolRouters(1)).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
+        IPendle(ILender(lender).protocolRouters(1)).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
 
-    //     uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
+        uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
-    //     Safe.transfer(IERC20(underlying_), msg.sender, received);
+        Safe.transfer(IERC20(underlying_), msg.sender, received);
 
-    //     return (received, amount);
-    // }
+        return (received, amount);
+    }
 }

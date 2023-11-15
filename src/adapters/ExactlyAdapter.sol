@@ -75,6 +75,8 @@ contract ExactlyAdapter is IAdapter {
             uint256 minimumAssets,
         ) = abi.decode(d, (uint256, address, uint256));
         
+        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
@@ -84,8 +86,6 @@ contract ExactlyAdapter is IAdapter {
                 amount[0]
             );
         }
-
-        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
 
         (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], amount[0]-(amount[0]/1000), address(this));
 
@@ -103,6 +103,14 @@ contract ExactlyAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
+
+        // Parse the calldata
+        (
+            address exactlyToken
+        ) = abi.decode(d, (address));
+
+
+
         // TODO: Double check protocol enum
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
         
