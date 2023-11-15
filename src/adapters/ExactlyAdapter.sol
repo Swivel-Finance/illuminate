@@ -7,10 +7,11 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IERC5095} from "../interfaces/IERC5095.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
+import {IExactly} from "../interfaces/IExactly.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
-contract TermAdapter is IAdapter { 
+contract ExactlyAdapter is IAdapter { 
     constructor() {}
 
     address public lender; 
@@ -67,11 +68,33 @@ contract TermAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
+        // TODO: Consider validation of the `exactlyMaturity` parameter -- on lends, if exactlyMaturity < maturity_ were fine, 
+        // on redeem it may need to be validated within a certain range of our maturity
+        // Parse the calldata
+        (
+            uint256 exactlyMaturity,
+            address exactlyToken,
+            uint256 minimumAssets,
+        ) = abi.decode(d, (uint256, address, uint256));
 
-        return (0,0,0);
+        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+
+        if (internalBalance == false){
+            // Receive underlying funds, extract fees
+            Safe.transferFrom(
+                IERC20(underlying_),
+                msg.sender,
+                address(this),
+                amount[0]
+            );
+        }
+
+        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], amount[0]-(amount[0]/1000), address(this));
+
+        return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }
 
-    // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
+    // @notice After maturity, redeem `amount` of the underlying token from the X protocol
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI
@@ -82,13 +105,18 @@ contract TermAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
-        // TODO: Double check protocol enum
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
+        // Parse the calldata
+        (
+            address exactlyToken,
+            uint256 exactlyMaturity
+        ) = abi.decode(d, (address));
+
+        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
-                IERC20(pt),
+                IERC20(exactlyToken),
                 msg.sender,
                 address(this),
                 amount
@@ -97,7 +125,7 @@ contract TermAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IERC5095(pt).redeem(amount, address(this), address(this));
+        IExactly(exactlyToken).withdrawAtMaturity(maturity, positionAssets, minAssetsRequired, receiver, owner);
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
