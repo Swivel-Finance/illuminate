@@ -68,13 +68,15 @@ contract ExactlyAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
+        // TODO: Consider validation of the `exactlyMaturity` parameter -- on lends, if exactlyMaturity < maturity_ were fine, 
+        // on redeem it may need to be validated within a certain range of our maturity
         // Parse the calldata
         (
             uint256 exactlyMaturity,
             address exactlyToken,
             uint256 minimumAssets,
         ) = abi.decode(d, (uint256, address, uint256));
-        
+
         require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
 
         if (internalBalance == false){
@@ -103,21 +105,18 @@ contract ExactlyAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
-
         // Parse the calldata
         (
-            address exactlyToken
+            address exactlyToken,
+            uint256 exactlyMaturity
         ) = abi.decode(d, (address));
 
-
-
-        // TODO: Double check protocol enum
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
+        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
-                IERC20(pt),
+                IERC20(exactlyToken),
                 msg.sender,
                 address(this),
                 amount
@@ -126,7 +125,7 @@ contract ExactlyAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IERC5095(pt).redeem(amount, address(this), address(this));
+        IExactly(exactlyToken).withdrawAtMaturity(maturity, positionAssets, minAssetsRequired, receiver, owner);
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
