@@ -129,8 +129,6 @@ contract ExactlyAdapter is IAdapter {
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
-        Safe.transfer(IERC20(underlying_), msg.sender, received);
-
         return (received, amount);
     }
 }

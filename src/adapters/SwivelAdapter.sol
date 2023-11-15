@@ -188,8 +188,6 @@ contract SwivelAdapter is IAdapter {
         IERC5095(pt).redeem( uint128(amount), address(this), address(this));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
-        
-        Safe.transfer(IERC20(underlying_), msg.sender, received);
 
         return (received, amount);
     }
