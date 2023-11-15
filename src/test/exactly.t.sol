@@ -13,9 +13,9 @@ import "../Redeemer.sol";
 // import adapters
 import "../adapters/ExactlyAdapter.sol"; 
 
-contract YieldTest is Test {
+contract ExactlyTest is Test {
 
-    address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address optimismUSDC = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
 
     uint256 maturity = 1704975690;
 
@@ -58,15 +58,23 @@ contract YieldTest is Test {
         adapters[1] = address(exactlyAdapter);
         marketplace.setAdapters(adapters);
         // Create market
-        marketplace.createMarket(USDC, maturity, tokens, "iPT-DEC", "iPT-DEC-USDC");
+        marketplace.createMarket(optimismUSDC, maturity, tokens, "iPT-DEC", "iPT-DEC-USDC");
 
         // Deal Balances
-        deal(address(USDC), userPublicKey, startingBalance);
+        deal(address(optimismUSDC), userPublicKey, startingBalance);
         deal(userPublicKey, 10000 ether);
 
         // Set approval
+        address[] memory _USDC = new address[](1);
+        _USDC[0] = optimismUSDC;
+        address[] memory _exactly = new address[](1);
+        _exactly[0] = exactlyUSDC;
+
+        lender.approve(_USDC,_exactly);
+
+
         vm.startPrank(userPublicKey);
-        IERC20(USDC).approve(address(lender), type(uint256).max-1);
+        IERC20(optimismUSDC).approve(address(lender), type(uint256).max-1);
         vm.stopPrank();
     }
 
@@ -85,16 +93,16 @@ contract YieldTest is Test {
         uint256[] memory amount = new uint256[](1);
         amount[0] = 10000000;
         // check approval
-        assertEq(IERC20(USDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
+        assertEq(IERC20(optimismUSDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
         // ensure balance is enough for amount
-        assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
+        assertGt(IERC20(optimismUSDC).balanceOf(userPublicKey), amount[0]);
         bytes memory d = packD(exactlyUSDCDecMaturity, (amount[0] - (amount[0]/100)));
-        lender.lend(1, address(USDC), maturity, amount, d);
+        lender.lend(1, address(optimismUSDC), maturity, amount, d);
 
-        assertEq(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), 
-                 IERC20(marketplace.markets(USDC, maturity).tokens[1]).balanceOf(address(lender)));
+        assertEq(IERC20(marketplace.markets(optimismUSDC, maturity).tokens[0]).balanceOf(userPublicKey), 
+                 IERC20(marketplace.markets(optimismUSDC, maturity).tokens[1]).balanceOf(address(lender)));
 
-        assertGt(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
+        assertGt(IERC20(marketplace.markets(optimismUSDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
     }
 
 }
