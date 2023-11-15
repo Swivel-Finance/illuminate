@@ -76,11 +76,10 @@ contract ExactlyAdapter is IAdapter {
         // Parse the calldata
         (
             uint256 exactlyMaturity,
-            address exactlyToken,
             uint256 minimumAssets // note: This could be removed and just calculated at near par? should be 1:1 or more at maturity and this accounts for prematurity redeems
-        ) = abi.decode(d, (uint256, address, uint256));
-
-        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+        ) = abi.decode(d, (uint256, uint256));
+        
+        address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
 
         if (internalBalance == false){
             // Receive underlying funds, extract fees
