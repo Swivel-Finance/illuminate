@@ -91,8 +91,6 @@ contract ExactlyAdapter is IAdapter {
         (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], minimumAssets, address(this));
         // TODO: consider changing address(this) to the redeemer if transfer isnt possible 
 
-        emit TestEvent(exactlyToken, IExactly(exactlyToken).asset(), returned, amount[0], "test Lend");
-
         return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }
 
