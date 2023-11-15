@@ -110,7 +110,7 @@ contract ExactlyAdapter is IAdapter {
         // Parse the calldata
         (
             uint256 exactlyMaturity
-        ) = abi.decode(d, (address, uint256));
+        ) = abi.decode(d, (uint256));
 
         address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1];
         
