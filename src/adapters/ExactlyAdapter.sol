@@ -109,7 +109,7 @@ contract ExactlyAdapter is IAdapter {
         (
             address exactlyToken,
             uint256 exactlyMaturity
-        ) = abi.decode(d, (address));
+        ) = abi.decode(d, (address, uint256));
 
         require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
         
@@ -117,7 +117,7 @@ contract ExactlyAdapter is IAdapter {
             // Receive underlying funds, extract fees
             Safe.transferFrom(
                 IERC20(exactlyToken),
-                msg.sender,
+                lender,
                 address(this),
                 amount
             );
@@ -125,7 +125,7 @@ contract ExactlyAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IExactly(exactlyToken).withdrawAtMaturity(maturity, positionAssets, minAssetsRequired, receiver, owner);
+        IExactly(exactlyToken).withdrawAtMaturity(exactlyMaturity, amount, amount, address(this), address(this));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
