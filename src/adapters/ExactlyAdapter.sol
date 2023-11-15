@@ -43,15 +43,18 @@ contract ExactlyAdapter is IAdapter {
     // @returns pool The address of the pool to lend to (buy PTs from)
     function lendABI(
     ) public pure returns (
-        uint256 minimum,
-        address pool) {
+        uint256 exactlyMaturity,
+        address exactlyToken,
+        uint256 minimumAssets) {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure {
+    ) public pure returns (
+        address exactlyToken,
+        uint256 exactlyMaturity) {
     }
 
     // @notice lends `amount` to yield protocol by spending `amount-fee` on PTs from `pool`
@@ -74,7 +77,7 @@ contract ExactlyAdapter is IAdapter {
         (
             uint256 exactlyMaturity,
             address exactlyToken,
-            uint256 minimumAssets,
+            uint256 minimumAssets // note: This could be removed and just calculated at near par? should be 1:1 or more at maturity and this accounts for prematurity redeems
         ) = abi.decode(d, (uint256, address, uint256));
 
         require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
@@ -89,7 +92,7 @@ contract ExactlyAdapter is IAdapter {
             );
         }
 
-        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], amount[0]-(amount[0]/1000), address(this));
+        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], minimumAssets, address(this));
 
         return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }
