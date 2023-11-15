@@ -44,7 +44,6 @@ contract ExactlyAdapter is IAdapter {
     function lendABI(
     ) public pure returns (
         uint256 exactlyMaturity,
-        address exactlyToken,
         uint256 minimumAssets) {
     }
 
