@@ -27,7 +27,7 @@ contract ExactlyAdapter is IAdapter {
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
-        return address(IERC5095(pt).underlying());
+        return address(IExactly(pt).asset());
     }
 
     // @notice returns the maturity of the underlying token for the PT
@@ -79,7 +79,7 @@ contract ExactlyAdapter is IAdapter {
             uint256 minimumAssets // note: This could be removed and just calculated at near par? should be 1:1 or more at maturity and this accounts for prematurity redeems
         ) = abi.decode(d, (uint256, uint256));
         
-        address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1];
 
         if (internalBalance == false){
             // Receive underlying funds, extract fees
@@ -90,8 +90,10 @@ contract ExactlyAdapter is IAdapter {
                 amount[0]
             );
         }
+        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], (amount[0]-amount[0]/25), address(this));
+        // TODO: consider changing address(this) to the redeemer if transfer isnt possible 
 
-        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], minimumAssets, address(this));
+        emit TestEvent(exactlyToken, IExactly(exactlyToken).asset(), returned, amount[0], "test Lend");
 
         return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }

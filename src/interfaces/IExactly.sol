@@ -26,4 +26,11 @@ interface IExactly {
     ) external returns (uint256 assetsDiscounted);
 
     function asset() external view returns (address);
+
+    function fixedDepositPositions(uint256, address) external view returns (Position memory); 
+
+    struct Position {
+      uint256 principal;
+      uint256 fee;
+    }
 }
