@@ -52,7 +52,6 @@ contract ExactlyAdapter is IAdapter {
     // @returns maturity The maturity of the underlying token
     function redeemABI(
     ) public pure returns (
-        address exactlyToken,
         uint256 exactlyMaturity) {
     }
 
@@ -110,11 +109,10 @@ contract ExactlyAdapter is IAdapter {
     ) external returns (uint256, uint256) {
         // Parse the calldata
         (
-            address exactlyToken,
             uint256 exactlyMaturity
         ) = abi.decode(d, (address, uint256));
 
-        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+        address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1];
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
