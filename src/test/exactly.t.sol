@@ -98,7 +98,7 @@ contract ExactlyTest is Test {
         assertGt(IERC20(optimismUSDC).balanceOf(userPublicKey), amount[0]);
         bytes memory d = packD(exactlyUSDCDecMaturity, (amount[0] - (amount[0]/100)));
         lender.lend(1, address(optimismUSDC), maturity, amount, d);
-        
+
         IExactly.Position memory position = IExactly(exactlyUSDC).fixedDepositPositions(exactlyUSDCDecMaturity, address(this));
 
         uint256 minted = position.principal + position.fee;
@@ -107,5 +107,4 @@ contract ExactlyTest is Test {
 
         assertGt(IERC20(marketplace.markets(optimismUSDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
     }
-
 }

@@ -498,22 +498,17 @@ contract Lender {
         uint256 maturity;
         if (p == uint8(IMarketPlace.Principals.Illuminate)) {
             revert Exception(32, 0, 0, address(0), address(0));
-        } else if (p == uint8(IMarketPlace.Principals.Swivel)) {
-            maturity = Maturities.swivel(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Yield)) {
-            maturity = Maturities.yield(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Element)) {
-            maturity = Maturities.element(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Pendle)) {
-            maturity = Maturities.pendle(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Tempus)) {
-            maturity = Maturities.tempus(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Apwine)) {
-            maturity = Maturities.apwine(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Notional)) {
-            maturity = Maturities.notional(principal);
         }
+        else {
+            // Conduct the lend operation to acquire principal tokens
+            (bool success,) = IMarketPlace(marketplace).adapters(p).delegatecall(
+                abi.encodeWithSignature('verify(address,uint256,address)', u, m, principal));
 
+            if (!success) {
+                revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
+            }
+        }
+        
         // Confirm that the principal token has not matured yet
         if (block.timestamp > maturity || maturity == 0) {
             revert Exception(
