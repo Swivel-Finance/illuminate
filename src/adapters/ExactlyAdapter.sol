@@ -68,7 +68,7 @@ contract ExactlyAdapter is IAdapter {
         // Fetch the desired principal token
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
 
-        // Disallow mints if market is not initialized
+        // Disallow mints if market is not initialized (verifying the input underlying and maturity are valid)
         if (pt == address(0)) {
             revert Exception(26, 0, 0, address(0), address(0));
         }
@@ -94,9 +94,9 @@ contract ExactlyAdapter is IAdapter {
                 );
             }
         }
-
+        // Transfer the targetToken to the lender contract
         Safe.transferFrom(IERC20(targetToken), msg.sender, address(this), amount);
-
+        // Return the amount of iPTs to mint 
         return (ILender(lender).convertDecimals(underlying_, pt, amount));
     }
 
