@@ -50,10 +50,12 @@ contract TermAdapter is IAdapter {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
+    // @returns targetRedeemer The address of the redeemer for the provided target term repo token TODO: ensure each TermRepoToken has a unique redeemer
+    // @returns targetToken The address of the token to be redeemed
     function redeemABI(
-    ) public pure {
+    ) public pure returns (
+        address targetRedeemer,
+        address targetToken) {
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
@@ -133,7 +135,7 @@ contract TermAdapter is IAdapter {
 
         // Parse the calldata
         (
-            address TermRedeemer,
+            address targetRedeemer,
             address targetToken
         ) = abi.decode(d, (address, address));
 
@@ -152,7 +154,7 @@ contract TermAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        ITermRepoRedeemer(TermRedeemer).redeemTermRepoTokens(address(this), IERC20(targetToken).balanceOf(address(this)));
+        ITermRepoRedeemer(targetRedeemer).redeemTermRepoTokens(address(this), IERC20(targetToken).balanceOf(address(this)));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 
