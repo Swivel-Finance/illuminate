@@ -476,8 +476,7 @@ contract Lender {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     function transferPremium(
-        address u,
-        uint256 m
+        address u
     ) external authorized(IMarketPlace(marketplace).redeemer()) {
         Safe.transfer(
             IERC20(u),
