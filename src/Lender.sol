@@ -488,7 +488,7 @@ contract Lender {
         uint256 m,
         address t,
         uint256 a
-    ) external nonReentrant unpaused(u, m, p) returns (bool) {
+    ) external nonReentrant unpaused(u, m, p) returns (uint256) {
 
         // Conduct the lend operation to acquire principal tokens
         (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
@@ -505,7 +505,7 @@ contract Lender {
 
         emit Mint(p, u, m, mintable);
 
-        return (true);
+        return (mintable);
     }
 
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
