@@ -474,22 +474,25 @@ contract Lender {
             IERC20(u).balanceOf(address(this))- fees[u]
         );
     }
+
     /// @notice mint swaps the sender's principal tokens for Illuminate's ERC5095 tokens in effect, this opens a new fixed rate position for the sender on Illuminate
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
+    /// @param t address of the principal token to deposit
     /// @param a amount being minted
     /// @return bool true if the mint was successful
     function mint(
         uint8 p,
         address u,
         uint256 m,
+        address t,
         uint256 a
     ) external nonReentrant unpaused(u, m, p) returns (bool) {
 
         // Conduct the lend operation to acquire principal tokens
         (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
-            abi.encodeWithSignature('mint(address,uint256,uint8)', u, m, p));
+            abi.encodeWithSignature('mint(address,uint256,uint8)', u, m, p, t, a));
 
         // Decode the returndata to get a mintable amount of PTs
         uint256 mintable = abi.decode(returndata, (uint256));
