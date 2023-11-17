@@ -235,6 +235,10 @@ contract SwivelAdapter is IAdapter {
                 amount
             );
         }
+
+        // Retrieve unswapped premium from the Lender contract
+        ILender(lender).transferPremium(u, m);
+
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
         IERC5095(pt).redeem( uint128(amount), address(this), address(this));

@@ -474,7 +474,6 @@ contract Lender {
 
     /// @notice Transfers premium from the market to Redeemer (used specifically for Swivel redemptions)
     /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
     function transferPremium(
         address u
     ) external authorized(IMarketPlace(marketplace).redeemer()) {
