@@ -94,14 +94,14 @@ contract TermAdapter is IAdapter {
         // If the targetToken is not the same as the market PT, validate the underlying and maturity
         if (targetToken != pt) {
             // Get the token config
-            ITermToken.TermRepoTokenConfig memory config = ITermToken(pt).config();
+            ITermToken.TermRepoTokenConfig memory config = ITermToken(targetToken).config();
 
             if (config.purchaseToken != underlying_ || config.redemptionTimestamp > maturity_ || ILender(lender).validToken(targetToken) == false) {
                 revert Exception(
                     8,
-                    maturity(pt),
+                    maturity(targetToken),
                     maturity_,
-                    underlying(pt),
+                    underlying(targetToken),
                     underlying_
                 );
             }

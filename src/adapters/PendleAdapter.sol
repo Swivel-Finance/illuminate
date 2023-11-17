@@ -97,12 +97,12 @@ contract PendleAdapter  {
         }
         // If the targetToken is not the same as the market PT, validate the underlying and maturity
         if (targetToken != pt) {
-            if (underlying(pt) != underlying_ || maturity(pt) > maturity_ || ILender(lender).validToken(targetToken) == false) {
+            if (underlying(targetToken) != underlying_ || maturity(targetToken) > maturity_ || ILender(lender).validToken(targetToken) == false) {
                 revert Exception(
                     8,
-                    maturity(pt),
+                    maturity(targetToken),
                     maturity_,
-                    underlying(pt),
+                    underlying(targetToken),
                     underlying_
                 );
             }
