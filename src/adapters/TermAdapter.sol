@@ -4,15 +4,16 @@ pragma solidity 0.8.20;
 
 import {IAdapter} from "../interfaces/IAdapter.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
-import {IYield} from "../interfaces/IYield.sol";
+import {IERC5095} from "../interfaces/IERC5095.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
+import {ITermToken, ITermRepoRedeemer} from "../interfaces/ITerm.sol";
 
-import {Exception} from "src/errors/Exception.sol";
+import {Exception} from "../errors/Exception.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
-contract YieldAdapter is IAdapter { 
+contract TermAdapter is IAdapter { 
     constructor() {}
 
     address public lender; 
@@ -28,13 +29,13 @@ contract YieldAdapter is IAdapter {
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
-        return address(IYield(pt).base());
+         return (ITermToken(pt).config().purchaseToken);
     }
 
     // @notice returns the maturity of the underlying token for the PT
     // @param pt The address of the PT
     function maturity(address pt) public view returns (uint256) {
-        return IYield(pt).maturity();
+        return (ITermToken(pt).config().redemptionTimestamp);
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
@@ -82,7 +83,10 @@ contract YieldAdapter is IAdapter {
         }
         // If the targetToken is not the same as the market PT, validate the underlying and maturity
         if (targetToken != pt) {
-            if (underlying(pt) != underlying_ || maturity(pt) > maturity_) {
+            // Get the token config
+            ITermToken.TermRepoTokenConfig memory config = ITermToken(pt).config();
+
+            if (config.purchaseToken != underlying_ || config.redemptionTimestamp > maturity_) {
                 revert Exception(
                     8,
                     maturity(pt),
@@ -112,36 +116,10 @@ contract YieldAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
-
-        // Parse the calldata
-        (
-            uint256 minimum,
-            address pool
-        ) = abi.decode(d, (uint256, address));
-
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1]; // TODO: get yield PT enum
-        if (internalBalance == false){
-            // Receive underlying funds, extract fees
-            Safe.transferFrom(
-                IERC20(underlying_),
-                msg.sender,
-                address(this),
-                amount[0]
-            );
-        }
-
-        uint256 fee = amount[0] / ILender(lender).feenominator();
-
-        // Execute the order
-        uint256 starting = IERC20(pt).balanceOf(address(this));
-        Safe.transfer(IERC20(underlying_), pool, amount[0] - fee);
-        IYield(pool).sellBase(address(this), uint128(minimum));
-        uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
-
-        return (received, amount[0], fee);
+        revert Exception(99, 0, 0, address(0), address(0));
     }
 
-    // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
+    // @notice After maturity, redeem `amount` of the underlying token from the X protocol
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI
@@ -153,12 +131,20 @@ contract YieldAdapter is IAdapter {
         bytes calldata d
     ) external returns (uint256, uint256) {
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        // Parse the calldata
+        (
+            address TermRedeemer,
+            address targetToken
+        ) = abi.decode(d, (address, address));
+
+        // TODO: Double check protocol enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
+        
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
                 IERC20(pt),
-                msg.sender,
+                lender,
                 address(this),
                 amount
             );
@@ -166,7 +152,7 @@ contract YieldAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IYield(pt).redeem(address(this), uint128(amount));
+        ITermRepoRedeemer(TermRedeemer).redeemTermRepoTokens(address(this), IERC20(targetToken).balanceOf(address(this)));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
 

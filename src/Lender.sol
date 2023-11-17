@@ -486,45 +486,13 @@ contract Lender {
         uint256 m,
         uint256 a
     ) external nonReentrant unpaused(u, m, p) returns (bool) {
-        // Fetch the desired principal token
-        address principal = IMarketPlace(marketplace).markets(u, m).tokens[p];
 
-        // Disallow mints if market is not initialized
-        if (principal == address(0)) {
-            revert Exception(26, 0, 0, address(0), address(0));
-        }
+        // Conduct the lend operation to acquire principal tokens
+        (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
+            abi.encodeWithSignature('mint(address,uint256,uint8)', u, m, p));
 
-        // Get the maturity of the principal token
-        uint256 maturity;
-        if (p == uint8(IMarketPlace.Principals.Illuminate)) {
-            revert Exception(32, 0, 0, address(0), address(0));
-        }
-        else {
-            // Conduct the lend operation to acquire principal tokens
-            (bool success,) = IMarketPlace(marketplace).adapters(p).delegatecall(
-                abi.encodeWithSignature('verify(address,uint256,address)', u, m, principal));
-
-            if (!success) {
-                revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
-            }
-        }
-        
-        // Confirm that the principal token has not matured yet
-        if (block.timestamp > maturity || maturity == 0) {
-            revert Exception(
-                7,
-                maturity,
-                block.timestamp,
-                address(0),
-                address(0)
-            );
-        }
-
-        // Transfer the users principal tokens to the lender contract
-        Safe.transferFrom(IERC20(principal), msg.sender, address(this), a);
-
-        // Calculate how much should be minted based on the decimal difference
-        uint256 mintable = convertDecimals(u, principal, a);
+        // Decode the returndata to get a mintable amount of PTs
+        uint256 mintable = abi.decode(returndata, (uint256));
 
         // Confirm that minted iPT amount will not exceed rate limit for the protocol
         rateLimit(p, u, mintable);
@@ -757,7 +725,7 @@ contract Lender {
         address u,
         address p,
         uint256 a
-    ) internal view returns (uint256) {
+    ) public view returns (uint256) {
         // Get the decimals of the underlying asset
         uint8 underlyingDecimals = IERC20(u).decimals();
 

@@ -56,19 +56,19 @@ contract TermAdapter is IAdapter {
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
+    // @param protocol The enum associated with the given market
     // @param underlying_ The address of the underlying token
     // @param maturity_ The maturity of the iPT 
-    // @param pt The address of the PT being deposited
-    // @returns bool returns true when the PT can be used for minting to the provided underlying and maturity pairing
-    function verify(address underlying_, uint256 maturity_, address pt) public view returns (bool) {
-        if (underlying(pt) != underlying_ || maturity(pt) > maturity_) {
-            revert Exception(
-                8,
-                maturity(pt),
-                maturity_,
-                underlying(pt),
-                underlying_
-            );
+    // @param targetToken The address of the token to be deposited -- note: If the market PT is not the same as the targetToken, underlying and maturity are validated
+    // @param amount The amount of the targetToken to be deposited
+    // @returns bool returns the amount of mintable iPTs
+    function mint(uint8 protocol, address underlying_, uint256 maturity_, address targetToken, uint256 amount) external returns (uint256) {
+        // Fetch the desired principal token
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
+
+        // Disallow mints if market is not initialized
+        if (pt == address(0)) {
+            revert Exception(26, 0, 0, address(0), address(0));
         }
         // Confirm that the principal token has not matured yet
         if (block.timestamp > maturity_ || maturity_ == 0) {
@@ -80,7 +80,22 @@ contract TermAdapter is IAdapter {
                 address(0)
             );
         }
-        return (true);
+        // If the targetToken is not the same as the market PT, validate the underlying and maturity
+        if (targetToken != pt) {
+            if (underlying(pt) != underlying_ || maturity(pt) > maturity_) {
+                revert Exception(
+                    8,
+                    maturity(pt),
+                    maturity_,
+                    underlying(pt),
+                    underlying_
+                );
+            }
+        }
+
+        Safe.transferFrom(IERC20(targetToken), msg.sender, address(this), amount);
+
+        return (ILender(lender).convertDecimals(underlying_, pt, amount));
     }
 
     // @notice lends `amount` to yield protocol by spending `amount-fee` on PTs from `pool`

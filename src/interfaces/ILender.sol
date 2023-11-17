@@ -22,4 +22,6 @@ interface ILender {
     function WETH() external returns (address);
 
     function curvePools(address) external returns (address);
+
+    function convertDecimals(address, address, uint256) external view returns (uint256);
 }
