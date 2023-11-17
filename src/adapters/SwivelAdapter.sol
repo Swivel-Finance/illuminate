@@ -10,8 +10,9 @@ import {IERC5095} from "src/interfaces/IERC5095.sol";
 import {ILender} from "src/interfaces/ILender.sol";
 import {IYield} from "src/interfaces/IYield.sol";
 
-import {Swivel} from "src/lib/Swivel.sol";
 import {Exception} from "src/errors/Exception.sol";
+
+import {Swivel} from "src/lib/Swivel.sol";
 import {Safe} from "src/lib/Safe.sol";
 
 contract SwivelAdapter is IAdapter {
@@ -59,6 +60,34 @@ contract SwivelAdapter is IAdapter {
     ) public pure {
     }
     
+    // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the iPT 
+    // @param pt The address of the PT being deposited
+    // @returns bool returns true when the PT can be used for minting to the provided underlying and maturity pairing
+    function verify(address underlying_, uint256 maturity_, address pt) public view returns (bool) {
+        if (underlying(pt) != underlying_ || maturity(pt) > maturity_) {
+            revert Exception(
+                8,
+                maturity(pt),
+                maturity_,
+                underlying(pt),
+                underlying_
+            );
+        }
+        // Confirm that the principal token has not matured yet
+        if (block.timestamp > maturity_ || maturity_ == 0) {
+            revert Exception(
+                7,
+                maturity_,
+                block.timestamp,
+                address(0),
+                address(0)
+            );
+        }
+        return (true);
+    }
+
     // @notice lends `amount` to Swivel protocol by spending `Sum(amount)-Totalfee` on PTs
     // @param amount The amount of the underlying token to lend (an array of amounts that corrosponds with the array of orders in `d`)
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary

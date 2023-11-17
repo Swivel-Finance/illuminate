@@ -10,6 +10,8 @@ import {IPendleToken}   from "../interfaces/IPendleToken.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
 
+import {Exception} from "../errors/Exception.sol";
+
 import {Pendle} from "../lib/Pendle.sol";
 import {Safe} from "../lib/Safe.sol";
 
@@ -59,7 +61,34 @@ contract PendleAdapter  {
     ) public pure returns (
         Pendle.TokenOutput memory tokenOutput) {
     }
-
+    
+    // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the iPT 
+    // @param pt The address of the PT being deposited
+    // @returns bool returns true when the PT can be used for minting to the provided underlying and maturity pairing
+    function verify(address underlying_, uint256 maturity_, address pt) public view returns (bool) {
+        if (underlying(pt) != underlying_ || maturity(pt) > maturity_) {
+            revert Exception(
+                8,
+                maturity(pt),
+                maturity_,
+                underlying(pt),
+                underlying_
+            );
+        }
+        // Confirm that the principal token has not matured yet
+        if (block.timestamp > maturity_ || maturity_ == 0) {
+            revert Exception(
+                7,
+                maturity_,
+                block.timestamp,
+                address(0),
+                address(0)
+            );
+        }
+        return (true);
+    }
     // @notice lends `amount` to pendle protocol
     // @param underlying_ The address of the underlying token
     // @param maturity_ The maturity of the underlying token
