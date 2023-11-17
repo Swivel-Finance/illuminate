@@ -89,7 +89,7 @@ contract TermAdapter is IAdapter {
             // Receive underlying funds, extract fees
             Safe.transferFrom(
                 IERC20(pt),
-                msg.sender,
+                lender,
                 address(this),
                 amount
             );

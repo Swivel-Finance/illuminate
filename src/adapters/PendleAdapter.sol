@@ -129,7 +129,7 @@ contract PendleAdapter  {
             // Receive underlying funds, extract fees
             Safe.transferFrom(
                 IERC20(pt),
-                msg.sender,
+                lender,
                 address(this),
                 amount
             );
@@ -140,8 +140,6 @@ contract PendleAdapter  {
         IPendle(ILender(lender).protocolRouters(1)).redeemPyToToken(address(this), IPendleToken(pt).YT(), amount, tokenOutput);
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
-
-        Safe.transfer(IERC20(underlying_), msg.sender, received);
 
         return (received, amount);
     }

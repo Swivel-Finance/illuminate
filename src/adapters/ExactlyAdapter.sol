@@ -27,7 +27,7 @@ contract ExactlyAdapter is IAdapter {
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
-        return address(IERC5095(pt).underlying());
+        return address(IExactly(pt).asset());
     }
 
     // @notice returns the maturity of the underlying token for the PT
@@ -43,15 +43,16 @@ contract ExactlyAdapter is IAdapter {
     // @returns pool The address of the pool to lend to (buy PTs from)
     function lendABI(
     ) public pure returns (
-        uint256 minimum,
-        address pool) {
+        uint256 exactlyMaturity,
+        uint256 minimumAssets) {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
     // @returns underlying_ The address of the underlying token
     // @returns maturity The maturity of the underlying token
     function redeemABI(
-    ) public pure {
+    ) public pure returns (
+        uint256 exactlyMaturity) {
     }
 
     // @notice lends `amount` to yield protocol by spending `amount-fee` on PTs from `pool`
@@ -73,11 +74,10 @@ contract ExactlyAdapter is IAdapter {
         // Parse the calldata
         (
             uint256 exactlyMaturity,
-            address exactlyToken,
-            uint256 minimumAssets,
-        ) = abi.decode(d, (uint256, address, uint256));
-
-        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+            uint256 minimumAssets // note: This could be removed and just calculated at near par? should be 1:1 or more at maturity and this accounts for prematurity redeems
+        ) = abi.decode(d, (uint256, uint256));
+        
+        address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1];
 
         if (internalBalance == false){
             // Receive underlying funds, extract fees
@@ -88,8 +88,8 @@ contract ExactlyAdapter is IAdapter {
                 amount[0]
             );
         }
-
-        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], amount[0]-(amount[0]/1000), address(this));
+        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], minimumAssets, address(this));
+        // TODO: consider changing address(this) to the redeemer if transfer isnt possible 
 
         return (returned, amount[0], amount[0] / ILender(lender).feenominator());
     }
@@ -107,17 +107,16 @@ contract ExactlyAdapter is IAdapter {
     ) external returns (uint256, uint256) {
         // Parse the calldata
         (
-            address exactlyToken,
             uint256 exactlyMaturity
-        ) = abi.decode(d, (address));
+        ) = abi.decode(d, (uint256));
 
-        require(IExactly(exactlyToken).asset() == underlying_, "exactly input token mismatch");
+        address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1];
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
                 IERC20(exactlyToken),
-                msg.sender,
+                lender,
                 address(this),
                 amount
             );
@@ -125,11 +124,9 @@ contract ExactlyAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IExactly(exactlyToken).withdrawAtMaturity(maturity, positionAssets, minAssetsRequired, receiver, owner);
+        IExactly(exactlyToken).withdrawAtMaturity(exactlyMaturity, amount, amount, address(this), address(this));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
-
-        Safe.transfer(IERC20(underlying_), msg.sender, received);
 
         return (received, amount);
     }
