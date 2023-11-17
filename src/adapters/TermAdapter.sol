@@ -13,7 +13,7 @@ import {Exception} from "../errors/Exception.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
-contract TermAdapter is IAdapter { 
+contract TermAdapter is IAdapter {
     constructor() {}
 
     address public lender; 
@@ -21,6 +21,8 @@ contract TermAdapter is IAdapter {
     address public marketplace;
 
     address public redeemer;
+
+    mapping (address => bool) private isTokenValid;
 
     event TestEvent(address, address, uint256, uint256, string);
 
@@ -65,7 +67,13 @@ contract TermAdapter is IAdapter {
     // @param targetToken The address of the token to be deposited -- note: If the market PT is not the same as the targetToken, underlying and maturity are validated
     // @param amount The amount of the targetToken to be deposited
     // @returns bool returns the amount of mintable iPTs
-    function mint(uint8 protocol, address underlying_, uint256 maturity_, address targetToken, uint256 amount) external returns (uint256) {
+    function mint(
+        uint8 protocol, 
+        address underlying_, 
+        uint256 maturity_, 
+        address targetToken, 
+        uint256 amount
+    ) external returns (uint256) {
         // Fetch the desired principal token
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
 
@@ -88,7 +96,7 @@ contract TermAdapter is IAdapter {
             // Get the token config
             ITermToken.TermRepoTokenConfig memory config = ITermToken(pt).config();
 
-            if (config.purchaseToken != underlying_ || config.redemptionTimestamp > maturity_) {
+            if (config.purchaseToken != underlying_ || config.redemptionTimestamp > maturity_ || ILender(lender).validToken(targetToken) == false) {
                 revert Exception(
                     8,
                     maturity(pt),

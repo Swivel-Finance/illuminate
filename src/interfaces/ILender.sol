@@ -11,6 +11,8 @@ interface ILender {
 
     function lend(uint8 p, address u, uint256 m, uint256[] memory a, bytes calldata d, address lst, uint256 swapMinimum) external payable returns (uint256);
 
+    function validToken(address) external view returns(bool);
+
     function transferFYTs(address, uint256) external;
 
     function transferPremium(address, uint256) external;

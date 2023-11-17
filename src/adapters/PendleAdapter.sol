@@ -24,6 +24,8 @@ contract PendleAdapter  {
 
     address public redeemer;
 
+    mapping (address => bool) private isTokenValid;
+
     event TestEvent(address, address, uint256, uint256, string);
 
     error TestException(address, address, uint256, uint256, string);
@@ -69,7 +71,13 @@ contract PendleAdapter  {
     // @param targetToken The address of the token to be deposited -- note: If the market PT is not the same as the targetToken, underlying and maturity are validated
     // @param amount The amount of the targetToken to be deposited
     // @returns bool returns the amount of mintable iPTs
-    function mint(uint8 protocol, address underlying_, uint256 maturity_, address targetToken, uint256 amount) external returns (uint256) {
+    function mint(
+        uint8 protocol, 
+        address underlying_, 
+        uint256 maturity_, 
+        address targetToken, 
+        uint256 amount
+    ) external returns (uint256) {
         // Fetch the desired principal token
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
 
@@ -89,7 +97,7 @@ contract PendleAdapter  {
         }
         // If the targetToken is not the same as the market PT, validate the underlying and maturity
         if (targetToken != pt) {
-            if (underlying(pt) != underlying_ || maturity(pt) > maturity_) {
+            if (underlying(pt) != underlying_ || maturity(pt) > maturity_ || ILender(lender).validToken(targetToken) == false) {
                 revert Exception(
                     8,
                     maturity(pt),

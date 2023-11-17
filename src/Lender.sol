@@ -31,6 +31,8 @@ contract Lender {
 
     address public redeemer;
 
+    mapping (address => bool) private isTokenValid;
+
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
     uint256 public constant hold = 3 days;
 
@@ -221,6 +223,15 @@ contract Lender {
                 ++i;
             }
         }
+        return (true);
+    }
+
+    // @notice Enables a given external protocol PT for minting should multiple be needed for a single protocol's market & underlying
+    // @notice For example, for Term which has multiple maturities per asset, all enabled PTs will be mintable
+    // @param u address of a target PT to enable for minting
+    // @returns bool true if successful
+    function enableToken(address u) external authorized(admin) returns (bool) {
+        isTokenValid[u] = true;
         return (true);
     }
 
@@ -679,6 +690,10 @@ contract Lender {
             if (!success) revert(RevertMsgExtractor.getRevertMsg(result));
             results[i] = result;
         }
+    }
+
+    function validToken(address t) external view returns (bool) {
+        return (isTokenValid[t]);
     }
 
     /// @notice reverts if any orders are not for the market
