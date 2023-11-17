@@ -105,7 +105,6 @@ contract SwivelAdapter is IAdapter {
                 );
             }
         }
-        }
         // Transfer the targetToken to the lender contract
         Safe.transferFrom(IERC20(targetToken), msg.sender, address(this), amount);
         // Return the amount of iPTs to mint 
