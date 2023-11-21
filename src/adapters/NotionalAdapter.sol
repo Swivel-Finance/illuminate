@@ -30,8 +30,8 @@ contract NotionalAdapter is IAdapter {
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
-        (IERC20 underlying,) = INotional(pt).getUnderlyingToken();
-        return address(underlying);
+        (IERC20 _underlying,) = INotional(pt).getUnderlyingToken();
+        return address(_underlying);
     }
 
     // @notice returns the maturity of the underlying token for the PT
