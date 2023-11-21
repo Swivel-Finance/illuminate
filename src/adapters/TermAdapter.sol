@@ -41,8 +41,6 @@ contract TermAdapter is IAdapter {
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
     // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
     // @returns pool The address of the pool to lend to (buy PTs from)
     function lendABI(
@@ -99,9 +97,9 @@ contract TermAdapter is IAdapter {
             if (config.purchaseToken != underlying_ || config.redemptionTimestamp > maturity_ || ILender(lender).validToken(targetToken) == false) {
                 revert Exception(
                     8,
-                    maturity(targetToken),
+                    config.redemptionTimestamp,
                     maturity_,
-                    underlying(targetToken),
+                    config.purchaseToken,
                     underlying_
                 );
             }
@@ -130,6 +128,8 @@ contract TermAdapter is IAdapter {
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the X protocol
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the underlying token
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI

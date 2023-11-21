@@ -56,8 +56,6 @@ contract SwivelAdapter is IAdapter {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
     function redeemABI(
     ) public pure {
     }
@@ -214,6 +212,8 @@ contract SwivelAdapter is IAdapter {
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the Swivel protocol
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the underlying token
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI

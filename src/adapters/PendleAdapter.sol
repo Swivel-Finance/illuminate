@@ -159,6 +159,8 @@ contract PendleAdapter  {
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the underlying token
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI

@@ -40,8 +40,6 @@ contract YieldAdapter is IAdapter {
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
     // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
     // @returns pool The address of the pool to lend to (buy PTs from)
     function lendABI(
