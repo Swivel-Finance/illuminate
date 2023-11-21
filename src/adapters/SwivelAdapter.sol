@@ -2,18 +2,19 @@
 
 pragma solidity 0.8.20;
 
-import {IAdapter} from "src/interfaces/IAdapter.sol";
-import {ISwivel} from "src/interfaces/ISwivel.sol";
-import {IERC20} from "src/interfaces/IERC20.sol";
-import {IMarketPlace} from "src/interfaces/IMarketPlace.sol";
-import {IERC5095} from "src/interfaces/IERC5095.sol";
-import {ILender} from "src/interfaces/ILender.sol";
-import {IYield} from "src/interfaces/IYield.sol";
+import {IAdapter} from "../interfaces/IAdapter.sol";
+import {ISwivel} from "../interfaces/ISwivel.sol";
+import {IERC20} from "../interfaces/IERC20.sol";
+import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
+import {IERC5095} from "../interfaces/IERC5095.sol";
+import {ILender} from "../interfaces/ILender.sol";
+import {IYield} from "../interfaces/IYield.sol";
 
-import {Exception} from "src/errors/Exception.sol";
+import {Exception} from "../errors/Exception.sol";
 
-import {Swivel} from "src/lib/Swivel.sol";
-import {Safe} from "src/lib/Safe.sol";
+import {Swivel} from "../lib/Swivel.sol";
+import {Safe} from "../lib/Safe.sol";
+
 
 contract SwivelAdapter is IAdapter {
     constructor() {}
