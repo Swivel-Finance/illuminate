@@ -8,7 +8,7 @@ import {IYield} from "../interfaces/IYield.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
 
-import {Exception} from "src/errors/Exception.sol";
+import {Exception} from "../errors/Exception.sol"; 
 
 import {Safe} from "../lib/Safe.sol";
 

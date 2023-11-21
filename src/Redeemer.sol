@@ -29,7 +29,7 @@ contract Redeemer {
     address public redeemer = address(this);
 
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
-    uint256 public constant HOLD = 3 days;
+    uint256 public constant hold = 3 days;
 
     /// @notice address that is allowed to set fees and contracts, etc. It is commonly used in the authorized modifier.
     address public admin;
@@ -39,7 +39,7 @@ contract Redeemer {
     /// @notice represents a point in time where the feenominator may change
     uint256 public feeChange;
     /// @notice represents a minimum that the feenominator must exceed
-    uint256 public MIN_FEENOMINATOR = 500;
+    uint256 public minimumFeenominator = 500;
 
     /// @notice mapping that indicates how much underlying has been redeemed by a market
     mapping(address => mapping(uint256 => uint256)) public holdings;

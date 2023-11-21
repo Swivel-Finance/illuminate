@@ -44,10 +44,10 @@ contract PendleAdapter  {
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
     // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
-    // @returns pool The address of the pool to lend to (buy PTs from)
+    // @returns market The address of the market to interact with on Pendle
+    // @returns approxParams The approximate parameters for the swap
+    // @returns tokenInput The token input for the swap
     function lendABI(
     ) public pure returns (
         uint256 minimum,
@@ -57,8 +57,7 @@ contract PendleAdapter  {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
+    // @returns tokenOutput The token output for the "swap"
     function redeemABI(
     ) public pure returns (
         Pendle.TokenOutput memory tokenOutput) {
