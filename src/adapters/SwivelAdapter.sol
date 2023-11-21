@@ -10,8 +10,9 @@ import {IERC5095} from "src/interfaces/IERC5095.sol";
 import {ILender} from "src/interfaces/ILender.sol";
 import {IYield} from "src/interfaces/IYield.sol";
 
-import {Swivel} from "src/lib/Swivel.sol";
 import {Exception} from "src/errors/Exception.sol";
+
+import {Swivel} from "src/lib/Swivel.sol";
 import {Safe} from "src/lib/Safe.sol";
 
 contract SwivelAdapter is IAdapter {
@@ -22,6 +23,8 @@ contract SwivelAdapter is IAdapter {
     address public marketplace;
 
     address public redeemer;
+
+    mapping (address => bool) private isTokenValid;
 
     // An event that can emit most params from the lend function
     event TestEvent(address, uint256, address, uint256, bool, string);
@@ -53,12 +56,59 @@ contract SwivelAdapter is IAdapter {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
-    // @returns underlying_ The address of the underlying token
-    // @returns maturity The maturity of the underlying token
     function redeemABI(
     ) public pure {
     }
     
+    // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
+    // @param protocol The enum associated with the given market
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the iPT 
+    // @param targetToken The address of the token to be deposited -- note: If the market PT is not the same as the targetToken, underlying and maturity are validated
+    // @param amount The amount of the targetToken to be deposited
+    // @returns bool returns the amount of mintable iPTs
+    function mint(
+        uint8 protocol, 
+        address underlying_, 
+        uint256 maturity_, 
+        address targetToken, 
+        uint256 amount
+    ) external returns (uint256) {
+        // Fetch the desired principal token
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
+
+        // Disallow mints if market is not initialized (verifying the input underlying and maturity are valid)
+        if (pt == address(0)) {
+            revert Exception(26, 0, 0, address(0), address(0));
+        }
+        // Confirm that the principal token has not matured yet
+        if (block.timestamp > maturity_ || maturity_ == 0) {
+            revert Exception(
+                7,
+                maturity_,
+                block.timestamp,
+                address(0),
+                address(0)
+            );
+        }
+        // If the targetToken is not the same as the market PT, validate the underlying and maturity
+        if (targetToken != pt) {
+            if (underlying(targetToken) != underlying_ || maturity(targetToken) > maturity_ || ILender(lender).validToken(targetToken) == false) {
+                revert Exception(
+                    8,
+                    maturity(targetToken),
+                    maturity_,
+                    underlying(targetToken),
+                    underlying_
+                );
+            }
+        }
+        // Transfer the targetToken to the lender contract
+        Safe.transferFrom(IERC20(targetToken), msg.sender, address(this), amount);
+        // Return the amount of iPTs to mint 
+        return (ILender(lender).convertDecimals(underlying_, pt, amount));
+    }
+
     // @notice lends `amount` to Swivel protocol by spending `Sum(amount)-Totalfee` on PTs
     // @param amount The amount of the underlying token to lend (an array of amounts that corrosponds with the array of orders in `d`)
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
@@ -162,6 +212,8 @@ contract SwivelAdapter is IAdapter {
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the Swivel protocol
+    // @param underlying_ The address of the underlying token
+    // @param maturity_ The maturity of the underlying token
     // @param amount The amount of the PTs to redeem
     // @param internalBalance Whether or not to use the internal balance or if a transfer is necessary
     // @param d The calldata for the redeem function -- described above in redeemABI
@@ -183,6 +235,10 @@ contract SwivelAdapter is IAdapter {
                 amount
             );
         }
+
+        // Retrieve unswapped premium from the Lender contract
+        ILender(lender).transferPremium(underlying_, maturity_);
+
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
         IERC5095(pt).redeem( uint128(amount), address(this), address(this));

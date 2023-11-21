@@ -7,12 +7,13 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IERC5095} from "../interfaces/IERC5095.sol";
 import {IMarketPlace} from "../interfaces/IMarketPlace.sol";
 import {ILender} from "../interfaces/ILender.sol";
+import {ITermToken, ITermRepoRedeemer} from "../interfaces/ITerm.sol";
 
 import {Exception} from "../errors/Exception.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
-contract TermAdapter is IAdapter { 
+contract TermAdapter is IAdapter {
     constructor() {}
 
     address public lender; 
@@ -30,13 +31,13 @@ contract TermAdapter is IAdapter {
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
-        return address(IERC5095(pt).underlying());
+         return (ITermToken(pt).config().purchaseToken);
     }
 
     // @notice returns the maturity of the underlying token for the PT
     // @param pt The address of the PT
     function maturity(address pt) public view returns (uint256) {
-        return IERC5095(pt).maturity();
+        return (ITermToken(pt).config().redemptionTimestamp);
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
@@ -49,8 +50,12 @@ contract TermAdapter is IAdapter {
     }
 
     // @notice redeemABI "returns" the arguments required in the bytes `d` for the redeem function
+    // @returns targetRedeemer The address of the redeemer for the provided target term repo token TODO: ensure each TermRepoToken has a unique redeemer
+    // @returns targetToken The address of the token to be redeemed
     function redeemABI(
-    ) public pure {
+    ) public pure returns (
+        address targetRedeemer,
+        address targetToken) {
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
@@ -86,12 +91,15 @@ contract TermAdapter is IAdapter {
         }
         // If the targetToken is not the same as the market PT, validate the underlying and maturity
         if (targetToken != pt) {
-            if (underlying(targetToken) != underlying_ || maturity(targetToken) > maturity_ || ILender(lender).validToken(targetToken) == false) {
+            // Get the token config
+            ITermToken.TermRepoTokenConfig memory config = ITermToken(targetToken).config();
+
+            if (config.purchaseToken != underlying_ || config.redemptionTimestamp > maturity_ || ILender(lender).validToken(targetToken) == false) {
                 revert Exception(
                     8,
-                    maturity(targetToken),
+                    config.redemptionTimestamp,
                     maturity_,
-                    underlying(targetToken),
+                    config.purchaseToken,
                     underlying_
                 );
             }
@@ -116,8 +124,7 @@ contract TermAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256, uint256) {
-
-        return (0,0,0);
+        revert Exception(99, 0, 0, address(0), address(0));
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the X protocol
@@ -133,6 +140,13 @@ contract TermAdapter is IAdapter {
         bool internalBalance,
         bytes calldata d
     ) external returns (uint256, uint256) {
+
+        // Parse the calldata
+        (
+            address targetRedeemer,
+            address targetToken
+        ) = abi.decode(d, (address, address));
+
         // TODO: Double check protocol enum
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
         
@@ -148,11 +162,9 @@ contract TermAdapter is IAdapter {
 
         uint256 starting = IERC20(underlying_).balanceOf(address(this));
 
-        IERC5095(pt).redeem(amount, address(this), address(this));
+        ITermRepoRedeemer(targetRedeemer).redeemTermRepoTokens(address(this), IERC20(targetToken).balanceOf(address(this)));
 
         uint256 received = IERC20(underlying_).balanceOf(address(this)) - starting;
-
-        Safe.transfer(IERC20(underlying_), msg.sender, received);
 
         return (received, amount);
     }

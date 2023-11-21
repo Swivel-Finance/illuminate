@@ -31,6 +31,8 @@ contract Lender {
 
     address public redeemer;
 
+    mapping (address => bool) private isTokenValid;
+
     /// @notice minimum wait before the admin may withdraw funds or change the fee rate
     uint256 public constant hold = 3 days;
 
@@ -221,6 +223,15 @@ contract Lender {
                 ++i;
             }
         }
+        return (true);
+    }
+
+    // @notice Enables a given external protocol PT for minting should multiple be needed for a single protocol's market & underlying
+    // @notice For example, for Term which has multiple maturities per asset, all enabled PTs will be mintable
+    // @param u address of a target PT to enable for minting
+    // @returns bool true if successful
+    function enableToken(address u) external authorized(admin) returns (bool) {
+        isTokenValid[u] = true;
         return (true);
     }
 
@@ -463,10 +474,8 @@ contract Lender {
 
     /// @notice Transfers premium from the market to Redeemer (used specifically for Swivel redemptions)
     /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
     function transferPremium(
-        address u,
-        uint256 m
+        address u
     ) external authorized(IMarketPlace(marketplace).redeemer()) {
         Safe.transfer(
             IERC20(u),
@@ -474,62 +483,28 @@ contract Lender {
             IERC20(u).balanceOf(address(this))- fees[u]
         );
     }
+
     /// @notice mint swaps the sender's principal tokens for Illuminate's ERC5095 tokens in effect, this opens a new fixed rate position for the sender on Illuminate
     /// @param p principal value according to the MarketPlace's Principals Enum
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
+    /// @param t address of the principal token to deposit
     /// @param a amount being minted
     /// @return bool true if the mint was successful
     function mint(
         uint8 p,
         address u,
         uint256 m,
+        address t,
         uint256 a
-    ) external nonReentrant unpaused(u, m, p) returns (bool) {
-        // Fetch the desired principal token
-        address principal = IMarketPlace(marketplace).markets(u, m).tokens[p];
+    ) external nonReentrant unpaused(u, m, p) returns (uint256) {
 
-        // Disallow mints if market is not initialized
-        if (principal == address(0)) {
-            revert Exception(26, 0, 0, address(0), address(0));
-        }
+        // Conduct the lend operation to acquire principal tokens
+        (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
+            abi.encodeWithSignature('mint(address,uint256,uint8)', u, m, p, t, a));
 
-        // Get the maturity of the principal token
-        uint256 maturity;
-        if (p == uint8(IMarketPlace.Principals.Illuminate)) {
-            revert Exception(32, 0, 0, address(0), address(0));
-        } else if (p == uint8(IMarketPlace.Principals.Swivel)) {
-            maturity = Maturities.swivel(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Yield)) {
-            maturity = Maturities.yield(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Element)) {
-            maturity = Maturities.element(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Pendle)) {
-            maturity = Maturities.pendle(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Tempus)) {
-            maturity = Maturities.tempus(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Apwine)) {
-            maturity = Maturities.apwine(principal);
-        } else if (p == uint8(IMarketPlace.Principals.Notional)) {
-            maturity = Maturities.notional(principal);
-        }
-
-        // Confirm that the principal token has not matured yet
-        if (block.timestamp > maturity || maturity == 0) {
-            revert Exception(
-                7,
-                maturity,
-                block.timestamp,
-                address(0),
-                address(0)
-            );
-        }
-
-        // Transfer the users principal tokens to the lender contract
-        Safe.transferFrom(IERC20(principal), msg.sender, address(this), a);
-
-        // Calculate how much should be minted based on the decimal difference
-        uint256 mintable = convertDecimals(u, principal, a);
+        // Decode the returndata to get a mintable amount of PTs
+        uint256 mintable = abi.decode(returndata, (uint256));
 
         // Confirm that minted iPT amount will not exceed rate limit for the protocol
         rateLimit(p, u, mintable);
@@ -539,7 +514,7 @@ contract Lender {
 
         emit Mint(p, u, m, mintable);
 
-        return (true);
+        return (mintable);
     }
 
     /// @notice Allows users to lend underlying asset for Illuminate PTs via an approved protocol
@@ -715,6 +690,10 @@ contract Lender {
         }
     }
 
+    function validToken(address t) external view returns (bool) {
+        return (isTokenValid[t]);
+    }
+
     /// @notice reverts if any orders are not for the market
     function swivelVerify(Swivel.Order[] memory o, address u) internal pure {
         for (uint256 i; i != o.length; ) {
@@ -762,7 +741,7 @@ contract Lender {
         address u,
         address p,
         uint256 a
-    ) internal view returns (uint256) {
+    ) public view returns (uint256) {
         // Get the decimals of the underlying asset
         uint8 underlyingDecimals = IERC20(u).decimals();
 
