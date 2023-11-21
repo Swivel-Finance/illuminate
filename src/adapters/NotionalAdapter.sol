@@ -12,7 +12,7 @@ import {Exception} from "../errors/Exception.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
-contract TermAdapter is IAdapter { 
+contract NotionalAdapter is IAdapter { 
     constructor() {}
 
     address public lender; 
