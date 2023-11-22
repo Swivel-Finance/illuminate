@@ -263,27 +263,6 @@ contract MarketPlace {
         return (true);
     }
 
-    /// @notice approves any necessary addresses
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param p index of the protocol's adapter
-    /// @return bool true if approvals occurred, false if not
-    function approve(
-        address u,
-        uint256 m,
-        uint8 p
-    ) external authorized(admin) returns (bool) {
-        address adapter = adapters[p];
-
-        if (adapter == address(0)) {
-            revert Exception(0, 0, 0, address(0), address(0));
-        }
-
-        Safe.approve(IERC20(u), adapter, type(uint256).max);
-
-        return (true);
-    }
-
     /// @notice sells the PT for the underlying via the pool
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
