@@ -166,7 +166,7 @@ contract Redeemer {
                 address(0)
             );
             // Check the the new fee rate is not too high
-        } else if (f < MIN_FEENOMINATOR) {
+        } else if (f < minimumFeenominator) {
             revert Exception(25, 0, 0, address(0), address(0));
         }
 
@@ -183,7 +183,7 @@ contract Redeemer {
     /// @notice allows the admin to schedule a change to the fee denominators
     function scheduleFeeChange() external authorized(admin) returns (bool) {
         // Calculate the timestamp that must be passed prior to setting thew new fee
-        uint256 when = block.timestamp + HOLD;
+        uint256 when = block.timestamp + hold;
 
         // Store the timestamp that must be passed to update the fee rate
         feeChange = when;
