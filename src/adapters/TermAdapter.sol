@@ -40,6 +40,11 @@ contract TermAdapter is IAdapter {
         return (ITermToken(pt).config().redemptionTimestamp);
     }
 
+    // @notice returns the protocol enum of this given adapter
+    function protocol() public view returns (uint8) {
+        return (0);
+    }
+
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
     // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
     // @returns pool The address of the pool to lend to (buy PTs from)
@@ -59,21 +64,19 @@ contract TermAdapter is IAdapter {
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
-    // @param protocol The enum associated with the given market
     // @param underlying_ The address of the underlying token
     // @param maturity_ The maturity of the iPT 
     // @param targetToken The address of the token to be deposited -- note: If the market PT is not the same as the targetToken, underlying and maturity are validated
     // @param amount The amount of the targetToken to be deposited
     // @returns bool returns the amount of mintable iPTs
     function mint(
-        uint8 protocol, 
         address underlying_, 
         uint256 maturity_, 
         address targetToken, 
         uint256 amount
     ) external returns (uint256) {
         // Fetch the desired principal token
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()];
 
         // Disallow mints if market is not initialized (verifying the input underlying and maturity are valid)
         if (pt == address(0)) {
@@ -148,7 +151,7 @@ contract TermAdapter is IAdapter {
         ) = abi.decode(d, (address, address));
 
         // TODO: Double check protocol enum
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[7];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()];
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
