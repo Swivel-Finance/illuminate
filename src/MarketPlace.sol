@@ -8,6 +8,7 @@ import "./errors/Exception.sol";
 
 import "./interfaces/ICreator.sol";
 import "./interfaces/IPool.sol";
+import "./interfaces/ILender.sol";
 
 /// @title MarketPlace
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -154,13 +155,14 @@ contract MarketPlace {
         );
 
         {   
-            // Assign values for the principal tokens and adapters array
+            // Assign values for the principal tokens array 
             for (uint i = 0; i < t.length; i++) {
                 market.tokens[i + 1] = t[i];
-                // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 120
-                // While the rest (both adapters and tokens outside of the iPT) are set in this loop
+                // TODO: Get a small review here on the logic -- The idea is we input adapter[0] as an illuminate adapter, and token is already set on line 146
             }
         }
+        // Use auth method to approve redeemer to spend lender's PTs
+        ILender(lender).principalApprove(t);
 
         // Store market in the markets mapping
         _markets[u][m] = market;
@@ -182,30 +184,23 @@ contract MarketPlace {
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param a address of the new principal token
-    /// @param adapter address of the protocol's adapter contract
-    /// @param approvalCalldata calldata for approvals for the protcol
     /// @return bool true if the principal set, false otherwise
     function setPrincipal(
         uint8 p,
         address u,
         uint256 m,
-        address a,
-        address adapter,
-        bytes calldata approvalCalldata
+        address a
     ) external authorized(admin) returns (bool) {
         // Set the principal token in the markets mapping
         _markets[u][m].tokens[p] = a;
+        // Approve the redeemer to spend the lender's principal token
+        address[] memory pt = new address[](1);
+        pt[0] = a;
+        ILender(lender).principalApprove(pt);
 
-        // Call any necessary approvals for the new adapter
-        (bool success, ) = adapter.delegatecall(
-            abi.encodeWithSignature(
-                'approve(address[] calldata)',
-                approvalCalldata
-            )
-        );
+        emit SetPrincipal(u, m, a, adapters[p], p);
 
-        emit SetPrincipal(u, m, a, adapter, p);
-        return (success);
+        return (true);
     }
 
     /// @notice sets the admin address
@@ -268,17 +263,15 @@ contract MarketPlace {
         return (true);
     }
 
-    /// @notice approves any necessary addresses for a protocol via its adapter
+    /// @notice approves any necessary addresses
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
     /// @param p index of the protocol's adapter
-    /// @param a approval calldata for the given protocol
     /// @return bool true if approvals occurred, false if not
     function approve(
         address u,
         uint256 m,
-        uint8 p,
-        bytes calldata a
+        uint8 p
     ) external authorized(admin) returns (bool) {
         address adapter = adapters[p];
 
@@ -286,11 +279,9 @@ contract MarketPlace {
             revert Exception(0, 0, 0, address(0), address(0));
         }
 
-        (bool success, ) = adapter.delegatecall(
-            abi.encodeWithSignature('approve(address[] calldata)', a)
-        );
+        Safe.approve(IERC20(u), adapter, type(uint256).max);
 
-        return (success);
+        return (true);
     }
 
     /// @notice sells the PT for the underlying via the pool
