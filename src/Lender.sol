@@ -519,7 +519,7 @@ contract Lender {
 
         // Conduct the lend operation to acquire principal tokens
         (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
-            abi.encodeWithSignature('mint(address,uint256,uint8)', u, m, p, t, a));
+            abi.encodeWithSignature('mint(address,uint256,uint8,uint256)', u, m, t, a));
 
         // Decode the returndata to get a mintable amount of PTs
         uint256 mintable = abi.decode(returndata, (uint256));
