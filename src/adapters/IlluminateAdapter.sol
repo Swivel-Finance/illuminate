@@ -12,7 +12,7 @@ import {Exception} from "../errors/Exception.sol";
 
 import {Safe} from "../lib/Safe.sol";
 
-contract YieldAdapter is IAdapter { 
+contract IlluminateAdapter is IAdapter { 
     constructor() {}
 
     address public lender; 
