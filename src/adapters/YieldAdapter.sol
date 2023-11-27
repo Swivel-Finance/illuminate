@@ -41,7 +41,7 @@ contract YieldAdapter is IAdapter {
 
     // @notice returns the protocol enum of this given adapter
     function protocol() public view returns (uint8) {
-        return (0);
+        return (2);
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
