@@ -226,6 +226,24 @@ contract Lender {
         return (true);
     }
 
+    /// @notice bulk approves the usage of addresses at the given ERC20 addresses.
+    /// @dev the lengths of the inputs must match because the arrays are paired by index
+    /// @param pt array of PT addresses that will be approved on
+    /// @return true if successful
+    function principalApprove(
+        address[] calldata pt
+    ) external authorized(marketplace) returns (bool) {
+        for (uint256 i; i != pt.length; ) {
+            IERC20 uToken = IERC20(pt[i]);
+            if (address(0) != (address(uToken))) {
+                Safe.approve(uToken, redeemer, type(uint256).max);
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        return (true);
+    }
     // @notice Enables a given external protocol PT for minting should multiple be needed for a single protocol's market & underlying
     // @notice For example, for Term which has multiple maturities per asset, all enabled PTs will be mintable
     // @param u address of a target PT to enable for minting
@@ -501,7 +519,7 @@ contract Lender {
 
         // Conduct the lend operation to acquire principal tokens
         (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
-            abi.encodeWithSignature('mint(address,uint256,uint8)', u, m, p, t, a));
+            abi.encodeWithSignature('mint(address,uint256,uint8,uint256)', u, m, t, a));
 
         // Decode the returndata to get a mintable amount of PTs
         uint256 mintable = abi.decode(returndata, (uint256));

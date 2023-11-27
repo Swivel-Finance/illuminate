@@ -42,6 +42,11 @@ contract SwivelAdapter is IAdapter {
         return IERC5095(pt).maturity();
     }
 
+    // @notice returns the protocol enum of this given adapter
+    function protocol() public view returns (uint8) {
+        return (1);
+    }
+
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
     // @returns orders The orders to be executed -- see Swivel for more info -- https://github.com/Swivel-Finance/swivel/blob/main/contracts/v4/src/lib/Hash.sol#L14
     // @returns components The components of the orders -- see Swivel for more info -- https://github.com/Swivel-Finance/swivel/blob/main/contracts/v4/src/lib/Sig.sol#L7
@@ -62,21 +67,19 @@ contract SwivelAdapter is IAdapter {
     }
     
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
-    // @param protocol The enum associated with the given market
     // @param underlying_ The address of the underlying token
     // @param maturity_ The maturity of the iPT 
     // @param targetToken The address of the token to be deposited -- note: If the market PT is not the same as the targetToken, underlying and maturity are validated
     // @param amount The amount of the targetToken to be deposited
     // @returns bool returns the amount of mintable iPTs
     function mint(
-        uint8 protocol, 
         address underlying_, 
         uint256 maturity_, 
         address targetToken, 
         uint256 amount
     ) external returns (uint256) {
         // Fetch the desired principal token
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()];
 
         // Disallow mints if market is not initialized (verifying the input underlying and maturity are valid)
         if (pt == address(0)) {
@@ -142,7 +145,7 @@ contract SwivelAdapter is IAdapter {
                 )
             );
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[1]; // TODO: Get Swivel PT enum
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()]; // TODO: Get Swivel PT enum
 
         address _underlying = IERC5095(pt).underlying();
 
@@ -226,7 +229,7 @@ contract SwivelAdapter is IAdapter {
         bytes calldata d
     ) external returns (uint256, uint256) {
 
-        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[0];
+        address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()];
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
