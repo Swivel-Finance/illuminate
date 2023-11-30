@@ -50,11 +50,18 @@ contract NotionalTest is Test {
         // Deploy yield adapter
         NotionalAdapter notionalAdapter = new NotionalAdapter();
 
-        address[] memory tokens = new address[](1);
-        address[] memory adapters = new address[](2);
-        tokens[0] = notionalDecemberPT;
-        adapters[0] = address(notionalAdapter);
-        adapters[1] = address(notionalAdapter);
+        address[] memory tokens = new address[](11);
+        address[] memory adapters = new address[](12);
+        for (uint256 i = 0; i < 11; i++) {
+            adapters[i] = address(0);
+        }
+        for (uint256 i = 0; i < 11; i++) {
+            tokens[i] = address(0);
+        }
+
+    
+        adapters[8] = address(notionalAdapter);
+        tokens[7] = notionalDecemberPT;
         marketplace.setAdapters(adapters);
         // Create market
         marketplace.createMarket(USDC, maturity, tokens, "iPT-DEC", "iPT-DEC-USDC");
@@ -93,11 +100,10 @@ contract NotionalTest is Test {
         assertEq(IERC20(USDC).allowance(userPublicKey, address(lender)), type(uint256).max-1);
         // ensure balance is enough for amount
         assertGt(IERC20(USDC).balanceOf(userPublicKey), amount[0]);
-        lender.lend(1, address(USDC), maturity, amount, bytes("0"));
-        assertEq(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), 
-                 IERC20(marketplace.markets(USDC, maturity).tokens[1]).balanceOf(address(lender)));
+        lender.lend(8, address(USDC), maturity, amount, bytes("0"));
+        uint256 adjustedLenderPTBalance = ILender(address(lender)).convertDecimals(USDC, notionalDecemberPT, IERC20(marketplace.markets(USDC, maturity).tokens[8]).balanceOf(address(lender)));
+        assertApproxEqRel(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), adjustedLenderPTBalance,1e16);
 
         assertGt(IERC20(marketplace.markets(USDC, maturity).tokens[0]).balanceOf(userPublicKey), amount[0]);
     }
-
 }
