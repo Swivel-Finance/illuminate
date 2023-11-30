@@ -158,7 +158,7 @@ contract PendleAdapter  {
             tokenInput
         );
 
-        return (returned, amount[0], amount[0] / ILender(lender).feenominator());
+        return (returned, amount[0], amount[0] / ILender(lender).feenominator(maturity_));
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the yield protocol
