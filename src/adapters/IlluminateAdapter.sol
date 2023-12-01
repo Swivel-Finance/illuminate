@@ -139,7 +139,7 @@ contract IlluminateAdapter is IAdapter {
             );
         }
 
-        uint256 fee = amount[0] / ILender(lender).feenominator();
+        uint256 fee = amount[0] / ILender(lender).feenominator(maturity_);
 
         // Execute the order
         uint256 starting = IERC20(pt).balanceOf(address(this));

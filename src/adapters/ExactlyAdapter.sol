@@ -147,7 +147,7 @@ contract ExactlyAdapter is IAdapter {
         (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], minimumAssets, address(this));
         // TODO: consider changing address(this) to the redeemer if transfer isnt possible 
 
-        return (returned, amount[0], amount[0] / ILender(lender).feenominator());
+        return (returned, amount[0], amount[0] / ILender(lender).feenominator(maturity_));
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the X protocol

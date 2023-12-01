@@ -176,7 +176,7 @@ contract SwivelAdapter is IAdapter {
 
                 // Extract fee from the "last" (assuming the least optimal) order
                 if (i == amount.length - 1) {
-                    fee = total / ILender(lender).feenominator();
+                    fee = total / ILender(lender).feenominator(maturity_);
                     amount[i] = amount[i] - fee;
                 }
                 unchecked {

@@ -54,7 +54,8 @@ contract Lender {
     address[] public protocolRouters; // 1 = Swivel | 2 = Pendle | 3 = APWine | 4+ = Unused as of 11/1/23
 
     /// @notice this value determines the amount of fees paid on loans
-    uint256 public feenominator;
+    /// @dev the fee starts assuming a 10 yr market and linearly decreases as the maturity approaches
+    uint256 public baseFeenominator;
     /// @notice represents a point in time where the feenominator may change
     uint256 public feeChange;
     /// @notice represents a minimum that the feenominator must exceed
@@ -174,7 +175,7 @@ contract Lender {
         protocolRouters.push(s);
         protocolRouters.push(p);
         protocolRouters.push(a);
-        feenominator = 1000;
+        baseFeenominator = 1000;
     }
 
     /// @notice approves the redeemer contract to spend the principal tokens held by the lender contract.
@@ -280,7 +281,7 @@ contract Lender {
         return (true);
     }
 
-    /// @notice sets the feenominator to the given value
+    /// @notice sets the feenominator to the given base value
     /// @param f the new value of the feenominator, fees are not collected when the feenominator is 0
     /// @return bool true if successful
     function setFee(uint256 f) external authorized(admin) returns (bool) {
@@ -298,10 +299,20 @@ contract Lender {
         } else if (f < minimumFeenominator) {
             revert Exception(25, 0, 0, address(0), address(0));
         }
-        feenominator = f;
+        baseFeenominator = f;
         delete feeChange;
         emit SetFee(f);
         return (true);
+    }
+
+    function feenominator(uint256 maturity) public view returns (uint256) {
+        uint256 _baseFeenominator = baseFeenominator;
+        if (_baseFeenominator == 0 || block.timestamp > maturity) {
+            return (0);
+        } else {
+            uint256 timeUntilMaturity = maturity - block.timestamp;
+            return (baseFeenominator * 3650 days / timeUntilMaturity);
+        }
     }
 
     // @notice sets the redeemer address

@@ -45,7 +45,7 @@ contract MarketPlace {
     /// @notice uint8 Principal enum mapped to an address of a deployed adapter.
     mapping(uint8 => address) public adapters;
     /// @notice markets are defined by a maturity and underlying tuple that points to an array of principal token addresses.
-    mapping(address => mapping(uint256 => Market)) public _markets;
+    mapping(address => mapping(uint256 => Market)) internal _markets;
     /// @notice address that is allowed to create markets, set pools, etc. It is commonly used in the authorized modifier.
     address public admin;
     /// @notice address of the deployed creator contract
