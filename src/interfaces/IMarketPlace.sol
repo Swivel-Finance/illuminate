@@ -13,7 +13,9 @@ interface IMarketPlace {
         Tempus, // 5
         Sense, // 6
         Apwine, // 7
-        Notional // 8
+        Notional, // 8
+        Term, // 9
+        Swivelv3 //10
     }
     
     struct Market {

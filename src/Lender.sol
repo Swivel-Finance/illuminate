@@ -530,7 +530,7 @@ contract Lender {
 
         // Conduct the lend operation to acquire principal tokens
         (,bytes memory returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
-            abi.encodeWithSignature('mint(address,uint256,uint8,uint256)', u, m, t, a));
+            abi.encodeWithSignature('mint(address,uint256,address,uint256)', u, m, t, a));
 
         // Decode the returndata to get a mintable amount of PTs
         uint256 mintable = abi.decode(returndata, (uint256));
@@ -612,7 +612,10 @@ contract Lender {
         bytes memory returndata;
 
         // If the lst parameter is not populated, a swap is not required
-        if (lst == address(0)) {
+        if (lst == address(0) || lst == WETH) {
+            if (lst == WETH) {
+                IERC20(WETH).transferFrom(msg.sender, address(this), a[0]);
+            }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, false, d));
@@ -620,8 +623,8 @@ contract Lender {
         // If the lst parameter is populated, swap into the requested lst
         else {
             // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
-            if (p == uint8(IMarketPlace.Principals.Swivel)) {
                 // Sum the amounts to be spent
+            if (p == uint8(IMarketPlace.Principals.Swivelv3) || p == uint8(IMarketPlace.Principals.Swivelv4)) {
                 uint256 total;
                 for (uint256 i; i != a.length; ) {
                     total += a[i];
@@ -645,8 +648,7 @@ contract Lender {
             (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, true, d));
         }
-        
-        if (!success) {
+                if (!success) {
             revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
         }
 
