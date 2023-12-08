@@ -34,15 +34,15 @@ contract ETHWrapper {
 
         // Instantiate Curve and determine Curve pathing
         ICurve curve = ICurve(pool);  
-        if (curve.coins(0) != input || curve.coins(1) != input) {
+        if (curve.coins(0) != input && curve.coins(1) != input) {
             revert('Input token is not supported by provided Curve Pool');
         }
-        if (curve.coins(0) != output || curve.coins(1) != output) {
+        if (curve.coins(0) != output && curve.coins(1) != output) {
             revert('Output token is not supported by provided Curve Pool');
         }
 
-        int128 _input;
-        int128 _output;
+        uint256 _input;
+        uint256 _output;
         if (curve.coins(0) == input) {
             _input = 0;
             _output = 1;
