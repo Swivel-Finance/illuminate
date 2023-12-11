@@ -18,6 +18,7 @@ import "./interfaces/IElementVault.sol";
 import "./interfaces/IETHWrapper.sol";
 import "./interfaces/IMarketPlace.sol";
 import "./interfaces/ICurve.sol";
+import "./interfaces/IWETH.sol";
 
 /// @title Lender
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -613,8 +614,14 @@ contract Lender {
 
         // If the lst parameter is not populated, a swap is not required
         if (lst == address(0) || lst == WETH) {
+            // If WETH transfer in
             if (lst == WETH) {
                 IERC20(WETH).transferFrom(msg.sender, address(this), a[0]);
+            }
+            // Else if ETH deposit into WETH
+            else {
+                require(msg.value == a[0], 'StrategyRouter: Invalid msg.value');
+                IWETH(WETH).deposit{value: a[0]}();
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
@@ -624,7 +631,7 @@ contract Lender {
         else {
             // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
                 // Sum the amounts to be spent
-            if (p == uint8(IMarketPlace.Principals.Swivelv3) || p == uint8(IMarketPlace.Principals.Swivelv4)) {
+            if (p == uint8(IMarketPlace.Principals.Swivelv3) || p == uint8(IMarketPlace.Principals.Swivel)) {
                 uint256 total;
                 for (uint256 i; i != a.length; ) {
                     total += a[i];
