@@ -115,7 +115,7 @@ contract NotionalAdapter is IAdapter {
         uint256[] calldata amount,
         bool internalBalance,
         bytes calldata d
-    ) external returns (uint256, uint256, uint256) {
+    ) external payable returns (uint256, uint256, uint256) {
 
         address pt = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()]; // TODO: get yield PT enum
         if (internalBalance == false){
