@@ -65,7 +65,7 @@ contract SwivelAdapter is IAdapter {
     function redeemABI(
     ) public pure {
     }
-    
+
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
     // @param underlying_ The address of the underlying token
     // @param maturity_ The maturity of the iPT 
@@ -126,7 +126,7 @@ contract SwivelAdapter is IAdapter {
         uint256[] memory amount,
         bool internalBalance,
         bytes calldata d
-    ) external returns (uint256, uint256, uint256) {
+    ) external payable returns (uint256, uint256, uint256) {
         // Parse the calldata into the arguments
         (   
             Swivel.Order[] memory orders,
@@ -196,7 +196,7 @@ contract SwivelAdapter is IAdapter {
                 total
             );
         }
-        
+
         // Store amount of external PTs before minting
         uint256 received = IERC20(pt).balanceOf(address(this));
         // Execute the orders
