@@ -130,7 +130,7 @@ contract PendleAdapter  {
         uint256[] calldata amount,
         bool internalBalance,
         bytes calldata d
-    ) external returns (uint256, uint256, uint256) {
+    ) external payable returns (uint256, uint256, uint256) {
 
         // Parse the calldata
         (
