@@ -3,15 +3,15 @@ pragma solidity 0.8.20;
 
 interface ICurve {
     function exchange(
-        int128,
-        int128,
+        uint256,
+        uint256,
         uint256,
         uint256
     ) external returns (uint256);
 
-    function get_dy(int128, int128, uint256) external returns (uint256);
+    function get_dy(uint256, uint256, uint256) external returns (uint256);
 
-    function coins(int128) external returns (address);
+    function coins(uint256) external returns (address);
 }
 
 interface ICurveV2 {
