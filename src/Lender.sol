@@ -620,12 +620,12 @@ contract Lender {
             }
             // Else if ETH deposit into WETH
             else {
-                require(msg.value == a[0], 'Invalid msg.value');
+                require(msg.value == a[0], 'StrategyRouter: Invalid msg.value');
                 IWETH(WETH).deposit{value: a[0]}();
             }
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
-                abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, true, d));
+                abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, false, d));
         }
         // If the lst parameter is populated, swap into the requested lst
         else {

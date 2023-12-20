@@ -124,7 +124,7 @@ contract ExactlyAdapter is IAdapter {
         uint256[] calldata amount,
         bool internalBalance,
         bytes calldata d
-    ) external payable returns (uint256, uint256, uint256) {
+    ) external returns (uint256, uint256, uint256) {
         // TODO: Consider validation of the `exactlyMaturity` parameter -- on lends, if exactlyMaturity < maturity_ were fine, 
         // on redeem it may need to be validated within a certain range of our maturity
         // Parse the calldata
