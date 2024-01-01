@@ -15,21 +15,10 @@ interface ICurve {
 }
 
 interface ICurveV2 {
-    function exchange(
-        address,
-        address,
-        address,
-        uint256,
-        uint256,
-        address
-    ) external payable returns (uint256);
-
     function exchange_with_best_rate(
         address,
         address,
-        address,
         uint256,
-        uint256,
-        address
+        uint256
     ) external payable returns (uint256);
 }

@@ -6,9 +6,6 @@ import "forge-std/console.sol";
 
 // import all major contracts
 import "../ETHWrapper.sol";
- 
-// import adapters
-import "../adapters/ExactlyAdapter.sol"; 
 
 contract ETHWrapperTest is Test {
 
@@ -18,6 +15,7 @@ contract ETHWrapperTest is Test {
     address stETH = 0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84;
     address stETHcurvePool = 0xDC24316b9AE028F1497c275EB9192a3Ea0f67022;
     address frxETHcurvePool = 0xa1F8A6807c402E4A15ef4EBa36528A3FED24E577;
+    address curveRouter = 0x99a58482BD75cbab83b27EC03CA68fF489b5788f;
     address userPublicKey = 0x3f60008Dfd0EfC03F476D9B489D6C5B13B3eBF2C;
 
     uint256 startingBalance = 100000 ether;
@@ -93,5 +91,18 @@ contract ETHWrapperTest is Test {
                 0
             )
         );
+    }
+
+    function testWrapETH2() public {
+            (bool success, bytes memory returnData) = address(ethWrapper).delegatecall(
+                abi.encodeWithSignature(
+                    "swap(address,address,address,uint256,uint256)",
+                    curveRouter,
+                    ETH,
+                    stETH,
+                    1 ether/10,
+                    0
+                )
+            );
     }
 }
