@@ -18,6 +18,8 @@ contract ETHWrapper {
     constructor() {
     }
 
+    event TestEvent(address, address, uint256, uint256, string);
+
     /// @notice convert using Curve Finance
     /// @notice expects funds already sent to this contract
     /// @param input address of the token to be spent on Curve
@@ -41,8 +43,8 @@ contract ETHWrapper {
             revert('Output token is not supported by provided Curve Pool');
         }
 
-        uint256 _input;
-        uint256 _output;
+        int128 _input;
+        int128 _output;
         if (curve.coins(0) == input) {
             _input = 0;
             _output = 1;
@@ -53,12 +55,21 @@ contract ETHWrapper {
 
         // Swap on curve, spending amount of input, expecting minimumCurve of output
         // TODO support for Curve v2?
-        uint256 returned = ICurve(pool).exchange(_input, _output, amount, minimum);
+        uint256 returned;
+        if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
+            returned = ICurve(pool).exchange{value: amount}(_input, _output, amount, minimum);
+        } else {
+            returned = ICurve(pool).exchange(_input, _output, amount, minimum);
+        }
         // TODO: Double check this calculation -- I derived it and checked the outputs on chain but worth a double check
-        // slippageRatio is the denominator necessary to adjust other values to the same scale as the returned value
-        uint256 slippageRatio = 1e18 / ((amount - returned) * 1e18 / amount);
-
-        return (returned, slippageRatio);
-
+        // conversionRatio is the denominator necessary to adjust other values to the same scale as the returned value
+        uint256 conversionRatio;
+        if (returned > amount) {
+            conversionRatio = 1e18 / ((returned - amount) * 1e18 / amount);
+        }
+        else {
+            conversionRatio = 1e18 / ((amount - returned) * 1e18 / amount);
+        }
+        return (returned, conversionRatio);
     }
 }
