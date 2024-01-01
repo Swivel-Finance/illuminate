@@ -179,34 +179,6 @@ contract Lender {
         baseFeenominator = 1000;
     }
 
-    /// @notice approves the redeemer contract to spend the principal tokens held by the lender contract.
-    /// @param u address of an underlying asset
-    /// @param m maturity (timestamp) of the market
-    /// @param r the address being approved, in this case the redeemer contract
-    /// @return bool true if the approval was successful
-    function approve(
-        address u,
-        uint256 m,
-        address r
-    ) external authorized(admin) returns (bool) {
-        // approve the underlying for max per given principal
-        for (uint8 i; i != 9; ) {
-            // get the principal token's address
-            address token = IMarketPlace(marketplace).markets(u, m).tokens[i];
-            // check that the token is defined for this particular market
-            if (token != address(0)) {
-                // max approve the token
-                Safe.approve(IERC20(token), r, type(uint256).max);
-            }
-            unchecked {
-                ++i;
-            }
-        }
-        // approve the redeemer to receive underlying from the lender
-        Safe.approve(IERC20(u), r, type(uint256).max);
-        return (true);
-    }
-
     /// @notice bulk approves the usage of addresses at the given ERC20 addresses.
     /// @dev the lengths of the inputs must match because the arrays are paired by index
     /// @param u array of ERC20 token addresses that will be approved on
