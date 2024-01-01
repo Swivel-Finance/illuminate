@@ -22,14 +22,17 @@ contract ETHWrapperTest is Test {
 
     ETHWrapper ethWrapper;
 
-
+    fallback() external payable {} 
+    
     function setUp() public {
 
         // Deploy all major contracts
         ethWrapper = new ETHWrapper(); 
-
-        // Deal Balances
-        deal(address(ethWrapper), 10000 ether);
+        // Deal balances
+        deal(address(this), 10000 ether);
+        vm.startPrank(0xa980d4c0C2E48d305b582AA439a3575e3de06f0E);
+        IERC20(stETH).transfer(address(this), 100 ether);
+        vm.stopPrank();
     }
 
     function testWrapETH() public {
@@ -44,5 +47,20 @@ contract ETHWrapperTest is Test {
                     0
                 )
             );
+    }
+
+    function testUnwrapETH() public payable {
+        IERC20(stETH).approve(curvePool, 9999999999999999999999999999999999999);
+        // DelegateCall the ETHWrapper.wrap
+        (bool success, bytes memory returnData) = address(ethWrapper).delegatecall(
+            abi.encodeWithSignature(
+                "swap(address,address,address,uint256,uint256)",
+                curvePool,
+                stETH,
+                ETH,
+                1 ether/10,
+                0
+            )
+        );
     }
 }

@@ -18,6 +18,8 @@ contract ETHWrapper {
     constructor() {
     }
 
+    fallback() external payable {} 
+
     event TestEvent(address, address, uint256, uint256, string);
 
     /// @notice convert using Curve Finance
