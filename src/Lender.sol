@@ -117,6 +117,8 @@ contract Lender {
     /// @notice emitted upon pausing or unpausing minting, lending and redeeming
     event PauseIlluminate(bool state);
 
+    fallback() external payable {} 
+    
     /// @notice ensures that only a certain address can call the function
     /// @param a address that msg.sender must be to be authorized
     modifier authorized(address a) {
