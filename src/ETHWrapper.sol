@@ -37,31 +37,37 @@ contract ETHWrapper {
     ) external payable returns (uint256, uint256) {
 
         // Instantiate Curve and determine Curve pathing
-        ICurve curve = ICurve(pool);  
+        ICurve curve = ICurve(pool);
+        uint256 returned;
         if (curve.coins(0) != input && curve.coins(1) != input) {
             revert('Input token is not supported by provided Curve Pool');
         }
         if (curve.coins(0) != output && curve.coins(1) != output) {
             revert('Output token is not supported by provided Curve Pool');
         }
+        try {
+            int128 _input;
+            int128 _output;
+            if (curve.coins(0) == input) {
+                _input = 0;
+                _output = 1;
+            } else {
+                _input = 1;
+                _output = 0;
+            }
 
-        int128 _input;
-        int128 _output;
-        if (curve.coins(0) == input) {
-            _input = 0;
-            _output = 1;
-        } else {
-            _input = 1;
-            _output = 0;
+            if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
+                returned = ICurve(pool).exchange{value: amount}(_input, _output, amount, minimum);
+            } else {
+                returned = ICurve(pool).exchange(_input, _output, amount, minimum);
+            }
         }
-
-        // Swap on curve, spending amount of input, expecting minimumCurve of output
-        // TODO support for Curve v2?
-        uint256 returned;
-        if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
-            returned = ICurve(pool).exchange{value: amount}(_input, _output, amount, minimum);
-        } else {
-            returned = ICurve(pool).exchange(_input, _output, amount, minimum);
+        catch {
+            if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
+                returned = ICurve(pool).exchange_with_best_rate{value: amount}(_input, _output, amount, minimum);
+            } else {
+                returned = ICurve(pool).exchange_with_best_rate(_input, _output, amount, minimum);
+            }
         }
         // TODO: Double check this calculation -- I derived it and checked the outputs on chain but worth a double check
         // conversionRatio is the denominator necessary to adjust other values to the same scale as the returned value
