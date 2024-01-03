@@ -94,7 +94,7 @@
 //             tokenInput
 //         );
 //     }
-
+//     uint256 max = type(uint256).max;
 //     function testLendUSDC() public {
 //         vm.startPrank(userPublicKey);
 //         uint256[] memory amount = new uint256[](1);
@@ -102,8 +102,8 @@
 
 //         Pendle.ApproxParams memory approxParams = Pendle.ApproxParams({
 //                 guessMin: 0,
-//                 guessMax: amount[0],
-//                 guessOffchain: 0,
+//                 guessMax: max,
+//                 guessOffchain: amount[0],
 //                 maxIteration: 256,
 //                 eps: (1e15)
 //         });

@@ -66,8 +66,8 @@ contract Lender {
     mapping(address => uint256) public fees;
     /// @notice maps a token address to a point in time, a hold, after which a withdrawal can be made
     mapping(address => uint256) public withdrawals;
-    /// @notice maps a lst address to a given Curve pool for swaps
-    mapping(address => address) public curvePools;
+    /// @notice address for the Curve "v2" Router
+    address public curveRouter;
 
     // Reantrancy protection
     uint256 private constant _NOT_ENTERED = 1;
@@ -237,13 +237,8 @@ contract Lender {
         return (true);
     }
 
-    function setCurvePool(address lst, address p) external authorized(admin) returns (bool) {
-        // Instantiate Curve and determine Curve pathing
-        ICurve curve = ICurve(p);  
-        if (curve.coins(0) != lst || curve.coins(1) != lst) {
-            revert('Input token is not supported by provided Curve Pool');
-        }
-        curvePools[lst] = p;
+    function setCurveRouter(address r) external authorized(admin) returns (bool) {
+        curveRouter = r;
         return (true);
     }
 
@@ -673,7 +668,7 @@ contract Lender {
     function swapETH(address lst, uint256 amount, uint256 swapMinimum) internal returns (uint256 lent, uint256 slippageRatio) {
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = ETHWrapper.delegatecall(
-            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', curvePools[lst], WETH, lst, amount, swapMinimum));
+            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', curveRouter, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, lst, amount, swapMinimum));
 
         if (!success) {
             revert Exception(99, 0, 0, address(0), address(0)); // TODO: assign exception
