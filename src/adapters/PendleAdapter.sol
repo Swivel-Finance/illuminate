@@ -139,6 +139,8 @@ contract PendleAdapter  {
             Pendle.ApproxParams memory approxParams,
             Pendle.TokenInput memory tokenInput
         ) = abi.decode(d, (uint256, address, Pendle.ApproxParams, Pendle.TokenInput));
+
+        tokenInput.netTokenIn = amount[0];
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
