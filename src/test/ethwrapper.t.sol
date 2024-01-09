@@ -105,4 +105,18 @@ contract ETHWrapperTest is Test {
                 )
             );
     }
+
+    function testUnwrapETH2() public payable
+    {
+        (bool success, bytes memory returnData) = address(ethWrapper).delegatecall(
+            abi.encodeWithSignature(
+                "swap(address,address,address,uint256,uint256)",
+                curveRouter,
+                stETH,
+                ETH,
+                1 ether/10,
+                0
+            )
+        );
+    }
 }

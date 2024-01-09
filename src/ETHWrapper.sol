@@ -18,7 +18,7 @@ contract ETHWrapper {
     constructor() {
     }
 
-    fallback() external payable {} 
+    fallback() external payable {}
 
     event TestEvent(address, address, uint256, uint256, string);
 
