@@ -72,6 +72,8 @@ contract Redeemer {
         bool state
     );
 
+    fallback() external payable {} 
+
     /// @notice ensures that only a certain address can call the function
     /// @param a address that msg.sender must be to be authorized
     modifier authorized(address a) {
@@ -252,7 +254,7 @@ contract Redeemer {
     // @param swapMinimum: The minimum amount of lst to receive
     // @returns lent: The amount of underlying to be lent
     // @returns slippageRatio: The slippageRatio of the swap (1e18 based % to adjust swivel orders if necessary)
-    function convert(address lst, uint256 amount, uint256 swapMinimum) external authorized(admin) returns (uint256 returned, uint256 slippageRatio) {
+    function convert(address lst, uint256 amount, uint256 swapMinimum) external payable authorized(admin) returns (uint256 returned, uint256 slippageRatio) {
         address ETHWrapper = ILender(lender).ETHWrapper();
 
         // Conduct the lend operation to acquire principal tokens

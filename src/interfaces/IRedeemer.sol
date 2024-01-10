@@ -15,7 +15,7 @@ interface IRedeemer {
 
     function redeem(address u, uint256 m) external returns (uint256);
 
-    function convert(address lst, uint256 amount, uint256 swapMinimum) external returns (uint256 returned, uint256 slippageRatio);
+    function convert(address lst, uint256 amount, uint256 swapMinimum) external payable returns (uint256 returned, uint256 slippageRatio);
 
     function approve(address p) external;
 

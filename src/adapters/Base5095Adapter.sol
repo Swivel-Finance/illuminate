@@ -118,7 +118,7 @@ contract TermAdapter is IAdapter {
         uint256[] calldata amount,
         bool internalBalance,
         bytes calldata d
-    ) external returns (uint256, uint256, uint256) {
+    ) external payable returns (uint256, uint256, uint256) {
 
         return (0,0,0);
     }

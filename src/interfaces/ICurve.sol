@@ -3,11 +3,11 @@ pragma solidity 0.8.20;
 
 interface ICurve {
     function exchange(
-        uint256,
-        uint256,
+        int128,
+        int128,
         uint256,
         uint256
-    ) external returns (uint256);
+    ) external payable returns (uint256);
 
     function get_dy(uint256, uint256, uint256) external returns (uint256);
 
@@ -15,21 +15,10 @@ interface ICurve {
 }
 
 interface ICurveV2 {
-    function exchange(
-        address,
-        address,
-        address,
-        uint256,
-        uint256,
-        address
-    ) external payable returns (uint256);
-
     function exchange_with_best_rate(
         address,
         address,
-        address,
         uint256,
-        uint256,
-        address
+        uint256
     ) external payable returns (uint256);
 }

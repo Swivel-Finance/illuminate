@@ -18,6 +18,10 @@ contract ETHWrapper {
     constructor() {
     }
 
+    fallback() external payable {}
+
+    event TestEvent(address, address, uint256, uint256, string);
+
     /// @notice convert using Curve Finance
     /// @notice expects funds already sent to this contract
     /// @param input address of the token to be spent on Curve
@@ -33,32 +37,52 @@ contract ETHWrapper {
     ) external payable returns (uint256, uint256) {
 
         // Instantiate Curve and determine Curve pathing
-        ICurve curve = ICurve(pool);  
-        if (curve.coins(0) != input && curve.coins(1) != input) {
+        ICurve curve = ICurve(pool);
+        uint256 returned;
+        // Efficient try/catch for CurveV1 vs CurveV2
+        (bool success, bytes memory returnData) = pool.staticcall(abi.encodeWithSignature("coins(uint256)", 0));
+        if (success && returnData.length == 32) {
+            address coin = abi.decode(returnData, (address));
+            if (coin != input && curve.coins(1) != input) {
             revert('Input token is not supported by provided Curve Pool');
+            }
+            if (coin != output && curve.coins(1) != output) {
+                revert('Output token is not supported by provided Curve Pool');
+            }
+            // Map input and output to Curve pool
+            int128 _input;
+            int128 _output;
+            if (coin == input) {
+                _input = 0;
+                _output = 1;
+            } else {
+                _input = 1;
+                _output = 0;
+            }
+            // Swap on Curve pool depending on ETH input
+            if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
+                returned = ICurve(pool).exchange{value: amount}(_input, _output, amount, minimum);
+            } else {
+                returned = ICurve(pool).exchange(_input, _output, amount, minimum);
+            }
         }
-        if (curve.coins(0) != output && curve.coins(1) != output) {
-            revert('Output token is not supported by provided Curve Pool');
+        else {
+            // Swap on Curve v2 router depending on ETH input
+            if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
+                returned = ICurveV2(pool).exchange_with_best_rate{value: amount}(input, output, amount, minimum);
+            } else {
+                returned = ICurveV2(pool).exchange_with_best_rate(input, output, amount, minimum);
+            }
         }
-
-        uint256 _input;
-        uint256 _output;
-        if (curve.coins(0) == input) {
-            _input = 0;
-            _output = 1;
-        } else {
-            _input = 1;
-            _output = 0;
-        }
-
-        // Swap on curve, spending amount of input, expecting minimumCurve of output
-        // TODO support for Curve v2?
-        uint256 returned = ICurve(pool).exchange(_input, _output, amount, minimum);
         // TODO: Double check this calculation -- I derived it and checked the outputs on chain but worth a double check
-        // slippageRatio is the denominator necessary to adjust other values to the same scale as the returned value
-        uint256 slippageRatio = 1e18 / ((amount - returned) * 1e18 / amount);
-
-        return (returned, slippageRatio);
-
+        // conversionRatio is the denominator necessary to adjust other values to the same scale as the returned value
+        uint256 conversionRatio;
+        if (returned > amount) {
+            conversionRatio = 1e18 / ((returned - amount) * 1e18 / amount);
+        }
+        else {
+            conversionRatio = 1e18 / ((amount - returned) * 1e18 / amount);
+        }
+        return (returned, conversionRatio);
     }
 }
