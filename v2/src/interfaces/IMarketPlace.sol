@@ -8,14 +8,11 @@ interface IMarketPlace {
         Illuminate, // 0
         Swivel, // 1
         Yield, // 2
-        Element, // 3
-        Pendle, // 4
-        Tempus, // 5
-        Sense, // 6
-        Apwine, // 7
-        Notional, // 8
-        Term, // 9
-        Swivelv3 //10
+        Pendle, // 3
+        Apwine, // 4
+        Notional, // 5
+        Exactly, // 6
+        Term // 7
     }
     
     struct Market {
