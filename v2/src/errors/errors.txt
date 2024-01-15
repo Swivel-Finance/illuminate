@@ -1,0 +1,37 @@
+The implicit Errors enum:
+
+[
+  'unauthorized', 0
+  'paused', 1
+  'incorrect maturity', 2
+  'incorrect underlying', 3
+  'array length mismatch', 4
+  'marketplace already set', 5
+  'invalid principal', 6
+  'market not matured', 7
+  'lender already set', 8
+  'market already exists', 9
+  'pool already exists', 10
+  'principal tokens not received', 11
+  'pool does not match principal token', 12
+  'underlying tokens not received', 13
+  'minimum fee not paid', 14
+  'zc token redemption failed', 15
+  'too much slippage', 16
+  'redemptions paused', 17
+  'no withdrawal scheduled', 18
+  'withdrawal still on hold', 19
+  'insufficient allowance', 20
+  'market is past maturity', 21
+  'decimals do not match', 22
+  'fee change is not scheduled', 23
+  'fee change is not ready yet', 24
+  'fee is set too high', 25
+  'principal token not set', 26
+  'pool does not match underlying token', 27
+  'compound redeem returned error', 28
+  'invalid periphery contract', 29
+  'reentrancy not allowed', 30
+  'rate limit exceeded for protocol', 31
+  'illuminate PTs may not be minted', 32
+]
