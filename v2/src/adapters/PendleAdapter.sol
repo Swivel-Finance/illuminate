@@ -43,6 +43,11 @@ contract PendleAdapter  {
         return IPendleToken(pt).expiry();
     }
 
+    // @notice returns the protocol enum of this given adapter
+    function protocol() public view returns (uint8) {
+        return (3);
+    }
+
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
     // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
     // @returns market The address of the market to interact with on Pendle
@@ -61,11 +66,6 @@ contract PendleAdapter  {
     function redeemABI(
     ) public pure returns (
         Pendle.TokenOutput memory tokenOutput) {
-    }
-
-    // @notice returns the protocol enum of this given adapter
-    function protocol() public view returns (uint8) {
-        return (4);
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting
