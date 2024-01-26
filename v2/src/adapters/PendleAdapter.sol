@@ -65,7 +65,7 @@ contract PendleAdapter  {
 
     // @notice returns the protocol enum of this given adapter
     function protocol() public view returns (uint8) {
-        return (4);
+        return (3);
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting

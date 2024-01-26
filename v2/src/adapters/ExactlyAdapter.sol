@@ -42,7 +42,7 @@ contract ExactlyAdapter is IAdapter {
 
     // @notice returns the protocol enum of this given adapter
     function protocol() public view returns (uint8) {
-        return (10);
+        return (6);
     }
 
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
