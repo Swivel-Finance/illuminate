@@ -31,10 +31,10 @@ contract MarketPlace {
         Yield, // 2
         Element, // 3
         Pendle, // 4
-        Tempus, // 5
-        Sense, // 6
-        Apwine, // 7
-        Notional // 8
+        Apwine, // 5
+        Notional, // 6
+        Exactly, // 7
+        Term // 8
     }
 
     struct Market {

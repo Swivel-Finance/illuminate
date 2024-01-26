@@ -10,12 +10,10 @@ interface IMarketPlace {
         Yield, // 2
         Element, // 3
         Pendle, // 4
-        Tempus, // 5
-        Sense, // 6
-        Apwine, // 7
-        Notional, // 8
-        Term, // 9
-        Swivelv3 //10
+        Apwine, // 5
+        Notional, // 6
+        Exactly, // 7
+        Term // 8
     }
     
     struct Market {
