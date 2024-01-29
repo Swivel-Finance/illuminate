@@ -140,7 +140,9 @@ contract PendleAdapter  {
             Pendle.TokenInput memory tokenInput
         ) = abi.decode(d, (uint256, address, Pendle.ApproxParams, Pendle.TokenInput));
 
-        tokenInput.netTokenIn = amount[0];
+        uint256 fee = amount[0] / ILender(lender).feenominator(maturity_);
+
+        tokenInput.netTokenIn = amount[0] - fee;
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees

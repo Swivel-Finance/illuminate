@@ -34,4 +34,6 @@ interface ILender {
     function convertDecimals(address, address, uint256) external view returns (uint256);
 
     function principalApprove(address[] calldata pt) external returns (bool);
+
+    function fees(address token) external returns (uint256);
 }

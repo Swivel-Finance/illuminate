@@ -132,7 +132,7 @@ contract NotionalAdapter is IAdapter {
 
         // Execute the order
         uint256 starting = IERC20(pt).balanceOf(address(this));
-        INotional(pt).deposit(amount[0], address(this));
+        INotional(pt).deposit(amount[0]-fee, address(this));
         uint256 received = IERC20(pt).balanceOf(address(this)) - starting;
 
         return (received, amount[0], fee);

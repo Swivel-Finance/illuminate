@@ -6,4 +6,4 @@ solc = "0.8.20"
 eth-rpc-url = "${RPC_URL}"
 gas_reports = ["*"]
 via_ir = false
-
+evm_version = 'shanghai'

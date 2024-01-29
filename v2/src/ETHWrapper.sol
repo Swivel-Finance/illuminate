@@ -8,7 +8,8 @@ import "./errors/Exception.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC5095.sol";
 import "./interfaces/ICurve.sol";
-
+import "./interfaces/IWETH.sol";
+import "./interfaces/IeETH.sol";
 
 /// @title ETHWrapper
 /// @author Julian Traversa
@@ -69,7 +70,41 @@ contract ETHWrapper {
         else {
             // Swap on Curve v2 router depending on ETH input
             if (input == 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE) {
+                // if eETH, wrap to WETH before swap, unwrap WeETH to eETH after swap
+                if (output == 0x35fA164735182de50811E8e2E824cFb9B6118ac2) {
+                    // Wrap eth to WETH
+                    IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2).deposit{value: amount}();
+                    // Override inputs and outputs with WETH and weETH
+                    input = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+                    output = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
+                    emit TestEvent(input, output, amount, minimum, "WETH");
+                                // Map input and output to Curve pool
+                    pool = 0x13947303F63b363876868D070F14dc865C36463b;
+                    curve = ICurve(pool);
+                    address coin = curve.coins(0);
+                    if (coin != input && curve.coins(1) != input) {
+                    revert('Input token is not supported by provided Curve Pool');
+                    }
+                    if (coin != output && curve.coins(1) != output) {
+                        revert('Output token is not supported by provided Curve Pool');
+                    }
+                    // Map input and output to Curve pool
+                    int128 _input;
+                    int128 _output;
+                    if (coin == input) {
+                        _input = 0;
+                        _output = 1;
+                    } else {
+                        _input = 1;
+                        _output = 0;
+                    }
+                    returned = ICurve(pool).exchange(_input, _output, amount, minimum);
+                    // unwrap to eETH
+                    returned = IeETH(output).unwrap(returned);
+                }
+                else {
                 returned = ICurveV2(pool).exchange_with_best_rate{value: amount}(input, output, amount, minimum);
+                }
             } else {
                 returned = ICurveV2(pool).exchange_with_best_rate(input, output, amount, minimum);
             }
