@@ -598,28 +598,13 @@ contract Lender {
         }
         // If the lst parameter is populated, swap into the requested lst
         else {
-            // If the protocol is Swivel, adjust the lent amounts according to the slippageRatio
-                // Sum the amounts to be spent
-            if (p == uint8(IMarketPlace.Principals.Swivelv3) || p == uint8(IMarketPlace.Principals.Swivel)) {
-                uint256 total;
-                for (uint256 i; i != a.length; ) {
-                    total += a[i];
-                    unchecked {
-                        ++i;
-                    }
-                }
-                spent = total;
-                require (msg.value >= total, 'Insufficient ETH');
-                (, uint256 slippageRatio) = swapETH(lst, total, swapMinimum);
-                a = adjustSwivelAmounts(a, slippageRatio);
-            }
-            // If the protocol is not Swivel, swap the input `a[0]` and overwrite a[0] with the returned lend amount
-            else {
-                (uint256 lent, ) = swapETH(lst, a[0], swapMinimum);
-                spent = a[0];
-                a[0] = lent;
-                require (msg.value >= spent, 'Insufficient ETH');
-            }
+
+            (uint256 lent, ) = swapETH(lst, a[0], swapMinimum);
+            spent = a[0];
+            a[0] = lent;
+            emit TestEvent (a[0], spent);
+            require (msg.value >= spent, 'Insufficient ETH');
+            emit TestEvent(a[0], spent);
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, true, d));
@@ -634,7 +619,12 @@ contract Lender {
             (uint256, uint256, uint256)
         );
 
-        fees[u] += fee;
+        if (lst == 0x35fA164735182de50811E8e2E824cFb9B6118ac2) {
+            fees[0x35fA164735182de50811E8e2E824cFb9B6118ac2] += fee;
+        }
+        else {
+            fees[u] += fee;
+        }
 
         // Convert decimals from principal token to underlying
         uint256 returned = convertDecimals(u, _Market.tokens[p], obtained);
@@ -658,7 +648,7 @@ contract Lender {
         }
         return (amounts);
     }
-
+    event TestEvent(uint256, uint256);
     // @notice: Handles all necessary ETH swaps when lending
     // @param lst: The address of the token to swap to
     // @param amount: The amount of underlying to spend
@@ -676,7 +666,7 @@ contract Lender {
 
         // Get the amount of PTs (in protocol decimals) received
         (lent, slippageRatio) = abi.decode(returndata,(uint256, uint256));
-
+        emit TestEvent(lent, slippageRatio);
         return (lent, slippageRatio);
     }
 

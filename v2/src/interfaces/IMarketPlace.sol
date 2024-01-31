@@ -6,7 +6,6 @@ interface IMarketPlace {
     
     enum Principals {
         Illuminate, // 0
-        Swivel, // 1
         Yield, // 2
         Pendle, // 3
         Apwine, // 4
@@ -14,7 +13,7 @@ interface IMarketPlace {
         Exactly, // 6
         Term // 7
     }
-    
+
     struct Market {
         address[] tokens;
         address pool;

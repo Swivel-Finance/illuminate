@@ -295,15 +295,16 @@ contract Redeemer {
         {
             // Verify that the PT has matured
             (bool success, bytes memory returndata) = adapter.delegatecall(
-                abi.encodeWithSignature('maturity()', '')
+                abi.encodeWithSignature('maturity(address)', pt)
             );
             if (!success) {
-                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add maturity retrieval failure code
+                revert Exception(0, 0, 0, address(adapter), address(0)); 
             }
 
             uint256 ptMaturity = abi.decode(returndata, (uint256));
+            emit TestEvent(ptMaturity, block.timestamp);
             if (block.timestamp < ptMaturity) {
-                revert Exception(0, 0, 0, address(0), address(0)); // TODO: add failed to mature code
+                revert Exception(0, block.timestamp, ptMaturity, address(0), address(0)); 
             }
         }
 
@@ -327,11 +328,12 @@ contract Redeemer {
 
             // Conduct the redemption via the adapter
             (bool success, ) = adapter.delegatecall(
-                abi.encodeWithSignature('redeem(uint256,address,uint256,bool,bytes)', u, m, amount, true, d)
+                abi.encodeWithSignature('redeem(address,uint256,uint256,bool,bytes)', u, m, amount, true, d)
             );
             if (!success) {
                 revert Exception(0, 0, 0, address(0), address(0)); // TODO: add error code
             }
+        
             // Calculate how much underlying was redeemed
             redeemed = IERC20(u).balanceOf(address(this)) - starting;
 

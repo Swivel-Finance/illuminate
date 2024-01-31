@@ -134,7 +134,7 @@ contract ExactlyAdapter is IAdapter {
         ) = abi.decode(d, (uint256, uint256));
         
         address exactlyToken = IMarketPlace(marketplace).markets(underlying_, maturity_).tokens[protocol()];
-
+        uint256 fee = amount[0] / ILender(lender).feenominator(maturity_);
         if (internalBalance == false){
             // Receive underlying funds, extract fees
             Safe.transferFrom(
@@ -144,10 +144,10 @@ contract ExactlyAdapter is IAdapter {
                 amount[0]
             );
         }
-        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0], minimumAssets, address(this));
+        (uint256 returned) = IExactly(exactlyToken).depositAtMaturity(exactlyMaturity, amount[0]-fee, minimumAssets, address(this));
         // TODO: consider changing address(this) to the redeemer if transfer isnt possible 
 
-        return (returned, amount[0], amount[0] / ILender(lender).feenominator(maturity_));
+        return (returned, amount[0], fee);
     }
 
     // @notice After maturity, redeem `amount` of the underlying token from the X protocol

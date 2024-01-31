@@ -43,6 +43,11 @@ contract PendleAdapter  {
         return IPendleToken(pt).expiry();
     }
 
+    // @notice returns the protocol enum of this given adapter
+    function protocol() public view returns (uint8) {
+        return (3);
+    }
+
     // @notice lendABI "returns" the arguments required in the bytes `d` for the lend function
     // @returns minimum The minimum amount of the PTs to receive when spending (amount - fee)
     // @returns market The address of the market to interact with on Pendle
@@ -140,7 +145,9 @@ contract PendleAdapter  {
             Pendle.TokenInput memory tokenInput
         ) = abi.decode(d, (uint256, address, Pendle.ApproxParams, Pendle.TokenInput));
 
-        tokenInput.netTokenIn = amount[0];
+        uint256 fee = amount[0] / ILender(lender).feenominator(maturity_);
+
+        tokenInput.netTokenIn = amount[0] - fee;
         
         if (internalBalance == false){
             // Receive underlying funds, extract fees
