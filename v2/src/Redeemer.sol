@@ -15,6 +15,7 @@ import "./interfaces/IAPWineToken.sol";
 import "./interfaces/ILender.sol";
 import "./interfaces/IConverter.sol";
 import "./interfaces/IETHWrapper.sol";
+import "./interfaces/IWETH.sol";
 
 /// @title Redeemer
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -259,11 +260,13 @@ contract Redeemer {
 
         // Conduct the lend operation to acquire principal tokens
         (bool success, bytes memory returndata) = ETHWrapper.delegatecall(
-            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', ILender(lender).curvePools(lst), lst, ILender(lender).WETH(), amount, swapMinimum));
+            abi.encodeWithSignature('swap(address,address,address,uint256,uint256)', ILender(lender).curvePools(lst), lst, 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE, amount, swapMinimum));
 
         if (!success) {
             revert Exception(0, 0, 0, address(0), address(0)); // TODO: assign exception
         }
+
+        IWETH(ILender(lender).WETH()).deposit{value: address(this).balance}();
 
         // Get the amount of PTs (in protocol decimals) received
         (returned, slippageRatio) = abi.decode(returndata,(uint256, uint256));
