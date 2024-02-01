@@ -26,8 +26,6 @@ contract PendleAdapter  {
 
     mapping (address => bool) private isTokenValid;
 
-    event TestEvent(address, address, uint256, uint256, string);
-
     error TestException(address, address, uint256, uint256, string);
 
     // @notice returns the address of the underlying token for the PT
@@ -66,11 +64,6 @@ contract PendleAdapter  {
     function redeemABI(
     ) public pure returns (
         Pendle.TokenOutput memory tokenOutput) {
-    }
-
-    // @notice returns the protocol enum of this given adapter
-    function protocol() public view returns (uint8) {
-        return (3);
     }
 
     // @notice verifies that the provided underlying and maturity align with the provided PT address, enabling minting

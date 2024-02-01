@@ -23,8 +23,6 @@ contract NotionalAdapter is IAdapter {
 
     mapping (address => bool) private isTokenValid;
 
-    event TestEvent(address, address, uint256, uint256, string);
-
     error TestException(address, address, uint256, uint256, string);
 
     // @notice returns the address of the underlying token for the PT

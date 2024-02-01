@@ -600,9 +600,7 @@ contract Lender {
             (uint256 lent, ) = swapETH(lst, a[0], swapMinimum);
             spent = a[0];
             a[0] = lent;
-            emit TestEvent (a[0], spent);
             require (msg.value >= spent, 'Insufficient ETH');
-            emit TestEvent(a[0], spent);
             // Conduct the lend operation to acquire principal tokens
             (success, returndata) = IMarketPlace(marketplace).adapters(p).delegatecall(
                 abi.encodeWithSignature('lend(address,uint256,uint256[],bool,bytes)', u, m, a, true, d));
@@ -646,7 +644,7 @@ contract Lender {
         }
         return (amounts);
     }
-    event TestEvent(uint256, uint256);
+
     // @notice: Handles all necessary ETH swaps when lending
     // @param lst: The address of the token to swap to
     // @param amount: The amount of underlying to spend
@@ -664,7 +662,6 @@ contract Lender {
 
         // Get the amount of PTs (in protocol decimals) received
         (lent, slippageRatio) = abi.decode(returndata,(uint256, uint256));
-        emit TestEvent(lent, slippageRatio);
         return (lent, slippageRatio);
     }
 

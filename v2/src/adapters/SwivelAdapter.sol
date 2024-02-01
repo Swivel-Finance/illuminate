@@ -27,9 +27,6 @@ contract SwivelAdapter is IAdapter {
 
     mapping (address => bool) private isTokenValid;
 
-    // An event that can emit most params from the lend function
-    event TestEvent(address, uint256, address, uint256, bool, string);
-
     // @notice returns the address of the underlying token for the PT
     // @param pt The address of the PT
     function underlying(address pt) public view returns (address) {
