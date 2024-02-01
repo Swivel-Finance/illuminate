@@ -21,8 +21,6 @@ contract ETHWrapper {
 
     fallback() external payable {}
 
-    event TestEvent(address, address, uint256, uint256, string);
-
     /// @notice convert using Curve Finance
     /// @notice expects funds already sent to this contract
     /// @param input address of the token to be spent on Curve
@@ -77,7 +75,6 @@ contract ETHWrapper {
                     // Override inputs and outputs with WETH and weETH
                     input = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
                     output = 0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee;
-                    emit TestEvent(input, output, amount, minimum, "WETH");
                                 // Map input and output to Curve pool
                     pool = 0x13947303F63b363876868D070F14dc865C36463b;
                     curve = ICurve(pool);

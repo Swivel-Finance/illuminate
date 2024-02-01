@@ -48,7 +48,8 @@ contract Redeemer {
     mapping(address => mapping(uint256 => bool)) public paused;
     // @notice mapping that provides the address of the converter contract for a given uint8
     mapping(uint8 => address) public converters;
-
+    /// @notice maps a token address to a point in time, a hold, after which a withdrawal can be made
+    mapping(address => uint256) public withdrawals;
     /// @notice emitted upon redemption of a loan
     event Redeem(
         uint8 principal,
@@ -66,6 +67,10 @@ contract Redeemer {
     event SetFee(uint256 indexed fee);
     /// @notice emitted upon scheduling a fee change
     event ScheduleFeeChange(uint256 when);
+    /// @notice emitted upon scheduling a withdrawal
+    event ScheduleWithdrawal(address indexed token, uint256 hold);
+    /// @notice emitted upon blocking a scheduled withdrawal
+    event BlockWithdrawal(address indexed token);
     /// @notice emitted upon pausing of Illuminate PTs
     event PauseRedemptions(
         address indexed underlying,
@@ -196,6 +201,62 @@ contract Redeemer {
         return (true);
     }
 
+    /// @notice allows the admin to schedule the withdrawal of tokens
+    /// @param e address of (erc20) token to withdraw
+    /// @return bool true if successful
+    function scheduleWithdrawal(
+        address e
+    ) external authorized(admin) returns (bool) {
+        // Calculate the timestamp that must be passed prior to withdrawal
+        uint256 when = block.timestamp + hold;
+
+        // Set the timestamp threshold for the token being withdrawn
+        withdrawals[e] = when;
+
+        emit ScheduleWithdrawal(e, when);
+        return (true);
+    }
+
+    /// @notice emergency function to block unplanned withdrawals
+    /// @param e address of token withdrawal to block
+    /// @return bool true if successful
+    function blockWithdrawal(
+        address e
+    ) external authorized(admin) returns (bool) {
+        // Resets threshold to 0 for the token, stopping withdrawl of the token
+        delete withdrawals[e];
+
+        emit BlockWithdrawal(e);
+        return (true);
+    }
+
+    /// @notice allows the admin to withdraw the given token, provided the holding period has been observed
+    /// @param e Address of token to withdraw
+    /// @return bool true if successful
+    function withdraw(address e) external authorized(admin) returns (bool) {
+        // Get the minimum timestamp to withdraw the token
+        uint256 when = withdrawals[e];
+
+        // Check that the withdrawal was scheduled for the token
+        if (when == 0) {
+            revert Exception(18, 0, 0, address(0), address(0));
+        }
+
+        // Check that it is now past the scheduled timestamp for withdrawing the token
+        if (block.timestamp < when) {
+            revert Exception(19, 0, 0, address(0), address(0));
+        }
+
+        // Reset the scheduled withdrawal
+        delete withdrawals[e];
+
+        // Send the token to the admin
+        IERC20 token = IERC20(e);
+        Safe.transfer(token, admin, token.balanceOf(address(this)));
+
+        return (true);
+    }
+
     /// @notice allows admin to stop redemptions of Illuminate PTs for a given market
     /// @param u address of an underlying asset
     /// @param m maturity (timestamp) of the market
@@ -302,7 +363,6 @@ contract Redeemer {
             }
 
             uint256 ptMaturity = abi.decode(returndata, (uint256));
-            emit TestEvent(ptMaturity, block.timestamp);
             if (block.timestamp < ptMaturity) {
                 revert Exception(0, block.timestamp, ptMaturity, address(0), address(0)); 
             }

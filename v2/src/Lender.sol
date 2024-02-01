@@ -48,8 +48,6 @@ contract Lender {
     /// @notice WETH address
     address public immutable WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    error TestException(address, address, uint256, uint256, string);
-
     /// @notice protocol specific addresses that adapters reference when executing lends
     /// @dev these addresses are references by an implied enum; adapters hardcode the index for their protocol
     address[] public protocolRouters; // 1 = Swivel | 2 = Pendle | 3 = APWine | 4+ = Unused as of 11/1/23
@@ -702,23 +700,6 @@ contract Lender {
                 ++i;
             }
         }
-    }
-
-    /// @notice returns array token path required for APWine's swap method
-    /// @return array of uint256[] as laid out in APWine's docs
-    function apwineTokenPath() internal pure returns (uint256[] memory) {
-        uint256[] memory tokenPath = new uint256[](2);
-        tokenPath[0] = 1;
-        tokenPath[1] = 0;
-        return (tokenPath);
-    }
-
-    /// @notice returns array pair path required for APWine's swap method
-    /// @return array of uint256[] as laid out in APWine's docs
-    function apwinePairPath() internal pure returns (uint256[] memory) {
-        uint256[] memory pairPath = new uint256[](1);
-        pairPath[0] = 0;
-        return (pairPath);
     }
 
     /// @notice retrieves the ERC5095 token for the given market
