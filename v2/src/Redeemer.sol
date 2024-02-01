@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.20;
 
-import "./MarketPlace.sol";
+
 
 import "./lib/Safe.sol";
 import "./errors/Exception.sol";
@@ -16,6 +16,7 @@ import "./interfaces/ILender.sol";
 import "./interfaces/IConverter.sol";
 import "./interfaces/IETHWrapper.sol";
 import "./interfaces/IWETH.sol";
+import "./interfaces/IMarketPlace.sol";
 
 /// @title Redeemer
 /// @author Sourabh Marathe, Julian Traversa, Rob Robbins
@@ -417,7 +418,7 @@ contract Redeemer {
     function redeem(address u, uint256 m) external unpaused(u, m) returns (uint256) {
         // Get Illuminate's principal token for this market
         IERC5095 token = IERC5095(
-            IMarketPlace(marketplace).adapters(uint8(MarketPlace.Principals.Illuminate))
+            IMarketPlace(marketplace).adapters(uint8(IMarketPlace.Principals.Illuminate))
             );
 
         // Verify the token has matured
